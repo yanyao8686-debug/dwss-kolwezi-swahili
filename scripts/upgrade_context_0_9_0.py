@@ -77,19 +77,19 @@ input,textarea,select{accent-color:#2459a5}
     if "</style>" not in html:
         raise SystemExit("index.html has no style close tag for interface layer")
     html = html.replace("</style>", css + "\n</style>", 1)
-html = re.sub(r"版本 0\\.6\\.11[^<]*", "版本 0.9.0 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.6\.11[^<]*", "版本 0.9.0 · DWSS 智能翻译 PWA", html, count=1)
 html_path.write_text(html, encoding="utf-8")
 
 sw_path = PUBLIC / "sw.js"
 sw = sw_path.read_text(encoding="utf-8")
-sw, count = re.subn(r"const APP_VERSION = '0\\.6\\.11';", "const APP_VERSION = '0.9.0';", sw, count=1)
+sw, count = re.subn(r"const APP_VERSION = '0\.6\.11';", "const APP_VERSION = '0.9.0';", sw, count=1)
 if "const APP_VERSION = '0.9.0';" not in sw:
     raise SystemExit("Could not bump service-worker cache version to 0.9.0")
 sw_path.write_text(sw, encoding="utf-8")
 
 version_path = PUBLIC / "VERSION.txt"
 version = version_path.read_text(encoding="utf-8") if version_path.exists() else ""
-version, count = re.subn(r"Version: 0\\.6\\.11", "Version: 0.9.0", version, count=1)
+version, count = re.subn(r"Version: 0\.6\.11", "Version: 0.9.0", version, count=1)
 if count == 0:
     version = "DWSS 科卢韦齐斯瓦希里语助手\nVersion: 0.9.0\nBuild: 2026-10-27\n"
 version_path.write_text(version, encoding="utf-8")
