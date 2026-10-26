@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy.yml'
-      - 'DWSS_PWA_0.6.3_GitHubPages_发布包.zip'
+      - 'DWSS_PWA_0.6.3_GitHubPages*.zip'
   workflow_dispatch:
 
 permissions:
@@ -34,7 +34,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ARCHIVE="DWSS_PWA_0.6.3_GitHubPages_发布包.zip"
+          shopt -s nullglob
+          archives=(DWSS_PWA_0.6.3_GitHubPages*.zip)
+          if [ "${#archives[@]}" -ne 1 ]; then
+            echo "Expected exactly one DWSS 0.6.3 ZIP; found ${#archives[@]}."
+            printf '%s\n' "${archives[@]}"
+            exit 1
+          fi
+          ARCHIVE="${archives[0]}"
           test -s "$ARCHIVE"
           unzip -t "$ARCHIVE" >/dev/null
           mkdir -p public
@@ -45,7 +52,7 @@ jobs:
           test -s public/dictionary.js.gz
           test -s public/french-fallback.js
           test -s public/VERSION.txt
-          grep -q "Version: 0.6.3" public/VERSION.txt
+          grep -Fq "Version: 0.6.3" public/VERSION.txt
           touch public/.nojekyll
 
       - name: Upload Pages artifact
