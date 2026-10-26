@@ -235,7 +235,7 @@ jobs:
            if(!candidates.length)return \`<div class="recommendation-box"><div class="recommendation-title">相关候选</div><div class="candidate-intro">暂未找到可靠候选，可换种说法或补充词条。</div></div>\`;
            return \`<div class="recommendation-box"><div class="recommendation-title">相关候选</div><div class="candidate-intro">仅供参考 · 选择后替换并重新翻译</div><div class="recommendation-list">\${candidates.map(c=>\`<div class="recommendation-item"><div class="recommendation-main"><b>\${esc(c.item.zh)}</b><span>\${esc(c.reading)}</span><div class="candidate-meta">\${esc(c.kind)} · \${esc(c.contextLabel)}\${c.reading&&!c.reading.startsWith('拉丁拼写：')?' · 读音待核':''}</div><details class="candidate-extra"><summary>更多信息</summary><div>\${esc(c.note||'请结合上下文确认')} · 来源：\${esc(c.source)}</div></details></div><button class="soft mini" type="button" data-recommend-start="\${Number(segment.start)||0}" data-recommend-end="\${Number(segment.end)||0}" data-recommend-target="\${esc(c.item.zh)}">替换</button></div>\`).join('')}</div></div>\`;
           }'''
-          new_recommend = new_recommend.replace("\\\\`", "`").replace("\\\\${", "${")
+          new_recommend = new_recommend.replace("\\`", "`").replace("\\${", "${")
           app, n = re.subn(r"function renderUnknownRecommendations\(segment,contextText=''\)\{.*?\n\}", lambda _: new_recommend, app, count=1, flags=re.S)
           if n != 1:
               raise SystemExit(f"Recommendation renderer: expected one function, found {n}")
@@ -256,7 +256,7 @@ jobs:
             if(s.type==='latinOnly')return \`<div class="seg unknown"><div class="zh">\${esc(s.zh)}</div><div class="rd">\${esc(s.latin.join(' / '))}<div class="src">中文谐音待补</div></div></div>\`;
             return \`<div class="seg unknown"><div class="zh">\${esc(s.text)}</div><div class="rd">未收录 · 暂不自动猜译\${renderUnknownRecommendations(s,raw)}</div></div>\`;
            }).join('')||'<div class="nores">没有匹配词条</div>';'''
-          new_segment = new_segment.replace("\\\\`", "`").replace("\\\\${", "${")
+          new_segment = new_segment.replace("\\`", "`").replace("\\${", "${")
           app, n = re.subn(segment_pattern, lambda _: new_segment, app, count=1, flags=re.S)
           if n != 1:
               raise SystemExit(f"Segment renderer: expected one block, found {n}")
@@ -265,7 +265,7 @@ jobs:
               ("当地词条 \${r.localHits} 段 · 法语补位 \${r.frenchHits} 段 · 未收录 \${r.unknownChars} 字", "本地 \${r.localHits} · 法语 \${r.frenchHits} · 未收录 \${r.unknownChars}", "match chip"),
               ("输入中文后，显示当地斯语命中、法语补位和仍未收录的部分。", "输入后显示匹配结果与未收录内容。", "empty result hint")
           ]:
-              old = old.replace("\\\\${", "${")
+              old = old.replace("\\${", "${")
               new = new.replace("\\\\${", "${")
               if old not in app:
                   raise SystemExit(f"Missing app copy: {label}")
