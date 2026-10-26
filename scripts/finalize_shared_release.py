@@ -153,11 +153,103 @@ rr=re.search(r"window\\.SW_FRENCH_READINGS\\s*=\\s*(\\{.*?\\})\\s*;",fp,re.S)
 fp=fp[:rr.start()]+"window.SW_FRENCH_READINGS = "+json.dumps(fr,ensure_ascii=False,separators=(",",":"))+";"+fp[rr.end():]
 write("french-fallback.js",fp)
 app=read("app.js")
-old="if(phraseFr && !found && phraseFr.key.length>foundLen){"
-if old in app:
-    app=app.replace(old,"if(phraseFr && phraseFr.key.length>foundLen){",1)
-elif "if(phraseFr && phraseFr.key.length>foundLen){" not in app:
-    raise SystemExit("French phrase precedence anchor missing")
+if app is None:
+    raise SystemExit("app.js is missing")
+# Mark the provenance of each local record so pronunciation selection follows the required tiers.
+app=app.replace("version:'0.6.5'", "version:'0.6.6'")
+app=app.replace(
+ "variants:(item.variants||[]).map(v=>({...v}))",
+ "variants:(item.variants||[]).map(v=>({...v,origin:'builtin'}))"
+)
+app=app.replace(
+ "else grouped.get(k).variants.push(...(item.variants||[]).map(v=>({...v})));",
+ "else grouped.get(k).variants.push(...(item.variants||[]).map(v=>({...v,origin:'builtin'})));"
+)
+app=app.replace("customId:c.id});", "customId:c.id,origin:'personal'});")
+app=app.replace(
+ "sharedId:c.id||c.client_submit_id||''",
+ "sharedId:c.id||c.client_submit_id||'', origin:'shared'"
+)
+old_helpers="""function localReadingVariant(item){return (item.variants||[]).find(v=>v.reading)||null;}
+function localLatinVariants(item){return (item.variants||[]).map(v=>v.latin).filter(Boolean);}"""
+new_helpers="""function preferredLocalVariants(item){
+ const variants=(item.variants||[]).filter(v=>v.reading||v.latin);
+ // Priority is fixed: the two original source files, then community-shared local Swahili,
+ // then personal local additions. French is never treated as a local-language hit.
+ for(const origin of ['builtin','shared','personal']){
+  const tier=variants.filter(v=>v.origin===origin);
+  if(tier.length)return tier;
+ }
+ return variants;
+}
+function localReadingVariant(item){return preferredLocalVariants(item).find(v=>v.reading)||null;}
+function localLatinVariants(item){return preferredLocalVariants(item).map(v=>v.latin).filter(Boolean);}
+function lookupLocalAt(input,index){
+ let found=null,foundLen=0;
+ for(const item of keys){
+  const k=item.zh;if(!k||k.length<=foundLen)continue;
+  if(!localReadingVariant(item)&&!localLatinVariants(item).length)continue;
+  if(norm(input.slice(index,index+k.length))===norm(k)){found=item;foundLen=k.length;}
+ }
+ return found?{item:found,length:foundLen}:null;
+}
+function lookupFrenchWithoutLocalOverlap(input,index){
+ for(const key of FRENCH_KEYS){
+  const raw=input.slice(index,index+key.length);
+  if(norm(raw)!==key)continue;
+  const end=index+key.length;
+  let overlap=false;
+  for(let pos=index+1;pos<end;pos++){
+   if(lookupLocalAt(input,pos)){overlap=true;break;}
+  }
+  if(!overlap)return {key,french:FRENCH_MAP.get(key)};
+ }
+ return null;
+}"""
+if old_helpers not in app:
+    raise SystemExit("local reading helper anchor missing")
+app=app.replace(old_helpers,new_helpers,1)
+app=app.replace(
+ "if(item && (localReadingVariant(item)||localLatinVariants(item).length||frenchFor(item)))",
+ "if(item && (localReadingVariant(item)||localLatinVariants(item).length))"
+)
+tok=app.find("function tokenize(raw)")
+start=app.find("  let found=null,foundLen=0;",tok)
+end=app.find("  let j=i+1;",start)
+if tok<0 or start<0 or end<0:
+    raise SystemExit("tokenizer matching block anchors missing")
+new_match="""  const localMatch=lookupLocalAt(input,i);
+  const found=localMatch?localMatch.item:null;
+  const foundLen=localMatch?localMatch.length:0;
+  // Local-language synonyms are considered only when no longer exact local entry exists.
+  const alias=lookupLocalSynonymAt(input,i);
+  if(alias && alias.alias.length>foundLen){
+   const localV=localReadingVariant(alias.item),latin=localLatinVariants(alias.item);
+   if(localV){segments.push({type:'local',zh:input.slice(i,i+alias.alias.length),canonical:alias.target,reading:localV.reading,latin,source:localV.source||'原始资料',item:alias.item,matchedBy:'近义替代',originalTerm:alias.alias});localChars+=alias.alias.length;localHits++;}
+   else if(latin.length){segments.push({type:'latinOnly',zh:input.slice(i,i+alias.alias.length),canonical:alias.target,latin,source:'近义替代',matchedBy:'近义替代'});unknownChars+=alias.alias.length;}
+   else {segments.push({type:'unknown',text:input.slice(i,i+alias.alias.length)});unknownChars+=alias.alias.length;}
+   i+=alias.alias.length;continue;
+  }
+  // Any original/shared local match wins before a French match, even if French has a longer phrase.
+  if(found){
+   const localV=localReadingVariant(found),latin=localLatinVariants(found),fr=localFrenchOverride(found)||frenchFor(found);
+   if(localV){segments.push({type:'local',zh:input.slice(i,i+foundLen),canonical:found.zh,reading:localV.reading,latin,source:localV.source||'原始资料',item:found,french:fr});localChars+=foundLen;localHits++;}
+   else if(latin.length){segments.push({type:'latinOnly',zh:input.slice(i,i+foundLen),canonical:found.zh,latin,source:'已核验拉丁拼写'});unknownChars+=foundLen;}
+   else {segments.push({type:'unknown',text:input.slice(i,i+foundLen)});unknownChars+=foundLen;}
+   i+=foundLen;continue;
+  }
+  // French may fill only a gap; it cannot consume a later local-language match.
+  const fr=lookupFrenchWithoutLocalOverlap(input,i);
+  if(fr){const pron=frenchReadingFor(fr.french);segments.push({type:'french',zh:input.slice(i,i+fr.key.length),canonical:fr.key,french:fr.french,frenchReadingZh:pron,source:'DWSS 法语辅助词表'});frenchChars+=fr.key.length;frenchHits++;i+=fr.key.length;continue;}
+"""
+app=app[:start]+new_match+app[end:]
+old_unknown="""   for(const it of keys){if(it.zh.length>0&&norm(input.slice(j,j+it.zh.length))===norm(it.zh)){exists=true;break;}}
+   if(!exists&&lookupFrenchAt(input,j))exists=true;"""
+new_unknown="""   if(lookupLocalAt(input,j))exists=true;
+   if(!exists&&lookupFrenchWithoutLocalOverlap(input,j))exists=true;"""
+if old_unknown not in app:
+    raise SystemExit("unknown-segment boundary anchor missing")
+app=app.replace(old_unknown,new_unknown,1)
 write("app.js",app)
 
 version = read("VERSION.txt")
