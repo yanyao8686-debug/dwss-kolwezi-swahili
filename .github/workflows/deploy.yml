@@ -362,8 +362,8 @@ jobs:
               "  const toast = $('pwaToast');\n  let toastTimer = 0;\n  const showFeedback = (text) => {\n    if(!toast || !text) return;\n    toast.textContent=text;\n    toast.hidden=false;\n    toast.classList.add('visible');\n    if(toastTimer) window.clearTimeout(toastTimer);\n    toastTimer=window.setTimeout(()=>{toast.classList.remove('visible');toast.hidden=true;},5600);\n  };\n  const setState = (text, kind, detail) => { state.textContent=text; state.hidden=!text; state.className='chip '+(kind||''); if(detail) message.textContent=detail; };",
               "status and feedback helper")
           pwa = pwa_replace(
-              "  else setState('浏览器打开','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
-              "  else setState('','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
+              "else setState('浏览器打开','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
+              "else setState('','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
               "browser status removal")
           pwa = pwa_replace(
               "    window.addEventListener('load',async()=>{",
