@@ -281,7 +281,7 @@ jobs:
               ("输入中文后，显示当地斯语命中、法语补位和仍未收录的部分。", "输入后显示匹配结果与未收录内容。", "empty result hint")
           ]:
               old = old.replace("\\${", "${")
-              new = new.replace("\\\\${", "${")
+              new = new.replace("\\${", "${")
               if old not in app:
                   raise SystemExit(f"Missing app copy: {label}")
               app = app.replace(old, new, 1)
