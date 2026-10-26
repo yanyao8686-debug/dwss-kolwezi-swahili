@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy.yml'
-      - 'DWSS_PWA_0.6.3_GitHubPages*.zip'
+      - 'DWSS_PWA_0.6.4_GitHubPages*.zip'
   workflow_dispatch:
 
 permissions:
@@ -26,18 +26,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure Pages
         uses: actions/configure-pages@v5
-
-      - name: Verify and unpack the DWSS 0.6.3 release
+      - name: Verify and unpack DWSS 0.6.4
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
-          archives=(DWSS_PWA_0.6.3_GitHubPages*.zip)
+          archives=(DWSS_PWA_0.6.4_GitHubPages*.zip)
           if [ "${#archives[@]}" -ne 1 ]; then
-            echo "Expected exactly one DWSS 0.6.3 ZIP; found ${#archives[@]}."
+            echo "Expected exactly one DWSS 0.6.4 ZIP; found ${#archives[@]}."
             printf '%s\n' "${archives[@]}"
             exit 1
           fi
@@ -52,14 +50,12 @@ jobs:
           test -s public/dictionary.js.gz
           test -s public/french-fallback.js
           test -s public/VERSION.txt
-          grep -Fq "Version: 0.6.3" public/VERSION.txt
+          grep -Fq "Version: 0.6.4" public/VERSION.txt
           touch public/.nojekyll
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
