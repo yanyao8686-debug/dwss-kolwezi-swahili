@@ -55,6 +55,15 @@ function candidateContextScore(item,contextIds){
 marker = "const RECOMMENDATION_STOP_CHARS = new Set(["
 start = app.find(marker)
 if start < 0:
+    print("DEBUG: recommendation-related source lines:")
+    for line in app.splitlines():
+        if "recommend" in line.lower() or "candidate" in line.lower():
+            print(line[:1200])
+    pos = app.find("function recommendAlternativesForUnknown")
+    if pos >= 0:
+        end = app.find("\\nfunction ", pos + 10)
+        print("DEBUG: recommendation function body:")
+        print(app[pos:end if end >= 0 else pos + 9000])
     raise SystemExit("0.9.0 upgrade anchor missing: recommendation stop chars")
 line_end = app.find("\n", start)
 if "const CONTEXT_PROFILES = [" not in app:
