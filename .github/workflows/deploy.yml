@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/deploy.yml'
       - 'DWSS_PWA_0.6.3_GitHubPages_发布包.zip'
       - 'DWSS_PWA_0.6.3_GitHubPages.zip'
   workflow_dispatch:
