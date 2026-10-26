@@ -505,6 +505,7 @@ jobs:
           for (const source of [['PWA',pwa],['APP',app]]) {
             const [name,txt]=source;
             console.log('--- '+name+' status/update matches ---');
+            if(name==='PWA') console.log('PWA_SOURCE_BEGIN\\n'+txt+'\\nPWA_SOURCE_END');
             const lines=txt.split('\n');
             lines.forEach((line,i)=>{
               if(/checkUpdateBtn|pwaMessage|pwaState|浏览器打开|离线资源已缓存|registration\.update|updatefound|controllerchange|skipWaiting|clientsClaim/.test(line)) {
