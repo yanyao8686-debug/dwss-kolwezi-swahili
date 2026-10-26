@@ -205,7 +205,7 @@ jobs:
           if n != 1:
               raise SystemExit("Large PWA status card not found")
           compact_css = """
-          /* DWSS 0.9.3 — compact status bar; original cover untouched */
+          /* DWSS 0.9.4 — compact status bar and gold inputs */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -228,6 +228,21 @@ jobs:
           .recommendation-box{padding:9px 10px}
           .maintenance-note{padding:9px 11px;font-size:11px}
           .footer{font-size:10px;line-height:1.5}
+          /* DWSS 0.9.4 — unified warm gold input surfaces */
+          input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+          textarea,select{
+            background-color:#F7E3A0!important;
+            color:#263449!important;
+            border-color:#D9B85B!important;
+          }
+          input::placeholder,textarea::placeholder{color:#8A7440!important;opacity:.82}
+          input:focus,textarea:focus,select:focus{
+            background-color:#F9E9B8!important;
+            border-color:#B88D2E!important;
+            box-shadow:0 0 0 3px rgba(217,184,91,.2)!important;
+            outline:none;
+          }
+          select option{background-color:#F7E3A0;color:#263449}
           /* Replace the two tall intro cards with one compact status toolbar. */
           .status-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 12px;padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:none}
           .status-items{display:flex;align-items:center;flex:1 1 auto;min-width:0;flex-wrap:wrap;gap:6px}
@@ -237,11 +252,11 @@ jobs:
           .status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}
           @media(max-width:420px){.status-strip{gap:6px;padding:6px 8px}.status-items{gap:4px}.status-strip .offline,.status-strip .chip{padding:5px 7px;font-size:10px}.status-strip #checkUpdateBtn{padding:7px 9px;font-size:11px}}
           """
-          if "DWSS 0.9.3 — compact status bar" not in html:
+          if "DWSS 0.9.4 — compact status bar" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.3 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.4 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -331,12 +346,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.3';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.4';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.3", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.4", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -352,9 +367,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.3 compact status toolbar installed; update and offline controls preserved.")
+          print("DWSS 0.9.4 gold inputs installed; cover and dictionary preserved.")
           PY
-      - name: Validate compact status toolbar 0.9.3
+      - name: Validate gold input theme 0.9.4
         shell: bash
         run: |
           set -euo pipefail
@@ -364,9 +379,11 @@ jobs:
           grep -Fq 'id="networkBadge"' public/index.html
           grep -Fq 'id="pwaState"' public/index.html
           grep -Fq 'id="checkUpdateBtn"' public/index.html
-          grep -Fq "Version: 0.9.3" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.3';" public/sw.js
-          grep -Fq "DWSS 0.9.3 — compact status bar" public/index.html
+          grep -Fq 'background-color:#F7E3A0!important' public/index.html
+          grep -Fq 'textarea,select' public/index.html
+          grep -Fq "Version: 0.9.4" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.4';" public/sw.js
+          grep -Fq "DWSS 0.9.4 — compact status bar" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
