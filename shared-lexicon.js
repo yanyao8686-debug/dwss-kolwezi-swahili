@@ -20,7 +20,7 @@ function notifyApp() {
   try { window.dispatchEvent(new CustomEvent("dwss:shared-terms-updated", { detail: { terms: getPublicTerms() } })); }
   catch (_) {}
 }
-function uid()
+function uid() {
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16);
