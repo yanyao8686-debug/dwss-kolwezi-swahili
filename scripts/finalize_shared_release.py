@@ -554,10 +554,11 @@ db_path = root / "dictionary.js.gz"
 if not db_path.exists():
     raise SystemExit("dictionary.js.gz is missing")
 db_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
-db_match = re.fullmatch(r"\s*window\.SW_DB\s*=\s*(\[.*\])\s*;\s*", db_source, re.S)
-if not db_match:
-    raise SystemExit("Could not parse the built-in dictionary")
-db = json.loads(db_match.group(1))
+db_start = db_source.find("[", db_source.find("window.SW_DB"))
+db_end = db_source.rfind("]")
+if db_start < 0 or db_end <= db_start:
+    raise SystemExit("Could not locate the built-in dictionary JSON array")
+db = json.loads(db_source[db_start:db_end + 1])
 vehicle_rows = [item for item in db if item.get("zh") == "车辆"]
 if len(vehicle_rows) != 1:
     raise SystemExit(f"Expected exactly one built-in '车辆' entry, found {len(vehicle_rows)}")
@@ -569,10 +570,12 @@ vehicle_rows[0]["variants"] = [{
 db_output = "window.SW_DB = " + json.dumps(db, ensure_ascii=False, separators=(",", ":")) + ";"
 db_path.write_bytes(gzip.compress(db_output.encode("utf-8"), compresslevel=9, mtime=0))
 # Verify the compressed output and make sure the removed pronunciation is absent.
-verified_db = json.loads(re.fullmatch(
-    r"\s*window\.SW_DB\s*=\s*(\[.*\])\s*;\s*",
-    gzip.decompress(db_path.read_bytes()).decode("utf-8"), re.S
-).group(1))
+verified_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
+verified_start = verified_source.find("[", verified_source.find("window.SW_DB"))
+verified_end = verified_source.rfind("]")
+if verified_start < 0 or verified_end <= verified_start:
+    raise SystemExit("Could not re-read built-in dictionary after compression")
+verified_db = json.loads(verified_source[verified_start:verified_end + 1])
 verified_vehicle = [item for item in verified_db if item.get("zh") == "车辆"]
 if len(verified_vehicle) != 1 or [v.get("reading") for v in verified_vehicle[0].get("variants", [])] != ["摸多嘎"]:
     raise SystemExit("Vehicle pronunciation correction verification failed")
