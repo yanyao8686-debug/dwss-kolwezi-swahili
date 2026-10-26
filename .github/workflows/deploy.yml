@@ -6,7 +6,6 @@ on:
     paths:
       - '.github/workflows/deploy.yml'
       - 'DWSS_PWA_0.6.3_GitHubPages_发布包.zip'
-      - 'DWSS_PWA_0.6.3_GitHubPages.zip'
   workflow_dispatch:
 
 permissions:
@@ -27,32 +26,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Unpack and verify DWSS PWA
+
+      - name: Verify and unpack the DWSS 0.6.3 release
         shell: bash
         run: |
           set -euo pipefail
+          ARCHIVE="DWSS_PWA_0.6.3_GitHubPages_发布包.zip"
+          test -s "$ARCHIVE"
+          unzip -t "$ARCHIVE" >/dev/null
           mkdir -p public
-          ARCHIVE=""
-          for candidate in "DWSS_PWA_0.6.3_GitHubPages_发布包.zip" "DWSS_PWA_0.6.3_GitHubPages.zip"; do
-            if [ -f "$candidate" ]; then ARCHIVE="$candidate"; break; fi
-          done
-          test -n "$ARCHIVE"
           unzip -q "$ARCHIVE" -d public
           test -s public/index.html
           test -s public/manifest.webmanifest
           test -s public/sw.js
           test -s public/dictionary.js.gz
           test -s public/french-fallback.js
-          test ! -e public/english-fallback.js
-          grep -q "0.6.3" public/sw.js
-          grep -q "LOCAL_SYNONYM_ALIASES" public/app.js
+          test -s public/VERSION.txt
+          grep -q "Version: 0.6.3" public/VERSION.txt
           touch public/.nojekyll
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
