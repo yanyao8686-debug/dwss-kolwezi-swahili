@@ -67,12 +67,17 @@ jobs:
           grep -Fq "'./shared-lexicon.js'" public/sw.js
           grep -Fq "'./supabase.min.js'" public/sw.js
           grep -Fq "sharedCount" public/app.js
+          grep -Fq "function lookupLocalAt" public/app.js
+          grep -Fq "function lookupFrenchWithoutLocalOverlap" public/app.js
+          grep -Fq "origin:'builtin'" public/app.js
+          grep -Fq "origin:'shared'" public/app.js
           grep -Fq "dwss:shared-terms-updated" public/shared-lexicon.js
           node --check public/app.js
+          node --check public/french-fallback.js
           node --check public/sw.js
           node --check public/pwa.js
           grep -Fq 'shared-lexicon.js' public/index.html
-          grep -Fq "Version: 0.6.5" public/VERSION.txt
+          grep -Fq "Version: 0.6.6" public/VERSION.txt
           touch public/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
