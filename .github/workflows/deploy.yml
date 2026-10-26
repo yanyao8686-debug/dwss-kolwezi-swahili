@@ -492,6 +492,37 @@ jobs:
           node --check public/sw.js
           test -s public/dictionary.js.gz
           test -s public/cover.jpg
+      - name: Audit status and event wiring
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('public/index.html','utf8');
+          const pwa = fs.readFileSync('public/pwa.js','utf8');
+          const app = fs.readFileSync('public/app.js','utf8');
+          console.log('--- script tags ---');
+          console.log((html.match(/<script[^>]*>/g)||[]).join('\n'));
+          for (const source of [['PWA',pwa],['APP',app]]) {
+            const [name,txt]=source;
+            console.log('--- '+name+' status/update matches ---');
+            const lines=txt.split('\n');
+            lines.forEach((line,i)=>{
+              if(/checkUpdateBtn|pwaMessage|pwaState|浏览器打开|离线资源已缓存|registration\.update|updatefound|controllerchange|skipWaiting|clientsClaim/.test(line)) {
+                console.log(name+':'+(i+1)+': '+line.slice(0,500));
+              }
+            });
+          }
+          const htmlIds = new Set([...html.matchAll(/\bid=["']([^"']+)["']/g)].map(m=>m[1]));
+          const refs = new Set();
+          for (const txt of [pwa,app]) {
+            for (const m of txt.matchAll(/\$\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
+            for (const m of txt.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
+          }
+          const dynamic = [...refs].filter(id=>!htmlIds.has(id));
+          console.log('--- missing static DOM ids (may be dynamic/optional) ---');
+          console.log(dynamic.sort().join(', '));
+          console.log('HTML static ids:',htmlIds.size,'JS ids:',refs.size);
+          NODE
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
