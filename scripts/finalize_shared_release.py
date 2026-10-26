@@ -30,7 +30,7 @@ write("index.html", html)
 sw = read("sw.js")
 if sw is None:
     raise SystemExit("sw.js is missing")
-sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.7';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.7';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.7';")
+sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.7';", "const APP_VERSION = '0.6.8';")
 start = sw.find("const PRECACHE_URLS = [")
 end = sw.find("];", start)
 if start < 0 or end < 0:
@@ -661,7 +661,7 @@ write("app.js",app)
 version = read("VERSION.txt")
 if version is None:
     raise SystemExit("VERSION.txt is missing")
-version = version.replace("Version: 0.6.4", "Version: 0.6.8").replace("Version: 0.6.5", "Version: 0.6.7")
+version = version.replace("Version: 0.6.4", "Version: 0.6.8").replace("Version: 0.6.5", "Version: 0.6.8").replace("Version: 0.6.7", "Version: 0.6.8")
 if "Shared vocabulary:" not in version:
     version += "\nShared vocabulary: cloud terms participate in main translation and dictionary search; real-time updates, offline cache and retry queue included.\n"
 write("VERSION.txt", version)
