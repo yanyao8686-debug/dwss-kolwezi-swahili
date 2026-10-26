@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize DWSS 0.6.7 release files after unpacking the 0.6.4 archive."""
+"""Finalize DWSS 0.6.8 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
 import sys
 
@@ -23,7 +23,7 @@ if "supabase.min.js" not in html or "shared-lexicon.js" not in html:
         html = html.replace(boot, boot + "\n" + additions, 1)
     else:
         html = html.replace("</body>", additions + "\n</body>", 1)
-html = html.replace("版本 0.6.4", "版本 0.6.7").replace("版本 0.6.5", "版本 0.6.7")
+html = html.replace("版本 0.6.4", "版本 0.6.8").replace("版本 0.6.5", "版本 0.6.8")
 write("index.html", html)
 
 # Bump the Service Worker cache key and include cloud scripts in the core offline cache.
@@ -549,7 +549,7 @@ app=read("app.js")
 if app is None:
     raise SystemExit("app.js is missing")
 # Mark the provenance of each local record so pronunciation selection follows the required tiers.
-app=app.replace("version:'0.6.5'", "version:'0.6.7'")
+app=app.replace("version:'0.6.5'", "version:'0.6.8'")
 app=app.replace(
  "variants:(item.variants||[]).map(v=>({...v}))",
  "variants:(item.variants||[]).map(v=>({...v,origin:'builtin'}))"
@@ -661,7 +661,7 @@ write("app.js",app)
 version = read("VERSION.txt")
 if version is None:
     raise SystemExit("VERSION.txt is missing")
-version = version.replace("Version: 0.6.4", "Version: 0.6.7").replace("Version: 0.6.5", "Version: 0.6.7")
+version = version.replace("Version: 0.6.4", "Version: 0.6.8").replace("Version: 0.6.5", "Version: 0.6.7")
 if "Shared vocabulary:" not in version:
     version += "\nShared vocabulary: cloud terms participate in main translation and dictionary search; real-time updates, offline cache and retry queue included.\n"
 write("VERSION.txt", version)
