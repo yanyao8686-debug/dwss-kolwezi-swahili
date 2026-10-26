@@ -9,6 +9,7 @@ on:
       - 'shared-lexicon.js'
       - 'scripts/integrate_shared_search.py'
       - 'scripts/finalize_shared_release.py'
+      - 'scripts/upgrade_context_0_9_0.py'
   workflow_dispatch:
 
 permissions:
@@ -61,6 +62,8 @@ jobs:
           curl -fsSL "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" -o public/supabase.min.js
           test -s public/supabase.min.js
           python3 scripts/finalize_shared_release.py public
+          test -s scripts/upgrade_context_0_9_0.py
+          python3 scripts/upgrade_context_0_9_0.py public
           test -s public/shared-lexicon.js
           node --check public/shared-lexicon.js
           test -s public/supabase.min.js
@@ -77,7 +80,10 @@ jobs:
           node --check public/sw.js
           node --check public/pwa.js
           grep -Fq 'shared-lexicon.js' public/index.html
-          grep -Fq "Version: 0.6.11" public/VERSION.txt
+          grep -Fq "Version: 0.9.0" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.0';" public/sw.js
+          grep -Fq "const CONTEXT_PROFILES" public/app.js
+          grep -Fq "contextLabel" public/app.js
           touch public/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
