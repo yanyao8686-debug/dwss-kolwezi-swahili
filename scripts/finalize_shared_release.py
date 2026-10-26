@@ -149,7 +149,7 @@ pron = {
 for k,v in extra.items(): fm[k]=v
 for k,v in pron.items(): fr[k]=v
 fp=fp[:mm.start()]+"window.SW_FRENCH = "+json.dumps(fm,ensure_ascii=False,separators=(",",":"))+";"+fp[mm.end():]
-rr=re.search(r"window\\.SW_FRENCH_READINGS\\s*=\\s*(\\{.*?\\})\\s*;",fp,re.S)
+rr=re.search(r"window\.SW_FRENCH_READINGS\s*=\s*(\{.*?\})\s*;",fp,re.S)
 fp=fp[:rr.start()]+"window.SW_FRENCH_READINGS = "+json.dumps(fr,ensure_ascii=False,separators=(",",":"))+";"+fp[rr.end():]
 write("french-fallback.js",fp)
 app=read("app.js")
