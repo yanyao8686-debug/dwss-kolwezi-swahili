@@ -77,7 +77,7 @@ jobs:
           node --check public/sw.js
           node --check public/pwa.js
           grep -Fq 'shared-lexicon.js' public/index.html
-          grep -Fq "Version: 0.6.7" public/VERSION.txt
+          grep -Fq "Version: 0.6.8" public/VERSION.txt
           touch public/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
