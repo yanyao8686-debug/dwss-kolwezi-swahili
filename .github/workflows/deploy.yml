@@ -118,7 +118,7 @@ jobs:
           if n != 1:
               raise SystemExit("Install help block not found")
           html, n = re.subn(
-              r'(<div class="hint" style="margin-top:\\d+px">)(?:离线处理：|离线翻译 ·).*?</div>',
+              r'(<div class="hint" style="margin-top:\d+px">)(?:离线处理：|离线翻译 ·).*?</div>',
               r'\1科卢韦齐词库优先 · 法语备用会标注</div>',
               html, count=1, flags=re.S)
           if n != 1:
