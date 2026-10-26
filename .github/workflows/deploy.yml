@@ -277,16 +277,12 @@ jobs:
           ]
           for old, new in pwa_replacements:
               pwa = pwa.replace(old, new, 1)
-          pwa, n1 = pwa.replace(
-              "networkBadge.style.borderColor=online?'#ffffff70':'#ffdf9a';",
-              "networkBadge.style.borderColor=online?'#c9d9d3':'#e6c98b';"
-          ), 1
-          pwa, n2 = pwa.replace(
-              "networkBadge.style.color=online?'#e6fff3':'#ffdf9a';",
-              "networkBadge.style.color=online?'#245c48':'#9a6a1e';"
-          ), 1
-          if n1 != 1 or n2 != 1:
+          old_border = "networkBadge.style.borderColor=online?'#ffffff70':'#ffdf9a';"
+          old_color = "networkBadge.style.color=online?'#e6fff3':'#ffdf9a';"
+          if old_border not in pwa or old_color not in pwa:
               raise SystemExit("Network status color anchors missing")
+          pwa = pwa.replace(old_border, "networkBadge.style.borderColor=online?'#c9d9d3':'#e6c98b';", 1)
+          pwa = pwa.replace(old_color, "networkBadge.style.color=online?'#245c48':'#9a6a1e';", 1)
           write("pwa.js", pwa)
 
           # Compact the translation result while keeping candidate selection intact.
