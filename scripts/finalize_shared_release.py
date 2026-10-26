@@ -67,8 +67,8 @@ import json, re
 fp = read("french-fallback.js")
 if fp is None:
     raise SystemExit("french-fallback.js is missing")
-mm = re.search(r"window\\.SW_FRENCH\\s*=\\s*(\\{.*?\\})\\s*;", fp, re.S)
-rr = re.search(r"window\\.SW_FRENCH_READINGS\\s*=\\s*(\\{.*?\\})\\s*;", fp, re.S)
+mm = re.search(r"window\.SW_FRENCH\s*=\s*(\{.*?\})\s*;", fp, re.S)
+rr = re.search(r"window\.SW_FRENCH_READINGS\s*=\s*(\{.*?\})\s*;", fp, re.S)
 if not mm or not rr:
     raise SystemExit("French maps could not be parsed")
 fm, fr = json.loads(mm.group(1)), json.loads(rr.group(1))
