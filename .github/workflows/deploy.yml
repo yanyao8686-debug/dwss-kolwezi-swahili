@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'DWSS_PWA_0.6.2_GitHubPages_发布包.zip'
-      - 'DWSS_PWA_0.6.2_GitHubPages.zip'
+      - 'DWSS_PWA_0.6.3_GitHubPages_发布包.zip'
+      - 'DWSS_PWA_0.6.3_GitHubPages.zip'
   workflow_dispatch:
 
 permissions:
@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           mkdir -p public
           ARCHIVE=""
-          for candidate in "DWSS_PWA_0.6.2_GitHubPages_发布包.zip" "DWSS_PWA_0.6.2_GitHubPages.zip"; do
+          for candidate in "DWSS_PWA_0.6.3_GitHubPages_发布包.zip" "DWSS_PWA_0.6.3_GitHubPages.zip"; do
             if [ -f "$candidate" ]; then ARCHIVE="$candidate"; break; fi
           done
           test -n "$ARCHIVE"
@@ -45,6 +45,8 @@ jobs:
           test -s public/dictionary.js.gz
           test -s public/french-fallback.js
           test ! -e public/english-fallback.js
+          grep -q "0.6.3" public/sw.js
+          grep -q "LOCAL_SYNONYM_ALIASES" public/app.js
           touch public/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
