@@ -64,7 +64,8 @@ jobs:
           test -s public/shared-lexicon.js
           node --check public/shared-lexicon.js
           test -s public/supabase.min.js
-          grep -Fq "DWSS_SHARED_OFFLINE_ASSETS_V1" public/sw.js
+          grep -Fq "'./shared-lexicon.js'" public/sw.js
+          grep -Fq "'./supabase.min.js'" public/sw.js
           grep -Fq "sharedCount" public/app.js
           grep -Fq "dwss:shared-terms-updated" public/shared-lexicon.js
           node --check public/app.js
