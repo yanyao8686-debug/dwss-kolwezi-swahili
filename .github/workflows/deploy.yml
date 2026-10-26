@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/deploy.yml'
       - 'DWSS_PWA_0.6.4_GitHubPages*.zip'
+      - 'shared-lexicon.js'
   workflow_dispatch:
 
 permissions:
@@ -50,6 +51,22 @@ jobs:
           test -s public/dictionary.js.gz
           test -s public/french-fallback.js
           test -s public/VERSION.txt
+          test -s shared-lexicon.js
+          cp shared-lexicon.js public/shared-lexicon.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("public/index.html")
+          html = p.read_text(encoding="utf-8")
+          script = '<script defer src="./shared-lexicon.js"></script>'
+          if script not in html:
+              if "</body>" in html:
+                  html = html.replace("</body>", script + "\\n</body>", 1)
+              else:
+                  html += "\\n" + script
+          p.write_text(html, encoding="utf-8")
+          PY
+          test -s public/shared-lexicon.js
+          grep -Fq 'shared-lexicon.js' public/index.html
           grep -Fq "Version: 0.6.4" public/VERSION.txt
           touch public/.nojekyll
       - name: Upload Pages artifact
