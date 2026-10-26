@@ -554,7 +554,7 @@ db_path = root / "dictionary.js.gz"
 if not db_path.exists():
     raise SystemExit("dictionary.js.gz is missing")
 db_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
-db_match = re.fullmatch(r"\\s*window\\.SW_DB\\s*=\\s*(\\[.*\\])\\s*;\\s*", db_source, re.S)
+db_match = re.fullmatch(r"\s*window\.SW_DB\s*=\s*(\[.*\])\s*;\s*", db_source, re.S)
 if not db_match:
     raise SystemExit("Could not parse the built-in dictionary")
 db = json.loads(db_match.group(1))
@@ -570,7 +570,7 @@ db_output = "window.SW_DB = " + json.dumps(db, ensure_ascii=False, separators=("
 db_path.write_bytes(gzip.compress(db_output.encode("utf-8"), compresslevel=9, mtime=0))
 # Verify the compressed output and make sure the removed pronunciation is absent.
 verified_db = json.loads(re.fullmatch(
-    r"\\s*window\\.SW_DB\\s*=\\s*(\\[.*\\])\\s*;\\s*",
+    r"\s*window\.SW_DB\s*=\s*(\[.*\])\s*;\s*",
     gzip.decompress(db_path.read_bytes()).decode("utf-8"), re.S
 ).group(1))
 verified_vehicle = [item for item in verified_db if item.get("zh") == "车辆"]
