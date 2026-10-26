@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Verify and unpack DWSS 0.6.4
+      - name: Verify and unpack the DWSS 0.6.4 release
         shell: bash
         run: |
           set -euo pipefail
