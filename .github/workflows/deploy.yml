@@ -90,9 +90,10 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
+          import re, hashlib
 
           public = Path("public")
+          protected_hashes = {name: hashlib.sha256((public / name).read_bytes()).hexdigest() for name in ("dictionary.js.gz", "cover.jpg")}
           def read(name):
               p = public / name
               if not p.is_file():
@@ -181,7 +182,7 @@ jobs:
           if n != 1:
               raise SystemExit("Footer provenance block not found")
           compact_css = """
-          /* DWSS 0.9.1 — concise interface; cover artwork and dimensions untouched */
+          /* DWSS 0.9.2 — concise interface; cover artwork and dimensions untouched */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -205,11 +206,11 @@ jobs:
           .maintenance-note{padding:9px 11px;font-size:11px}
           .footer{font-size:10px;line-height:1.5}
           """
-          if "DWSS 0.9.1 — concise interface" not in html:
+          if "DWSS 0.9.2 — concise interface" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.1 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.2 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -289,25 +290,48 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.1';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.2';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.1", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.2", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
-          print("DWSS 0.9.1 compact interface installed; dictionary and cover untouched.")
+          app = read("app.js")
+          required_dynamic = [
+              "textContent=`本地覆盖约 ${pct}%`",
+              "textContent=`本地 ${r.localHits} · 法语 ${r.frenchHits} · 未收录 ${r.unknownChars}`",
+          ]
+          missing = [item for item in required_dynamic if item not in app]
+          if missing:
+              raise SystemExit("Dynamic result statistics were not compiled: " + ", ".join(missing))
+          for name, expected in protected_hashes.items():
+              actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
+              if actual != expected:
+                  raise SystemExit(f"Protected asset changed during UI build: {name}")
+          print("DWSS 0.9.2 compact interface installed; dynamic statistics verified; dictionary and cover unchanged.")
           PY
-      - name: Validate compact interface 0.9.1
+      - name: Validate compact interface 0.9.2
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "Version: 0.9.1" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.1';" public/sw.js
-          grep -Fq "DWSS 0.9.1 — concise interface" public/index.html
+          grep -Fq "Version: 0.9.2" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.2';" public/sw.js
+          grep -Fq "DWSS 0.9.2 — concise interface" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
+          python3 - <<'PY'
+          from pathlib import Path
+          app = (Path("public") / "app.js").read_text(encoding="utf-8")
+          required = [
+              "textContent=`本地覆盖约 ${pct}%`",
+              "textContent=`本地 ${r.localHits} · 法语 ${r.frenchHits} · 未收录 ${r.unknownChars}`",
+          ]
+          missing = [item for item in required if item not in app]
+          if missing:
+              raise SystemExit("Dynamic statistics check failed: " + ", ".join(missing))
+          PY
           node --check public/app.js
           node --check public/pwa.js
           node --check public/sw.js
