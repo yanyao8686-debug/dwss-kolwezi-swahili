@@ -13,7 +13,14 @@ function readArray(key) {
   catch (_) { return []; }
 }
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
-function uid() {
+function getPublicTerms() {
+  return terms.concat(queue.map(t => Object.assign({}, t, { __pending: true }))).map(t => Object.assign({}, t));
+}
+function notifyApp() {
+  try { window.dispatchEvent(new CustomEvent("dwss:shared-terms-updated", { detail: { terms: getPublicTerms() } })); }
+  catch (_) {}
+}
+function uid()
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16);
@@ -37,7 +44,7 @@ function mergeTerm(t) {
     (x.client_submit_id && x.client_submit_id === t.client_submit_id));
   if (found >= 0) terms[found] = t; else terms.unshift(t);
   terms.sort((a,b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-  save(CACHE_KEY, terms); render(); count();
+  save(CACHE_KEY, terms); render(); count(); notifyApp();
 }
 function render() {
   const list = document.getElementById("dwss-shared-list");
@@ -179,7 +186,7 @@ async function connectCloud() {
     const client = await getClient();
     const result = await client.from("shared_terms").select("*").order("created_at", { ascending: false }).limit(1000);
     if (result.error) throw result.error;
-    terms = result.data || []; save(CACHE_KEY, terms); render(); count();
+    terms = result.data || []; save(CACHE_KEY, terms); render(); count(); notifyApp();
     if (!channel) {
       channel = client.channel("dwss-shared-terms-live")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "shared_terms" }, payload => {
@@ -218,7 +225,7 @@ async function submitTerm(event) {
   const btn = form.querySelector('button[type="submit"]');
   btn.disabled = true; btn.textContent = "提交中…";
   if (!navigator.onLine) {
-    queue.unshift(payload); save(QUEUE_KEY, queue); render(); count();
+    queue.unshift(payload); save(QUEUE_KEY, queue); render(); count(); notifyApp();
     setStatus("已保存到本机，联网后自动提交", "offline");
     form.reset(); setLanguage("sw"); toggleForm(false);
     btn.disabled = false; btn.textContent = "提交共享"; return;
@@ -234,8 +241,13 @@ async function submitTerm(event) {
     alert("共享词条提交失败，请稍后重试。\n" + (e && e.message ? e.message : ""));
   } finally { btn.disabled = false; btn.textContent = "提交共享"; }
 }
+window.DWSSSharedLexicon = Object.freeze({
+  getTerms: getPublicTerms,
+  refresh: connectCloud,
+  get count() { return terms.length + queue.length; }
+});
 function start() {
-  buildUi(); connectCloud();
+  buildUi(); notifyApp(); connectCloud();
   window.addEventListener("online", connectCloud);
   window.addEventListener("offline", () => setStatus("离线：显示缓存，新词会排队等待联网", "offline"));
 }
