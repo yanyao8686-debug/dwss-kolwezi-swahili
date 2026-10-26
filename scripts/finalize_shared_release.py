@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize DWSS 0.6.6 release files after unpacking the 0.6.4 archive."""
+"""Finalize DWSS 0.6.7 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
 import sys
 
@@ -23,14 +23,14 @@ if "supabase.min.js" not in html or "shared-lexicon.js" not in html:
         html = html.replace(boot, boot + "\n" + additions, 1)
     else:
         html = html.replace("</body>", additions + "\n</body>", 1)
-html = html.replace("版本 0.6.4", "版本 0.6.6").replace("版本 0.6.5", "版本 0.6.6")
+html = html.replace("版本 0.6.4", "版本 0.6.7").replace("版本 0.6.5", "版本 0.6.7")
 write("index.html", html)
 
 # Bump the Service Worker cache key and include cloud scripts in the core offline cache.
 sw = read("sw.js")
 if sw is None:
     raise SystemExit("sw.js is missing")
-sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.6';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.6';")
+sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.7';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.7';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.7';")
 start = sw.find("const PRECACHE_URLS = [")
 end = sw.find("];", start)
 if start < 0 or end < 0:
@@ -156,7 +156,7 @@ app=read("app.js")
 if app is None:
     raise SystemExit("app.js is missing")
 # Mark the provenance of each local record so pronunciation selection follows the required tiers.
-app=app.replace("version:'0.6.5'", "version:'0.6.6'")
+app=app.replace("version:'0.6.5'", "version:'0.6.7'")
 app=app.replace(
  "variants:(item.variants||[]).map(v=>({...v}))",
  "variants:(item.variants||[]).map(v=>({...v,origin:'builtin'}))"
@@ -184,14 +184,27 @@ new_helpers="""function preferredLocalVariants(item){
 }
 function localReadingVariant(item){return preferredLocalVariants(item).find(v=>v.reading)||null;}
 function localLatinVariants(item){return preferredLocalVariants(item).map(v=>v.latin).filter(Boolean);}
-function lookupLocalAt(input,index){
- let found=null,foundLen=0;
- for(const item of keys){
-  const k=item.zh;if(!k||k.length<=foundLen)continue;
-  if(!localReadingVariant(item)&&!localLatinVariants(item).length)continue;
-  if(norm(input.slice(index,index+k.length))===norm(k)){found=item;foundLen=k.length;}
+function localOrigin(item){
+ for(const origin of ['builtin','shared','personal']){
+  if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)))return origin;
  }
- return found?{item:found,length:foundLen}:null;
+ return null;
+}
+function lookupLocalAt(input,index){
+ let found=null,foundLen=0,foundRank=99;
+ const rankOf={builtin:0,shared:1,personal:2};
+ for(const item of keys){
+  const k=item.zh;if(!k)continue;
+  const origin=localOrigin(item);if(!origin)continue;
+  const rank=rankOf[origin];
+  if(rank>foundRank)continue;
+  if(norm(input.slice(index,index+k.length))!==norm(k))continue;
+  // Source priority comes first; longest matching phrase breaks ties within the same source tier.
+  if(rank<foundRank||(rank===foundRank&&k.length>foundLen)){
+   found=item;foundLen=k.length;foundRank=rank;
+  }
+ }
+ return found?{item:found,length:foundLen,origin:localOrigin(found)}:null;
 }
 function lookupFrenchWithoutLocalOverlap(input,index){
  for(const key of FRENCH_KEYS){
@@ -223,7 +236,7 @@ new_match="""  const localMatch=lookupLocalAt(input,i);
   const foundLen=localMatch?localMatch.length:0;
   // Local-language synonyms are considered only when no longer exact local entry exists.
   const alias=lookupLocalSynonymAt(input,i);
-  if(alias && alias.alias.length>foundLen){
+  if(alias && !localMatch){
    const localV=localReadingVariant(alias.item),latin=localLatinVariants(alias.item);
    if(localV){segments.push({type:'local',zh:input.slice(i,i+alias.alias.length),canonical:alias.target,reading:localV.reading,latin,source:localV.source||'原始资料',item:alias.item,matchedBy:'近义替代',originalTerm:alias.alias});localChars+=alias.alias.length;localHits++;}
    else if(latin.length){segments.push({type:'latinOnly',zh:input.slice(i,i+alias.alias.length),canonical:alias.target,latin,source:'近义替代',matchedBy:'近义替代'});unknownChars+=alias.alias.length;}
@@ -255,7 +268,7 @@ write("app.js",app)
 version = read("VERSION.txt")
 if version is None:
     raise SystemExit("VERSION.txt is missing")
-version = version.replace("Version: 0.6.4", "Version: 0.6.6").replace("Version: 0.6.5", "Version: 0.6.6")
+version = version.replace("Version: 0.6.4", "Version: 0.6.7").replace("Version: 0.6.5", "Version: 0.6.7")
 if "Shared vocabulary:" not in version:
     version += "\nShared vocabulary: cloud terms participate in main translation and dictionary search; real-time updates, offline cache and retry queue included.\n"
 write("VERSION.txt", version)
@@ -263,7 +276,7 @@ write("VERSION.txt", version)
 # Keep release documentation consistent with the new shared behavior.
 guide = read("README_部署与使用.md")
 if guide is not None:
-    guide = guide.replace("PWA 0.6.3", "PWA 0.6.6").replace("PWA 0.6.5", "PWA 0.6.6").replace("版本 0.6.3", "版本 0.6.6").replace("版本 0.6.5", "版本 0.6.6")
+    guide = guide.replace("PWA 0.6.3", "PWA 0.6.7").replace("PWA 0.6.5", "PWA 0.6.7").replace("版本 0.6.3", "版本 0.6.7").replace("版本 0.6.5", "版本 0.6.7")
     marker = "## 备份与恢复"
     section = """## 云端共享词库
 
@@ -275,4 +288,4 @@ if guide is not None:
     guide = guide.replace("个人新增词条只保存在当前设备，不会自动跨设备同步。", "个人“词库维护”新增词条仍保存在当前设备；需要跨设备共享时，请使用首页右下角的“共享词库”提交。")
     write("README_部署与使用.md", guide)
 
-print("DWSS 0.6.6 release files finalized.")
+print("DWSS 0.6.7 release files finalized.")
