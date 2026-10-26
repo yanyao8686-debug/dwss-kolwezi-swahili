@@ -108,18 +108,21 @@ jobs:
 
           # HTML copy: less always-visible help, same controls and cover.
           html = read("index.html")
-          html = swap(html, "<h2>应用状态</h2>", "<h2>状态</h2>", "status heading")
+          html, n = re.subn(r"<h2>(?:应用状态|手机安装与离线状态)</h2>", "<h2>状态</h2>", html, count=1)
+          if n != 1:
+              raise SystemExit("Status heading not found")
           html, n = re.subn(
               r'<summary>安卓 / iPhone 添加到桌面的说明</summary><div class="hint">.*?</div>',
               '<summary>安装与离线</summary><div class="hint"><b>安卓：</b>Chrome 菜单 → 安装应用。<br><b>iPhone：</b>Safari 分享 → 添加到主屏幕。<br><b>离线：</b>首次联网并完成缓存后即可使用；换机或清理浏览器数据前先备份个人词条。</div>',
               html, count=1, flags=re.S)
           if n != 1:
               raise SystemExit("Install help block not found")
-          html = swap(
-              html,
-              "离线翻译 · 优先使用科卢韦齐词库，缺词时推荐相近表达；由你确认后才替换。",
-              "科卢韦齐词库优先 · 候选由你确认",
-              "translation helper")
+          html, n = re.subn(
+              r'(<div class="hint" style="margin-top:\\d+px">)(?:离线处理：|离线翻译 ·).*?</div>',
+              r'\1科卢韦齐词库优先 · 法语备用会标注</div>',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Translation helper not found")
           html = html.replace(
               "当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）",
               "当地斯语中文谐音（法语补位会标注）")
@@ -130,7 +133,21 @@ jobs:
           html = html.replace(
               "法语补位不是加丹加斯瓦西里语。法语补位在主体翻译中只显示中文近似读音并标注（法语）；需要核对时可展开查看法语原文。中文读音是辅助记忆的近似标注，不是标准音标，也不能完全代替当地法语口音。自然语序和语法可能需要调整。重要安保命令请核对。",
               "法语仅作备用，不是当地斯语；中文读音为近似提示。重要安保指令请当地人员复核。")
+          html, n = re.subn(
+              r'<div class="warnbox"><b>重要说明：</b>.*?</div>',
+              '<details class="quality-note"><summary>准确性说明</summary><div class="quality-body">词库匹配不等于完整整句翻译；读音、语法和语序可能需要当地人员复核。重要安保指令请当地同事确认。</div></details>',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Accuracy warning block not found")
           html = html.replace("自定义词条中填写了拉丁拼写时，这里显示相应内容。", "有已核验拼写时显示在这里。")
+          html, n = re.subn(
+              r'<div class="resultlabel" style="margin-top:14px">(?:斯瓦西里语拉丁字母拼写（仅显示你手动核验填写的内容）|已核验拼写)</div><div class="latin" id="resultLatin">(.*?)</div>',
+              r'<details class="quality-note"><summary>已核验拼写</summary><div class="latin" id="resultLatin">\\1</div></details>',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Verified spelling block not found")
+          html = html.replace("逐段匹配情况", "匹配明细")
+          html = html.replace("输入中文后，显示哪些部分在词库中找到、哪些需要补充。", "输入后显示匹配结果与未收录内容.")
           html = html.replace("输入中文后，显示哪些部分在词库中找到、哪些需要补充。", "输入后显示匹配结果与未收录内容。")
           html = html.replace("加丹加斯瓦西里语中文同音字读法", "当地斯语中文谐音")
           html = html.replace("法语中文近似读音（可选，可手动修正）", "法语中文谐音（可选）")
@@ -165,7 +182,7 @@ jobs:
               raise SystemExit("Footer provenance block not found")
           compact_css = """
           /* DWSS 0.9.1 — concise interface; cover artwork and dimensions untouched */
-          .hint{font-size:11px;line-height:1.45;color:#718096}
+          .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
           #resultCard>details{margin-top:9px!important;padding-top:3px}
