@@ -60,12 +60,13 @@ jobs:
           script = '<script defer src="./shared-lexicon.js"></script>'
           if script not in html:
               if "</body>" in html:
-                  html = html.replace("</body>", script + "\\n</body>", 1)
+                  html = html.replace("</body>", script + "\n</body>", 1)
               else:
-                  html += "\\n" + script
+                  html += "\n" + script
           p.write_text(html, encoding="utf-8")
           PY
           test -s public/shared-lexicon.js
+          node --check public/shared-lexicon.js
           grep -Fq 'shared-lexicon.js' public/index.html
           grep -Fq "Version: 0.6.4" public/VERSION.txt
           touch public/.nojekyll
