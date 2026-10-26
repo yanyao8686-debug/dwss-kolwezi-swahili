@@ -162,7 +162,10 @@ async function flushQueue(client) {
   if (!queue.length || !navigator.onLine) return;
   for (const item of queue.slice()) {
     const payload = Object.assign({}, item); delete payload.__pending; delete payload.id;
-    const result = await client.from("shared_terms").upsert(payload, { onConflict: "client_submit_id" }).select("*").single();
+    let result = await client.from("shared_terms").insert(payload).select("*").single();
+    if (result.error && result.error.code === "23505") {
+      result = await client.from("shared_terms").select("*").eq("client_submit_id", item.client_submit_id).single();
+    }
     if (result.error) { setStatus("有 " + queue.length + " 条待同步，联网后自动重试", "offline"); return; }
     queue = queue.filter(q => q.client_submit_id !== item.client_submit_id);
     save(QUEUE_KEY, queue); mergeTerm(result.data);
