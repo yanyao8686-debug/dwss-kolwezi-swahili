@@ -369,10 +369,17 @@ jobs:
               "    window.addEventListener('load',async()=>{",
               "    const initializeUpdateService = async () => {",
               "late load initialization start")
-          pwa = pwa_replace(
-              "      } catch(error) { console.error('[DWSS] Service Worker registration failed:',error);updateButton.disabled=true;setState('更新服务连接失败','pwa-state-bad','离线更新服务连接失败。请检查网络后刷新；建议使用 Chrome 或 Safari。'); }\n    });\n  } else if('serviceWorker' in navigator)",
-              "      } catch(error) { console.error('[DWSS] Service Worker registration failed:',error);updateButton.disabled=true;setState('更新服务连接失败','pwa-state-bad','离线更新服务连接失败。请检查网络后刷新；建议使用 Chrome 或 Safari。'); }\n    };\n    if(document.readyState==='complete') initializeUpdateService();\n    else window.addEventListener('load',initializeUpdateService,{once:true});\n  } else if('serviceWorker' in navigator)",
-              "late load initialization completion")
+          sw_branch = "  } else if('serviceWorker' in navigator)"
+          branch_index = pwa.find(sw_branch)
+          if branch_index < 0:
+              raise SystemExit("Service-worker branch not found while fixing late initialization")
+          close_index = pwa.rfind("});", 0, branch_index)
+          if close_index < 0:
+              raise SystemExit("Late-load callback terminator not found")
+          line_start = pwa.rfind("\n", 0, close_index) + 1
+          pwa = pwa[:line_start] + "    };\n    if(document.readyState==='complete') initializeUpdateService();\n    else window.addEventListener('load',initializeUpdateService,{once:true});\n" + pwa[branch_index:]
+          if "document.readyState==='complete'" not in pwa:
+              raise SystemExit("Ready-state initialization patch did not apply")
           pwa = pwa_replace(
               "  function showUpdateAvailable(){updateButton.textContent='安装软件更新';updateButton.classList.add('primary');updateButton.classList.remove('soft');updateButton.dataset.updateReady='1';updateButton.disabled=false;setState('发现新版本','pwa-state-warn','新版本已下载。点击“安装软件更新”刷新；建议先备份个人词条。');}",
               "  function showUpdateAvailable(){updateButton.textContent='安装软件更新';updateButton.classList.add('primary');updateButton.classList.remove('soft');updateButton.dataset.updateReady='1';updateButton.disabled=false;setState('发现新版本','pwa-state-warn','新版本已下载。点击“安装软件更新”刷新；建议先备份个人词条。');showFeedback(message.textContent);}",
