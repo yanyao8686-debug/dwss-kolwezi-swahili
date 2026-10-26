@@ -191,12 +191,13 @@ jobs:
               '<section class="status-strip" aria-label="运行状态">'
               '<div class="status-items">'
               '<span class="offline" id="networkBadge">检查状态…</span>'
-              '<span class="chip" id="pwaState">正在检查</span>'
+              '<span class="chip" id="pwaState" hidden>正在检查</span>'
               '</div>'
               '<button class="soft mini" id="checkUpdateBtn" type="button">检查更新</button>'
               '<p class="hint" id="pwaMessage" hidden>状态信息</p>'
               '<button id="installAppBtn" type="button" hidden>安装到手机桌面</button>'
               '</section>'
+              '<div id="pwaToast" class="pwa-toast" role="status" aria-live="polite" hidden></div>'
           )
           html, n = re.subn(
               r'<section class="card pwa-card"[^>]*>.*?</section>',
@@ -227,7 +228,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.6 — imperial vermilion and flowing gold controls */
+          /* DWSS 0.9.7 — PWA update feedback and initialization repair */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -317,12 +318,24 @@ jobs:
           .status-strip #checkUpdateBtn{flex:0 0 auto;margin:0!important;padding:8px 12px;font-size:12px;white-space:nowrap}
           .status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}
           @media(max-width:420px){.status-strip{gap:6px;padding:6px 8px}.status-items{gap:4px}.status-strip .offline,.status-strip .chip{padding:5px 7px;font-size:10px}.status-strip #checkUpdateBtn{padding:7px 9px;font-size:11px}}
+          .pwa-toast{
+            position:fixed;left:16px;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));
+            z-index:10020;max-width:480px;margin:0 auto;padding:13px 16px;
+            border:1px solid #d6b75f;border-radius:15px;
+            background:linear-gradient(135deg,#fff8e6 0%,#f0dfb0 100%);
+            color:#702532;font-size:13px;line-height:1.55;font-weight:600;
+            box-shadow:0 10px 28px rgba(72,25,28,.18);
+            opacity:0;transform:translateY(8px);pointer-events:none;
+            transition:opacity .18s ease,transform .18s ease;
+          }
+          .pwa-toast.visible{opacity:1;transform:translateY(0)}
+          .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.6 — imperial vermilion" not in html:
+          if "DWSS 0.9.7 — PWA update feedback" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.6 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.7 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -335,8 +348,43 @@ jobs:
               raise SystemExit("Original cover reference missing")
           write("index.html", html)
 
-          # Shorten dynamic PWA messages without changing state or button behavior.
+          # Repair PWA initialization: boot.js loads pwa.js asynchronously after window.load.
           pwa = read("pwa.js")
+          def pwa_replace(old, new, label):
+              nonlocal_placeholder = None
+              count = pwa.count(old)
+              if count != 1:
+                  raise SystemExit(f"PWA patch {label}: expected one match, found {count}")
+              return pwa.replace(old, new, 1)
+
+          pwa = pwa_replace(
+              "  const setState = (text, kind, detail) => { state.textContent=text; state.className='chip '+(kind||''); if(detail) message.textContent=detail; };",
+              "  const toast = $('pwaToast');\n  let toastTimer = 0;\n  const showFeedback = (text) => {\n    if(!toast || !text) return;\n    toast.textContent=text;\n    toast.hidden=false;\n    toast.classList.add('visible');\n    if(toastTimer) window.clearTimeout(toastTimer);\n    toastTimer=window.setTimeout(()=>{toast.classList.remove('visible');toast.hidden=true;},5600);\n  };\n  const setState = (text, kind, detail) => { state.textContent=text; state.hidden=!text; state.className='chip '+(kind||''); if(detail) message.textContent=detail; };",
+              "status and feedback helper")
+          pwa = pwa_replace(
+              "  else setState('浏览器打开','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
+              "  else setState('','pwa-state-warn','首次打开请保持联网，待缓存完成后即可离线使用。');",
+              "browser status removal")
+          pwa = pwa_replace(
+              "    window.addEventListener('load',async()=>{",
+              "    const initializeUpdateService = async () => {",
+              "late load initialization start")
+          pwa = pwa_replace(
+              "      } catch(error) { console.error('[DWSS] Service Worker registration failed:',error);updateButton.disabled=true;setState('更新服务连接失败','pwa-state-bad','离线更新服务连接失败。请检查网络后刷新；建议使用 Chrome 或 Safari。'); }\n    });\n  } else if('serviceWorker' in navigator)",
+              "      } catch(error) { console.error('[DWSS] Service Worker registration failed:',error);updateButton.disabled=true;setState('更新服务连接失败','pwa-state-bad','离线更新服务连接失败。请检查网络后刷新；建议使用 Chrome 或 Safari。'); }\n    };\n    if(document.readyState==='complete') initializeUpdateService();\n    else window.addEventListener('load',initializeUpdateService,{once:true});\n  } else if('serviceWorker' in navigator)",
+              "late load initialization completion")
+          pwa = pwa_replace(
+              "  function showUpdateAvailable(){updateButton.textContent='安装软件更新';updateButton.classList.add('primary');updateButton.classList.remove('soft');updateButton.dataset.updateReady='1';updateButton.disabled=false;setState('发现新版本','pwa-state-warn','新版本已下载。点击“安装软件更新”刷新；建议先备份个人词条。');}",
+              "  function showUpdateAvailable(){updateButton.textContent='安装软件更新';updateButton.classList.add('primary');updateButton.classList.remove('soft');updateButton.dataset.updateReady='1';updateButton.disabled=false;setState('发现新版本','pwa-state-warn','新版本已下载。点击“安装软件更新”刷新；建议先备份个人词条。');showFeedback(message.textContent);}",
+              "new version feedback")
+          pwa = pwa_replace(
+              "  updateButton.addEventListener('click',async()=>{\n    if(updateButton.dataset.updateReady==='1' && registration?.waiting){registration.waiting.postMessage({type:'DWSS_SKIP_WAITING'});return;}\n    if(!updateServiceReady || !registration){setState('更新服务正在初始化','pwa-state-warn','更新服务仍在启动，请稍后重试。');return;}\n    if(!navigator.onLine){setState('当前离线','pwa-state-warn','离线状态无法检查更新；已缓存版本仍可使用。');return;}\n    updateButton.disabled=true;setState('正在检查更新','pwa-state-warn','正在检查更新…');\n    try{await registration.update();if(!registration.waiting && !registration.installing)setState('当前已是最新版本','pwa-state-ok','当前已是最新版本。');}\n    catch(error){console.warn('[DWSS] update check failed:',error);setState('暂时无法检查更新','pwa-state-warn','暂时无法连接更新服务器，请稍后重试。');}\n    finally{updateButton.disabled=false;}\n  });",
+              "  updateButton.addEventListener('click',async()=>{\n    if(updateButton.dataset.updateReady==='1' && registration?.waiting){showFeedback('正在安装更新…');registration.waiting.postMessage({type:'DWSS_SKIP_WAITING'});return;}\n    if(!updateServiceReady || !registration){setState('更新服务正在初始化','pwa-state-warn','更新服务仍在启动，请稍后重试。');showFeedback(message.textContent);return;}\n    if(!navigator.onLine){setState('当前离线','pwa-state-warn','离线状态无法检查更新；已缓存版本仍可使用。');showFeedback(message.textContent);return;}\n    updateButton.disabled=true;setState('正在检查更新','pwa-state-warn','正在检查更新…');showFeedback(message.textContent);\n    try{\n      await registration.update();\n      if(registration.waiting) showUpdateAvailable();\n      else if(registration.installing) showFeedback('发现新版本，正在下载…');\n      else {setState('当前已是最新版本','pwa-state-ok','当前已是最新版本。');showFeedback(message.textContent);}\n    }\n    catch(error){console.warn('[DWSS] update check failed:',error);setState('暂时无法检查更新','pwa-state-warn','暂时无法连接更新服务器，请稍后重试。');showFeedback(message.textContent);}\n    finally{updateButton.disabled=false;}\n  });",
+              "update click feedback")
+          if "window.addEventListener('load',async()=>" in pwa:
+              raise SystemExit("Old late-load-only PWA initializer remains")
+          if "document.readyState==='complete'" not in pwa or "showFeedback(message.textContent)" not in pwa:
+              raise SystemExit("PWA initialization or feedback fix incomplete")
           pwa_replacements = [
               ("当前没有网络连接。已缓存的词库查询、短句匹配和个人词库维护仍可在本机使用；联网后才能检查更新。","离线可查询已缓存词库；联网后检查更新。"),
               ("DWSS 已以独立窗口方式运行。联网时可检查更新；首次安装后请确认离线资源已缓存。","已从桌面启动。联网可检查更新。"),
@@ -417,12 +465,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.6';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.7';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.6", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.7", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -438,9 +486,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.6 history action removed; dictionary data and history panel preserved.")
+          print("DWSS 0.9.7 repairs late-loaded PWA initialization and displays update feedback.")
           PY
-      - name: Validate history action removal and vermilion-gold controls 0.9.6
+      - name: Validate PWA initialization, update feedback and interface regression 0.9.7
         shell: bash
         run: |
           set -euo pipefail
@@ -450,6 +498,8 @@ jobs:
           grep -Fq 'id="networkBadge"' public/index.html
           grep -Fq 'id="pwaState"' public/index.html
           grep -Fq 'id="checkUpdateBtn"' public/index.html
+          grep -Fq 'id="pwaToast"' public/index.html
+          grep -Fq 'class="pwa-toast"' public/index.html
           ! grep -Fq 'id="saveHistoryBtn"' public/index.html
           grep -Fq 'data-tab="maintenance">添加新词' public/index.html
           grep -Fq 'linear-gradient(125deg,#861326 0%,#bd2436 52%,#e34a3d 100%)' public/index.html
@@ -472,9 +522,9 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.6" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.6';" public/sw.js
-          grep -Fq "DWSS 0.9.6 — imperial vermilion" public/index.html
+          grep -Fq "Version: 0.9.7" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.7';" public/sw.js
+          grep -Fq "DWSS 0.9.7 — PWA update feedback" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
@@ -492,7 +542,7 @@ jobs:
           node --check public/sw.js
           test -s public/dictionary.js.gz
           test -s public/cover.jpg
-      - name: Audit status and event wiring
+      - name: Audit PWA, navigation and DOM event wiring
         shell: bash
         run: |
           node <<'NODE'
@@ -501,31 +551,39 @@ jobs:
           const pwa = fs.readFileSync('public/pwa.js','utf8');
           const boot = fs.readFileSync('public/boot.js','utf8');
           const app = fs.readFileSync('public/app.js','utf8');
-          console.log('BOOT_SOURCE_BEGIN\\n'+boot+'\\nBOOT_SOURCE_END');
-          console.log('--- script tags ---');
-          console.log((html.match(/<script[^>]*>/g)||[]).join('\n'));
-          for (const source of [['PWA',pwa],['APP',app]]) {
-            const [name,txt]=source;
-            console.log('--- '+name+' status/update matches ---');
-            if(name==='PWA') console.log('PWA_SOURCE_BEGIN\\n'+txt+'\\nPWA_SOURCE_END');
-            const lines=txt.split('\n');
-            lines.forEach((line,i)=>{
-              if(/checkUpdateBtn|pwaMessage|pwaState|浏览器打开|离线资源已缓存|registration\.update|updatefound|controllerchange|skipWaiting|clientsClaim/.test(line)) {
-                console.log(name+':'+(i+1)+': '+line.slice(0,500));
-              }
-            });
-          }
-          const htmlIds = new Set([...html.matchAll(/\bid=["']([^"']+)["']/g)].map(m=>m[1]));
+          const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(m=>m[1]);
+          const idSet = new Set(ids);
+          if(ids.length!==idSet.size) throw new Error('Duplicate HTML id found');
           const refs = new Set();
-          for (const txt of [pwa,app]) {
-            for (const m of txt.matchAll(/\$\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
-            for (const m of txt.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
+          for(const txt of [pwa,app]){
+            for(const m of txt.matchAll(/\\$\\(['"]([^'"]+)['"]\\)/g)) refs.add(m[1]);
+            for(const m of txt.matchAll(/getElementById\\(['"]([^'"]+)['"]\\)/g)) refs.add(m[1]);
           }
-          const dynamic = [...refs].filter(id=>!htmlIds.has(id));
-          console.log('--- missing static DOM ids (may be dynamic/optional) ---');
-          console.log(dynamic.sort().join(', '));
-          console.log('HTML static ids:',htmlIds.size,'JS ids:',refs.size);
+          const missing = [...refs].filter(id=>!idSet.has(id));
+          if(missing.some(id=>id!=='saveHistoryBtn')) throw new Error('Missing JS DOM ids: '+missing.join(', '));
+          if(!app.includes('if(saveHistoryBtn)')) throw new Error('Removed history button listener is not guarded');
+          if(!html.includes('id="pwaToast"')) throw new Error('Update feedback toast missing');
+          if(!pwa.includes("document.readyState==='complete'")) throw new Error('Late-loaded PWA script does not initialize after load');
+          if(pwa.includes("setState('浏览器打开'")) throw new Error('Browser-open status still displayed');
+          if(!pwa.includes('showFeedback(message.textContent)')) throw new Error('Update feedback is not connected to status changes');
+          const nav=html.match(/<nav class="tabs">(.*?)<\\/nav>/s);
+          if(!nav) throw new Error('Primary navigation missing');
+          const tabs=[...nav[1].matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]);
+          if(tabs.join(',')!=='translate,saved,maintenance') throw new Error('Unexpected navigation: '+tabs.join(','));
+          for(const id of ['translate','saved','maintenance','dictionary','dictSearch','inputText','resultReading','segmentList','favorites','history','entryForm','exportCustom','importCustom','networkBadge','pwaState','pwaMessage','pwaToast','checkUpdateBtn']) {
+            if(!idSet.has(id)) throw new Error('Required UI element missing: '+id);
+          }
+          if(html.includes('id="saveHistoryBtn"')) throw new Error('Save-to-history button still present');
+          if(!html.includes('id="pwaState" hidden')) throw new Error('PWA mode chip should start hidden');
+          if(!boot.includes("for (const src of ['./french-fallback.js', './app.js', './pwa.js'])")) throw new Error('Bootstrap module load sequence changed');
+          console.log('Regression audit passed: unique IDs, guarded removed control, preserved panels, three tabs, late PWA initialization and update feedback.');
           NODE
+          node --check public/boot.js
+          node --check public/pwa.js
+          node --check public/app.js
+          node --check public/sw.js
+          node --check public/shared-lexicon.js
+          node --check public/french-fallback.js
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
