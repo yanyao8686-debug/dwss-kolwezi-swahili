@@ -380,10 +380,52 @@ jobs:
           pwa = pwa[:line_start] + "    };\n    if(document.readyState==='complete') initializeUpdateService();\n    else window.addEventListener('load',initializeUpdateService,{once:true});\n" + pwa[branch_index:]
           if "document.readyState==='complete'" not in pwa:
               raise SystemExit("Ready-state initialization patch did not apply")
-          pwa = pwa_replace(
-              "  updateButton.addEventListener('click',async()=>{\n    if(updateButton.dataset.updateReady==='1' && registration?.waiting){registration.waiting.postMessage({type:'DWSS_SKIP_WAITING'});return;}\n    if(!updateServiceReady || !registration){setState('更新服务正在初始化','pwa-state-warn','更新服务仍在启动，请稍后重试。');return;}\n    if(!navigator.onLine){setState('当前离线','pwa-state-warn','离线状态无法检查更新；已缓存版本仍可使用。');return;}\n    updateButton.disabled=true;setState('正在检查更新','pwa-state-warn','正在检查更新…');\n    try{await registration.update();if(!registration.waiting && !registration.installing)setState('当前已是最新版本','pwa-state-ok','当前已是最新版本。');}\n    catch(error){console.warn('[DWSS] update check failed:',error);setState('暂时无法检查更新','pwa-state-warn','暂时无法连接更新服务器，请稍后重试。');}\n    finally{updateButton.disabled=false;}\n  });",
-              "  updateButton.addEventListener('click',async()=>{\n    if(updateButton.dataset.updateReady==='1' && registration?.waiting){showFeedback('正在安装更新…');registration.waiting.postMessage({type:'DWSS_SKIP_WAITING'});return;}\n    if(!updateServiceReady || !registration){setState('更新服务正在初始化','pwa-state-warn','更新服务仍在启动，请稍后重试。');showFeedback(message.textContent);return;}\n    if(!navigator.onLine){setState('当前离线','pwa-state-warn','离线状态无法检查更新；已缓存版本仍可使用。');showFeedback(message.textContent);return;}\n    updateButton.disabled=true;setState('正在检查更新','pwa-state-warn','正在检查更新…');showFeedback(message.textContent);\n    try{\n      await registration.update();\n      if(registration.waiting) showUpdateAvailable();\n      else if(registration.installing) showFeedback('发现新版本，正在下载…');\n      else {setState('当前已是最新版本','pwa-state-ok','当前已是最新版本。');showFeedback(message.textContent);}\n    }\n    catch(error){console.warn('[DWSS] update check failed:',error);setState('暂时无法检查更新','pwa-state-warn','暂时无法连接更新服务器，请稍后重试。');showFeedback(message.textContent);}\n    finally{updateButton.disabled=false;}\n  });",
-              "update click feedback")
+          handler_start = pwa.find("  updateButton.addEventListener('click',async()=>{")
+          if handler_start < 0:
+              raise SystemExit("Update button click handler not found")
+          handler_end = pwa.find("\n  });", handler_start)
+          if handler_end < 0:
+              raise SystemExit("Update button click handler end not found")
+          handler_end += len("\n  });")
+          new_handler = """  updateButton.addEventListener('click',async()=>{
+            if(updateButton.dataset.updateReady==='1' && registration?.waiting){
+              showFeedback('正在安装更新…');
+              registration.waiting.postMessage({type:'DWSS_SKIP_WAITING'});
+              return;
+            }
+            if(!updateServiceReady || !registration){
+              setState('更新服务正在初始化','pwa-state-warn','更新服务仍在启动，请稍后重试。');
+              showFeedback(message.textContent);
+              return;
+            }
+            if(!navigator.onLine){
+              setState('当前离线','pwa-state-warn','离线状态无法检查更新；已缓存版本仍可使用。');
+              showFeedback(message.textContent);
+              return;
+            }
+            updateButton.disabled=true;
+            setState('正在检查更新','pwa-state-warn','正在检查更新…');
+            showFeedback(message.textContent);
+            try{
+              await registration.update();
+              if(registration.waiting){
+                showUpdateAvailable();
+              }else if(registration.installing){
+                showFeedback('发现新版本，正在下载…');
+              }else{
+                setState('当前已是最新版本','pwa-state-ok','当前已是最新版本。');
+                showFeedback(message.textContent);
+              }
+            }catch(error){
+              console.warn('[DWSS] update check failed:',error);
+              setState('暂时无法检查更新','pwa-state-warn','暂时无法连接更新服务器，请稍后重试。');
+              showFeedback(message.textContent);
+            }finally{
+              updateButton.disabled=false;
+            }
+          });"""
+          pwa = pwa[:handler_start] + new_handler + pwa[handler_end:]
+
           if "window.addEventListener('load',async()=>" in pwa:
               raise SystemExit("Old late-load-only PWA initializer remains")
           if "document.readyState==='complete'" not in pwa or "showFeedback(message.textContent)" not in pwa:
