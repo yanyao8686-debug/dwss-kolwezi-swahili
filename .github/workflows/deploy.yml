@@ -551,13 +551,13 @@ jobs:
           const pwa = fs.readFileSync('public/pwa.js','utf8');
           const boot = fs.readFileSync('public/boot.js','utf8');
           const app = fs.readFileSync('public/app.js','utf8');
-          const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(m=>m[1]);
+          const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(m=>m[1]);
           const idSet = new Set(ids);
           if(ids.length!==idSet.size) throw new Error('Duplicate HTML id found');
           const refs = new Set();
           for(const txt of [pwa,app]){
-            for(const m of txt.matchAll(/\\$\\(['"]([^'"]+)['"]\\)/g)) refs.add(m[1]);
-            for(const m of txt.matchAll(/getElementById\\(['"]([^'"]+)['"]\\)/g)) refs.add(m[1]);
+            for(const m of txt.matchAll(/\$\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
+            for(const m of txt.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
           }
           const missing = [...refs].filter(id=>!idSet.has(id));
           if(missing.some(id=>id!=='saveHistoryBtn')) throw new Error('Missing JS DOM ids: '+missing.join(', '));
@@ -566,7 +566,7 @@ jobs:
           if(!pwa.includes("document.readyState==='complete'")) throw new Error('Late-loaded PWA script does not initialize after load');
           if(pwa.includes("setState('浏览器打开'")) throw new Error('Browser-open status still displayed');
           if(!pwa.includes('showFeedback(message.textContent)')) throw new Error('Update feedback is not connected to status changes');
-          const nav=html.match(/<nav class="tabs">(.*?)<\\/nav>/s);
+          const nav=html.match(/<nav class="tabs">(.*?)<\/nav>/s);
           if(!nav) throw new Error('Primary navigation missing');
           const tabs=[...nav[1].matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]);
           if(tabs.join(',')!=='translate,saved,maintenance') throw new Error('Unexpected navigation: '+tabs.join(','));
