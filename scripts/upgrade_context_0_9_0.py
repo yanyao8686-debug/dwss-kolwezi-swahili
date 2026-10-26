@@ -80,7 +80,7 @@ body{background:linear-gradient(180deg,#edf2fa 0,#f6f7fa 340px,#f6f7fa 100%)}
 .app{max-width:1040px}
 /* Do not alter .cover-frame / .cover-image: preserve the supplied top artwork */
 .top{position:relative;overflow:hidden}
-.top:after{content:"";position:absolute;inset:auto -55px -90px auto;width:210px;height:210px;border:1px solid rgba(255,255,255,.09);border=radius:50%;pointer-events:none}
+.top:after{content:"";position:absolute;inset:auto -55px -90px auto;width:210px;height:210px;border:1px solid rgba(255,255,255,.09);border-radius:50%;pointer-events:none}
 .pwa-card{display:flex;flex-wrap:wrap;align-items:center;gap:5px 14px}.pwa-card .sectionTitle{flex:1 1 100%}.pwa-card #pwaMessage{flex:1 1 220px;margin:2px 0}.pwa-card .actions{margin:0;flex:0 0 auto}
 .tabs{padding:7px 5px;border:1px solid rgba(220,228,240,.8);border-radius:15px;box-shadow:0 5px 18px rgba(22,44,83,.035)}
 .tab{letter-spacing:.015em}.tab.active{box-shadow:0 4px 12px rgba(23,59,120,.16)}
