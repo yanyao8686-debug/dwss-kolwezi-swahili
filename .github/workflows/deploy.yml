@@ -499,7 +499,9 @@ jobs:
           const fs = require('fs');
           const html = fs.readFileSync('public/index.html','utf8');
           const pwa = fs.readFileSync('public/pwa.js','utf8');
+          const boot = fs.readFileSync('public/boot.js','utf8');
           const app = fs.readFileSync('public/app.js','utf8');
+          console.log('BOOT_SOURCE_BEGIN\\n'+boot+'\\nBOOT_SOURCE_END');
           console.log('--- script tags ---');
           console.log((html.match(/<script[^>]*>/g)||[]).join('\n'));
           for (const source of [['PWA',pwa],['APP',app]]) {
