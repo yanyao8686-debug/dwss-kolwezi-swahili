@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/deploy.yml'
+      - 'DWSS_PWA_0.5.1_GitHubPages.zip'
       - 'DWSS_PWA_0.5.1_GitHubPages_发布包.zip'
   workflow_dispatch:
 
@@ -24,13 +26,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Unpack and verify DWSS PWA
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p public
-          unzip -q 'DWSS_PWA_0.5.1_GitHubPages_发布包.zip' -d public
+          ARCHIVE=""
+          for candidate in "DWSS_PWA_0.5.1_GitHubPages.zip" "DWSS_PWA_0.5.1_GitHubPages_发布包.zip"; do
+            if [ -f "$candidate" ]; then ARCHIVE="$candidate"; break; fi
+          done
+          test -n "$ARCHIVE"
+          unzip -q "$ARCHIVE" -d public
           test -s public/index.html
           test -s public/manifest.webmanifest
           test -s public/sw.js
