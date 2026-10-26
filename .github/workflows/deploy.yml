@@ -64,7 +64,6 @@ jobs:
           python3 scripts/finalize_shared_release.py public
           test -s scripts/upgrade_context_0_9_0.py
           python3 scripts/upgrade_context_0_9_0.py public
-          test -s scripts/compact_interface_0_9_1.py
           test -s public/shared-lexicon.js
           node --check public/shared-lexicon.js
           test -s public/supabase.min.js
@@ -81,11 +80,10 @@ jobs:
           node --check public/sw.js
           node --check public/pwa.js
           grep -Fq 'shared-lexicon.js' public/index.html
-          grep -Fq "Version: 0.9.1" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.1';" public/sw.js
+          grep -Fq "Version: 0.9.0" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.0';" public/sw.js
           grep -Fq "const CONTEXT_PROFILES" public/app.js
           grep -Fq "contextLabel" public/app.js
-          grep -Fq "DWSS 0.9.1 — concise interface" public/index.html
           touch public/.nojekyll
       - name: Compact DWSS interface copy and optional details
         shell: bash
@@ -285,6 +283,19 @@ jobs:
           write("VERSION.txt", version)
           print("DWSS 0.9.1 compact interface installed; dictionary and cover untouched.")
           PY
+      - name: Validate compact interface 0.9.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "Version: 0.9.1" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.1';" public/sw.js
+          grep -Fq "DWSS 0.9.1 — concise interface" public/index.html
+          grep -Fq "function renderUnknownRecommendations" public/app.js
+          node --check public/app.js
+          node --check public/pwa.js
+          node --check public/sw.js
+          test -s public/dictionary.js.gz
+          test -s public/cover.jpg
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
