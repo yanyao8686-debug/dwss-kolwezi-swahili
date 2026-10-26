@@ -6,7 +6,6 @@ const SUPABASE_URL = "https://pautxzcfmtwkaunjxghj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp";
 const CACHE_KEY = "dwss_shared_terms_cache_v1";
 const QUEUE_KEY = "dwss_shared_terms_queue_v1";
-const CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 let supabase = null, channel = null, panelOpen = false, language = "sw";
 let terms = readArray(CACHE_KEY), queue = readArray(QUEUE_KEY);
 function readArray(key) {
@@ -151,8 +150,10 @@ function buildUi() {
 }
 async function getClient() {
   if (supabase) return supabase;
-  const mod = await import(CDN);
-  supabase = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    throw new Error("共享词库组件未加载，请联网刷新页面后重试");
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     realtime: { params: { eventsPerSecond: 5 } }
   });
