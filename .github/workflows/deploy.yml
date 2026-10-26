@@ -181,8 +181,31 @@ jobs:
               html, count=1, flags=re.S)
           if n != 1:
               raise SystemExit("Footer provenance block not found")
+
+          # Remove the large brand-information card and the full PWA status card.
+          # Keep only the live network indicator, cached-resource state and update action.
+          html, n = re.subn(r'<header class="top">.*?</header>', '', html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Large brand-information card not found")
+          compact_status = (
+              '<section class="status-strip" aria-label="运行状态">'
+              '<div class="status-items">'
+              '<span class="offline" id="networkBadge">检查状态…</span>'
+              '<span class="chip" id="pwaState">正在检查</span>'
+              '</div>'
+              '<button class="soft mini" id="checkUpdateBtn" type="button">检查更新</button>'
+              '<p class="hint" id="pwaMessage" hidden>状态信息</p>'
+              '<button id="installAppBtn" type="button" hidden>安装到手机桌面</button>'
+              '</section>'
+          )
+          html, n = re.subn(
+              r'<section class="card pwa-card"[^>]*>.*?</section>',
+              lambda _: compact_status,
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Large PWA status card not found")
           compact_css = """
-          /* DWSS 0.9.2 — concise interface; cover artwork and dimensions untouched */
+          /* DWSS 0.9.3 — compact status bar; original cover untouched */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -205,16 +228,28 @@ jobs:
           .recommendation-box{padding:9px 10px}
           .maintenance-note{padding:9px 11px;font-size:11px}
           .footer{font-size:10px;line-height:1.5}
+          /* Replace the two tall intro cards with one compact status toolbar. */
+          .status-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 12px;padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:none}
+          .status-items{display:flex;align-items:center;flex:1 1 auto;min-width:0;flex-wrap:wrap;gap:6px}
+          .status-strip .offline{display:inline-flex;align-items:center;margin:0;padding:6px 9px;border:1px solid #d8e5df;border-radius:999px;background:#f3f8f5;color:#245c48;font-size:11px;line-height:1.2;white-space:nowrap}
+          .status-strip .chip{display:inline-flex;align-items:center;margin:0;padding:6px 9px;border-radius:999px;font-size:11px;line-height:1.2;white-space:nowrap}
+          .status-strip #checkUpdateBtn{flex:0 0 auto;margin:0!important;padding:8px 12px;font-size:12px;white-space:nowrap}
+          .status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}
+          @media(max-width:420px){.status-strip{gap:6px;padding:6px 8px}.status-items{gap:4px}.status-strip .offline,.status-strip .chip{padding:5px 7px;font-size:10px}.status-strip #checkUpdateBtn{padding:7px 9px;font-size:11px}}
           """
-          if "DWSS 0.9.2 — concise interface" not in html:
+          if "DWSS 0.9.3 — compact status bar" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.2 · DWSS 智能翻译 PWA", html, count=1)
-          required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom"]
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.3 · DWSS 智能翻译 PWA", html, count=1)
+          required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
               raise SystemExit("Required interface controls missing: " + ", ".join(missing))
+          if '<header class="top">' in html or 'class="card pwa-card"' in html:
+              raise SystemExit("Large brand/status cards were not removed")
+          if 'class="status-strip"' not in html:
+              raise SystemExit("Compact status toolbar missing")
           if 'src="cover.jpg"' not in html:
               raise SystemExit("Original cover reference missing")
           write("index.html", html)
@@ -242,6 +277,16 @@ jobs:
           ]
           for old, new in pwa_replacements:
               pwa = pwa.replace(old, new, 1)
+          pwa, n1 = pwa.replace(
+              "networkBadge.style.borderColor=online?'#ffffff70':'#ffdf9a';",
+              "networkBadge.style.borderColor=online?'#c9d9d3':'#e6c98b';"
+          ), 1
+          pwa, n2 = pwa.replace(
+              "networkBadge.style.color=online?'#e6fff3':'#ffdf9a';",
+              "networkBadge.style.color=online?'#245c48':'#9a6a1e';"
+          ), 1
+          if n1 != 1 or n2 != 1:
+              raise SystemExit("Network status color anchors missing")
           write("pwa.js", pwa)
 
           # Compact the translation result while keeping candidate selection intact.
@@ -290,12 +335,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.2';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.3';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.2", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.3", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -311,15 +356,21 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.2 compact interface installed; dynamic statistics verified; dictionary and cover unchanged.")
+          print("DWSS 0.9.3 compact status toolbar installed; update and offline controls preserved.")
           PY
-      - name: Validate compact interface 0.9.2
+      - name: Validate compact status toolbar 0.9.3
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "Version: 0.9.2" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.2';" public/sw.js
-          grep -Fq "DWSS 0.9.2 — concise interface" public/index.html
+          ! grep -Fq '<header class="top">' public/index.html
+          ! grep -Fq 'class="card pwa-card"' public/index.html
+          grep -Fq 'class="status-strip"' public/index.html
+          grep -Fq 'id="networkBadge"' public/index.html
+          grep -Fq 'id="pwaState"' public/index.html
+          grep -Fq 'id="checkUpdateBtn"' public/index.html
+          grep -Fq "Version: 0.9.3" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.3';" public/sw.js
+          grep -Fq "DWSS 0.9.3 — compact status bar" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
