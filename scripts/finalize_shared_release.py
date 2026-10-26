@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize DWSS 0.6.9 release files after unpacking the 0.6.4 archive."""
+"""Finalize DWSS 0.6.10 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
 import sys
 
@@ -546,9 +546,8 @@ rr=re.search(r"window\.SW_FRENCH_READINGS\s*=\s*(\{.*?\})\s*;",fp,re.S)
 fp=fp[:rr.start()]+"window.SW_FRENCH_READINGS = "+json.dumps(fr,ensure_ascii=False,separators=(",",":"))+";"+fp[rr.end():]
 write("french-fallback.js",fp)
 
-# User-requested correction to the immutable built-in Katanga Swahili dictionary:
-# "车辆" must have exactly one Chinese phonetic reading: "摸多嘎".
-# Replace the older "瓦居勒" variant rather than adding a competing pronunciation.
+# User-requested corrections to the immutable built-in Katanga Swahili dictionary.
+# "车辆" and "车" each have exactly one Chinese phonetic reading: "摸多嘎".
 import gzip
 db_path = root / "dictionary.js.gz"
 if not db_path.exists():
@@ -559,26 +558,53 @@ db_end = db_source.rfind("]")
 if db_start < 0 or db_end <= db_start:
     raise SystemExit("Could not locate the built-in dictionary JSON array")
 db = json.loads(db_source[db_start:db_end + 1])
-vehicle_rows = [item for item in db if item.get("zh") == "车辆"]
-if len(vehicle_rows) != 1:
-    raise SystemExit(f"Expected exactly one built-in '车辆' entry, found {len(vehicle_rows)}")
-vehicle_rows[0]["variants"] = [{
-    "reading": "摸多嘎",
-    "source": "用户指定的科卢韦齐当地读音",
-    "kind": "用户修订"
-}]
+
+def set_unique_reading(term, reading):
+    rows = [item for item in db if item.get("zh") == term]
+    if len(rows) != 1:
+        raise SystemExit(f"Expected exactly one built-in {term!r} entry, found {len(rows)}")
+    rows[0]["variants"] = [{
+        "reading": reading,
+        "source": "用户指定的科卢韦齐当地读音",
+        "kind": "用户修订"
+    }]
+
+set_unique_reading("车辆", "摸多嘎")
+set_unique_reading("车", "摸多嘎")
+
+# Bind Chinese numerals 一至十三 to the existing Arabic-number dictionary
+# entries 1至13, cloning the local pronunciations instead of inventing new ones.
+numerals = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三"]
+for value, numeral in enumerate(numerals, 1):
+    source_rows = [item for item in db if item.get("zh") == str(value)]
+    if len(source_rows) != 1:
+        raise SystemExit(f"Expected exactly one built-in numeric entry {value}, found {len(source_rows)}")
+    existing = [item for item in db if item.get("zh") == numeral]
+    if existing:
+        existing[0]["variants"] = json.loads(json.dumps(source_rows[0].get("variants", []), ensure_ascii=False))
+    else:
+        clone = json.loads(json.dumps(source_rows[0], ensure_ascii=False))
+        clone["zh"] = numeral
+        db.append(clone)
+
 db_output = "window.SW_DB = " + json.dumps(db, ensure_ascii=False, separators=(",", ":")) + ";"
 db_path.write_bytes(gzip.compress(db_output.encode("utf-8"), compresslevel=9, mtime=0))
-# Verify the compressed output and make sure the removed pronunciation is absent.
+
+# Verify all requested dictionary changes after compression.
 verified_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
 verified_start = verified_source.find("[", verified_source.find("window.SW_DB"))
 verified_end = verified_source.rfind("]")
 if verified_start < 0 or verified_end <= verified_start:
     raise SystemExit("Could not re-read built-in dictionary after compression")
 verified_db = json.loads(verified_source[verified_start:verified_end + 1])
-verified_vehicle = [item for item in verified_db if item.get("zh") == "车辆"]
-if len(verified_vehicle) != 1 or [v.get("reading") for v in verified_vehicle[0].get("variants", [])] != ["摸多嘎"]:
-    raise SystemExit("Vehicle pronunciation correction verification failed")
+for term in ["车辆", "车"]:
+    rows = [item for item in verified_db if item.get("zh") == term]
+    if len(rows) != 1 or [v.get("reading") for v in rows[0].get("variants", [])] != ["摸多嘎"]:
+        raise SystemExit(f"Reading verification failed for {term}")
+for value, numeral in enumerate(numerals, 1):
+    rows = [item for item in verified_db if item.get("zh") == numeral]
+    if len(rows) != 1 or not rows[0].get("variants"):
+        raise SystemExit(f"Chinese numeral binding verification failed for {numeral}")
 
 app=read("app.js")
 if app is None:
@@ -716,4 +742,4 @@ if guide is not None:
     guide = guide.replace("个人新增词条只保存在当前设备，不会自动跨设备同步。", "个人“词库维护”新增词条仍保存在当前设备；需要跨设备共享时，请使用首页右下角的“共享词库”提交。")
     write("README_部署与使用.md", guide)
 
-print("DWSS 0.6.7 release files finalized.")
+print("DWSS 0.6.10 release files finalized.")
