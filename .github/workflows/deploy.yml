@@ -211,7 +211,7 @@ jobs:
               '<nav class="tabs">'
               '<button class="tab active" data-tab="translate">翻译</button>'
               '<button class="tab" data-tab="saved">收藏 / 历史</button>'
-              '<button class="tab" data-tab="maintenance">维护</button>'
+              '<button class="tab" data-tab="maintenance">添加新词</button>'
               '</nav>'
           )
           html, n = re.subn(r'<nav class="tabs">.*?</nav>', lambda _: compact_nav, html, count=1, flags=re.S)
@@ -219,8 +219,15 @@ jobs:
               raise SystemExit("Primary navigation not found")
           if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
               raise SystemExit("Dictionary data panel was not preserved")
+
+          html, n = re.subn(
+              r'<button[^>]*id="saveHistoryBtn"[^>]*>.*?</button>',
+              '',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.5 — focused navigation and refined button palette */
+          /* DWSS 0.9.6 — imperial vermilion and flowing gold controls */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -267,8 +274,41 @@ jobs:
           button.plain{border:1px solid #dfe6ee!important;background:linear-gradient(135deg,#f5f7f9,#e9eef3)!important;color:#425a73!important}
           button.primary:active,button.soft:active,button.plain:active,.tabs .tab:active{transform:translateY(1px)}
           button.primary:focus-visible,button.soft:focus-visible,button.plain:focus-visible,.tabs .tab:focus-visible{outline:3px solid rgba(207,169,77,.35)!important;outline-offset:2px}
-          .tabs .tab:not(.active):hover{background:linear-gradient(145deg,#fff,#e8eef4)!important}
-          button.soft:hover{background:linear-gradient(135deg,#f9edcb,#ecd08a)!important}
+          /* DWSS 0.9.6 — imperial vermilion and flowing gold controls */
+          .tabs .tab{
+            border:1px solid #d9bd72!important;
+            background:linear-gradient(145deg,#fff8e7 0%,#f1dfb0 100%)!important;
+            color:#7e2630!important;
+            box-shadow:0 3px 9px rgba(142,36,43,.08),inset 0 1px 0 rgba(255,255,255,.8);
+          }
+          .tabs .tab.active{
+            border:1px solid #f0d17b!important;
+            background:linear-gradient(125deg,#861326 0%,#b91f32 48%,#e34a3d 100%)!important;
+            color:#fff4d5!important;
+            box-shadow:0 7px 17px rgba(149,20,39,.24),inset 0 1px 0 rgba(255,231,171,.25);
+            text-shadow:0 1px 1px rgba(72,5,15,.25);
+          }
+          .tabs .tab:not(.active):hover{
+            background:linear-gradient(145deg,#fffaf0 0%,#eed79d 100%)!important;
+            border-color:#cda94e!important;
+          }
+          .actions #translateBtn{
+            border:1px solid #e8c66e!important;
+            background:linear-gradient(125deg,#861326 0%,#bd2436 52%,#e34a3d 100%)!important;
+            color:#fff3d0!important;
+            box-shadow:0 7px 16px rgba(154,22,41,.2),inset 0 1px 0 rgba(255,226,164,.2);
+            text-shadow:0 1px 1px rgba(72,5,15,.22);
+          }
+          .actions #clearBtn{
+            border:1px solid #d7b75e!important;
+            background:linear-gradient(135deg,#fff3cf 0%,#e9c96d 100%)!important;
+            color:#792332!important;
+            box-shadow:0 4px 10px rgba(150,105,22,.12),inset 0 1px 0 rgba(255,255,255,.75);
+          }
+          .actions #translateBtn:active,.actions #clearBtn:active,.tabs .tab:active{transform:translateY(1px)}
+          .actions #translateBtn:focus-visible,.actions #clearBtn:focus-visible,.tabs .tab:focus-visible{
+            outline:3px solid rgba(210,165,63,.38)!important;outline-offset:2px;
+          }
           /* Replace the two tall intro cards with one compact status toolbar. */
           .status-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 12px;padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:none}
           .status-items{display:flex;align-items:center;flex:1 1 auto;min-width:0;flex-wrap:wrap;gap:6px}
@@ -278,11 +318,11 @@ jobs:
           .status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}
           @media(max-width:420px){.status-strip{gap:6px;padding:6px 8px}.status-items{gap:4px}.status-strip .offline,.status-strip .chip{padding:5px 7px;font-size:10px}.status-strip #checkUpdateBtn{padding:7px 9px;font-size:11px}}
           """
-          if "DWSS 0.9.5 — focused navigation" not in html:
+          if "DWSS 0.9.6 — imperial vermilion" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.5 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.6 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -368,16 +408,21 @@ jobs:
               if old not in app:
                   raise SystemExit(f"Missing app copy: {label}")
               app = app.replace(old, new, 1)
+          old_history_listener = "$('saveHistoryBtn').addEventListener('click',()=>{const t=$('inputText').value.trim();if(t)saveRecent(t);});"
+          new_history_listener = "const saveHistoryBtn=$('saveHistoryBtn');if(saveHistoryBtn)saveHistoryBtn.addEventListener('click',()=>{const t=$('inputText').value.trim();if(t)saveRecent(t);});"
+          if old_history_listener not in app:
+              raise SystemExit("Save-to-history event binding not found")
+          app = app.replace(old_history_listener, new_history_listener, 1)
           write("app.js", app)
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.5';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.6';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.5", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.6", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -393,9 +438,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.5 three-tab navigation installed; dictionary panel and data preserved.")
+          print("DWSS 0.9.6 history action removed; dictionary data and history panel preserved.")
           PY
-      - name: Validate focused navigation and button palette 0.9.5
+      - name: Validate history action removal and vermilion-gold controls 0.9.6
         shell: bash
         run: |
           set -euo pipefail
@@ -405,6 +450,11 @@ jobs:
           grep -Fq 'id="networkBadge"' public/index.html
           grep -Fq 'id="pwaState"' public/index.html
           grep -Fq 'id="checkUpdateBtn"' public/index.html
+          ! grep -Fq 'id="saveHistoryBtn"' public/index.html
+          grep -Fq 'data-tab="maintenance">添加新词' public/index.html
+          grep -Fq 'linear-gradient(125deg,#861326 0%,#bd2436 52%,#e34a3d 100%)' public/index.html
+          grep -Fq 'if(saveHistoryBtn)' public/app.js
+          grep -Fq 'id="history"' public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -422,9 +472,9 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.5" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.5';" public/sw.js
-          grep -Fq "DWSS 0.9.5 — focused navigation" public/index.html
+          grep -Fq "Version: 0.9.6" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.6';" public/sw.js
+          grep -Fq "DWSS 0.9.6 — imperial vermilion" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
