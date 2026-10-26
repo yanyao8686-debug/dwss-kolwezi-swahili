@@ -38,8 +38,13 @@ if start < 0 or end < 0:
 fragment = sw[start:end]
 for asset in ("./shared-lexicon.js", "./supabase.min.js"):
     if asset not in fragment:
-        sw = sw[:end] + "  '" + asset + "',\n" + sw[end:]
-        end += len("  '" + asset + "',\n")
+        prefix = sw[:end].rstrip()
+        if not prefix.endswith(","):
+            prefix += ","
+        insertion = "\n  '" + asset + "',"
+        sw = prefix + insertion + sw[end:]
+        end = len(prefix + insertion)
+        fragment = sw[start:end]
 write("sw.js", sw)
 
 # Update user-facing PWA offline diagnostics.
