@@ -204,8 +204,23 @@ jobs:
               html, count=1, flags=re.S)
           if n != 1:
               raise SystemExit("Large PWA status card not found")
+
+          # Remove the standalone dictionary tab from primary navigation.
+          # Keep the dictionary panel, underlying word data and lookup code intact.
+          compact_nav = (
+              '<nav class="tabs">'
+              '<button class="tab active" data-tab="translate">翻译</button>'
+              '<button class="tab" data-tab="saved">收藏 / 历史</button>'
+              '<button class="tab" data-tab="maintenance">维护</button>'
+              '</nav>'
+          )
+          html, n = re.subn(r'<nav class="tabs">.*?</nav>', lambda _: compact_nav, html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Primary navigation not found")
+          if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
+              raise SystemExit("Dictionary data panel was not preserved")
           compact_css = """
-          /* DWSS 0.9.4 — compact status bar and gold inputs */
+          /* DWSS 0.9.5 — focused navigation and refined button palette */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -243,6 +258,17 @@ jobs:
             outline:none;
           }
           select option{background-color:#F7E3A0;color:#263449}
+          /* Refined DWSS button palette: deep marine, champagne gold, quiet slate. */
+          .tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px!important;padding:10px!important;border:1px solid #dfe6ee;border-radius:22px;background:rgba(255,255,255,.8);box-shadow:0 8px 22px rgba(19,48,83,.055)}
+          .tabs .tab{min-width:0;border:1px solid #e1e7ed!important;border-radius:17px!important;background:linear-gradient(145deg,#f4f6f8,#e9eef3)!important;color:#425a73!important;font-weight:650;box-shadow:0 2px 5px rgba(29,55,81,.045);transition:background .18s ease,box-shadow .18s ease,transform .18s ease}
+          .tabs .tab.active{border-color:#123f70!important;background:linear-gradient(135deg,#103966,#1c5688)!important;color:#fff!important;box-shadow:0 7px 16px rgba(16,57,102,.22)}
+          button.primary{border:1px solid #123f70!important;background:linear-gradient(135deg,#103966,#1d5a8e)!important;color:#fff!important;box-shadow:0 6px 14px rgba(16,57,102,.18)}
+          button.soft{border:1px solid #dfc477!important;background:linear-gradient(135deg,#f6e7ba,#ecd38f)!important;color:#263d58!important;box-shadow:0 3px 9px rgba(155,120,39,.10)}
+          button.plain{border:1px solid #dfe6ee!important;background:linear-gradient(135deg,#f5f7f9,#e9eef3)!important;color:#425a73!important}
+          button.primary:active,button.soft:active,button.plain:active,.tabs .tab:active{transform:translateY(1px)}
+          button.primary:focus-visible,button.soft:focus-visible,button.plain:focus-visible,.tabs .tab:focus-visible{outline:3px solid rgba(207,169,77,.35)!important;outline-offset:2px}
+          .tabs .tab:not(.active):hover{background:linear-gradient(145deg,#fff,#e8eef4)!important}
+          button.soft:hover{background:linear-gradient(135deg,#f9edcb,#ecd08a)!important}
           /* Replace the two tall intro cards with one compact status toolbar. */
           .status-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 12px;padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:none}
           .status-items{display:flex;align-items:center;flex:1 1 auto;min-width:0;flex-wrap:wrap;gap:6px}
@@ -252,11 +278,11 @@ jobs:
           .status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}
           @media(max-width:420px){.status-strip{gap:6px;padding:6px 8px}.status-items{gap:4px}.status-strip .offline,.status-strip .chip{padding:5px 7px;font-size:10px}.status-strip #checkUpdateBtn{padding:7px 9px;font-size:11px}}
           """
-          if "DWSS 0.9.4 — compact status bar" not in html:
+          if "DWSS 0.9.5 — focused navigation" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.4 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.5 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -346,12 +372,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.4';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.5';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.4", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.5", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -367,9 +393,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.4 gold inputs installed; cover and dictionary preserved.")
+          print("DWSS 0.9.5 three-tab navigation installed; dictionary panel and data preserved.")
           PY
-      - name: Validate gold input theme 0.9.4
+      - name: Validate focused navigation and button palette 0.9.5
         shell: bash
         run: |
           set -euo pipefail
@@ -379,11 +405,26 @@ jobs:
           grep -Fq 'id="networkBadge"' public/index.html
           grep -Fq 'id="pwaState"' public/index.html
           grep -Fq 'id="checkUpdateBtn"' public/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = (Path("public") / "index.html").read_text(encoding="utf-8")
+          nav = re.search(r'<nav class="tabs">(.*?)</nav>', html, flags=re.S)
+          if not nav:
+              raise SystemExit("Primary navigation missing")
+          tabs = re.findall(r'data-tab="([^"]+)"', nav.group(1))
+          if tabs != ["translate", "saved", "maintenance"]:
+              raise SystemExit("Unexpected primary navigation: " + repr(tabs))
+          if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
+              raise SystemExit("Dictionary panel/data was removed unexpectedly")
+          if "linear-gradient(135deg,#103966,#1d5a8e)" not in html:
+              raise SystemExit("Primary button palette missing")
+          PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.4" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.4';" public/sw.js
-          grep -Fq "DWSS 0.9.4 — compact status bar" public/index.html
+          grep -Fq "Version: 0.9.5" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.5';" public/sw.js
+          grep -Fq "DWSS 0.9.5 — focused navigation" public/index.html
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
