@@ -10,8 +10,6 @@ on:
       - 'scripts/integrate_shared_search.py'
       - 'scripts/finalize_shared_release.py'
       - 'scripts/upgrade_context_0_9_0.py'
-      - 'scripts/compact_interface_0_9_1.py'
-      - 'releases/0.9.1/compact-interface/**'
   workflow_dispatch:
 
 permissions:
@@ -67,7 +65,6 @@ jobs:
           test -s scripts/upgrade_context_0_9_0.py
           python3 scripts/upgrade_context_0_9_0.py public
           test -s scripts/compact_interface_0_9_1.py
-          python3 scripts/compact_interface_0_9_1.py public
           test -s public/shared-lexicon.js
           node --check public/shared-lexicon.js
           test -s public/supabase.min.js
@@ -90,6 +87,200 @@ jobs:
           grep -Fq "contextLabel" public/app.js
           grep -Fq "DWSS 0.9.1 — concise interface" public/index.html
           touch public/.nojekyll
+      - name: Compact DWSS interface copy and optional details
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          public = Path("public")
+          def read(name):
+              p = public / name
+              if not p.is_file():
+                  raise SystemExit(f"Missing required file: {name}")
+              return p.read_text(encoding="utf-8")
+          def write(name, value):
+              (public / name).write_text(value, encoding="utf-8")
+          def swap(text, old, new, label):
+              n = text.count(old)
+              if n != 1:
+                  raise SystemExit(f"{label}: expected one match, found {n}")
+              return text.replace(old, new, 1)
+
+          # HTML copy: less always-visible help, same controls and cover.
+          html = read("index.html")
+          html = swap(html, "<h2>应用状态</h2>", "<h2>状态</h2>", "status heading")
+          html, n = re.subn(
+              r'<summary>安卓 / iPhone 添加到桌面的说明</summary><div class="hint">.*?</div>',
+              '<summary>安装与离线</summary><div class="hint"><b>安卓：</b>Chrome 菜单 → 安装应用。<br><b>iPhone：</b>Safari 分享 → 添加到主屏幕。<br><b>离线：</b>首次联网并完成缓存后即可使用；换机或清理浏览器数据前先备份个人词条。</div>',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Install help block not found")
+          html = swap(
+              html,
+              "离线翻译 · 优先使用科卢韦齐词库，缺词时推荐相近表达；由你确认后才替换。",
+              "科卢韦齐词库优先 · 候选由你确认",
+              "translation helper")
+          html = html.replace(
+              "当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）",
+              "当地斯语中文谐音（法语补位会标注）")
+          html = html.replace(
+              "法语原文参考（仅供核对，不作为主体读音）", "法语原文")
+          html = html.replace(
+              "法语补位中文近似读音（已合并到主体翻译）", "法语近似读音")
+          html = html.replace(
+              "法语补位不是加丹加斯瓦西里语。法语补位在主体翻译中只显示中文近似读音并标注（法语）；需要核对时可展开查看法语原文。中文读音是辅助记忆的近似标注，不是标准音标，也不能完全代替当地法语口音。自然语序和语法可能需要调整。重要安保命令请核对。",
+              "法语仅作备用，不是当地斯语；中文读音为近似提示。重要安保指令请当地人员复核。")
+          html = html.replace("自定义词条中填写了拉丁拼写时，这里显示相应内容。", "有已核验拼写时显示在这里。")
+          html = html.replace("输入中文后，显示哪些部分在词库中找到、哪些需要补充。", "输入后显示匹配结果与未收录内容。")
+          html = html.replace("加丹加斯瓦西里语中文同音字读法", "当地斯语中文谐音")
+          html = html.replace("法语中文近似读音（可选，可手动修正）", "法语中文谐音（可选）")
+          html = html.replace("当地斯瓦西里语拼写（可选）", "当地斯语拼写（可选）")
+          html = html.replace("管理个人补充内容。删除个人词条不会影响原始词库。", "仅管理个人词条；删除不影响原始词库。")
+          html = html.replace("更换手机或清理浏览器数据前，请先生成并保存备份。", "换机或清理浏览器数据前，请先备份。")
+          html = html.replace("合并恢复个人词条；原始词库不会被覆盖。", "仅合并个人词条，不覆盖原始词库。")
+          html = html.replace("短句翻译", "翻译").replace("词库查询", "词典")
+          html = html.replace("词库维护", "维护")
+          html, n = re.subn(
+              r'(<section class="panel" id="maintenance">.*?<h2[^>]*>.*?</h2>)\s*<p class="hint">.*?</p>',
+              r'\1', html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Maintenance intro block not found")
+          html, n = re.subn(
+              r'<details class="install-help"><summary>第一次添加新词？点这里看操作步骤</summary><div class="hint">.*?</div></details>',
+              '<details class="install-help"><summary>添加说明</summary><div class="hint"><b>中文：</b>填写要收录的词或短句。<br><b>当地读音：</b>请科卢韦齐同事确认后再录入；未确认的拼写留空。<br><b>法语备用：</b>暂时没有当地说法时可填写，系统会明确标注“法语”。<br><b>保存与备份：</b>保存后立即可查；换机或清理浏览器数据前，请先导出个人词库。</div></details>',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Maintenance help block not found")
+          html, n = re.subn(
+              r'(<p class="hint" id="pwaMessage">).*?(</p>)',
+              r'\1首次联网并完成缓存后即可离线使用。\2',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Initial PWA helper not found")
+          html, n = re.subn(
+              r'(<div class="footer">).*?(<br>)',
+              r'\1词库来自原始资料；当地读音尚待科卢韦齐母语者全面复核。\2',
+              html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Footer provenance block not found")
+          compact_css = """
+          /* DWSS 0.9.1 — concise interface; cover artwork and dimensions untouched */
+          .hint{font-size:11px;line-height:1.45;color:#718096}
+          .resultlabel{font-size:11px;letter-spacing:.01em}
+          .card h2{letter-spacing:-.015em}
+          #resultCard>details{margin-top:9px!important;padding-top:3px}
+          #resultCard>details>summary,.install-help>summary{font-size:11px;padding:5px 0;color:#51627d}
+          #resultCard .quality-body{font-size:11px;line-height:1.55;color:#52627a}
+          .segment-meta,.candidate-extra{margin-top:5px}
+          .segment-meta summary,.candidate-extra summary{display:inline-block;cursor:pointer;font-size:10px;line-height:1.4;color:#75839a;list-style:none}
+          .segment-meta summary::-webkit-details-marker,.candidate-extra summary::-webkit-details-marker{display:none}
+          .segment-meta summary:after,.candidate-extra summary:after{content:' +';font-weight:700}
+          .segment-meta[open] summary:after,.candidate-extra[open] summary:after{content:' −'}
+          .segment-meta .src,.candidate-extra>div{font-size:10px;line-height:1.5;color:#748198;margin-top:4px}
+          .candidate-intro,.candidate-meta{font-size:10px;line-height:1.4;color:#7a879b}
+          .recommendation-title{font-size:12px;margin-bottom:3px}
+          .recommendation-item{padding:9px 10px}
+          .recommendation-main{gap:2px}
+          .recommendation-main>b{font-size:13px}
+          .recommendation-main>span{font-size:14px}
+          .recommendation-main .candidate-meta{margin-top:2px}
+          .recommendation-box{padding:9px 10px}
+          .maintenance-note{padding:9px 11px;font-size:11px}
+          .footer{font-size:10px;line-height:1.5}
+          """
+          if "DWSS 0.9.1 — concise interface" not in html:
+              if "</style>" not in html:
+                  raise SystemExit("Style insertion point missing")
+              html = html.replace("</style>", compact_css + "\n</style>", 1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.1 · DWSS 智能翻译 PWA", html, count=1)
+          required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom"]
+          missing = [item for item in required_ids if f'id="{item}"' not in html]
+          if missing:
+              raise SystemExit("Required interface controls missing: " + ", ".join(missing))
+          if 'src="cover.jpg"' not in html:
+              raise SystemExit("Original cover reference missing")
+          write("index.html", html)
+
+          # Shorten dynamic PWA messages without changing state or button behavior.
+          pwa = read("pwa.js")
+          pwa_replacements = [
+              ("当前没有网络连接。已缓存的词库查询、短句匹配和个人词库维护仍可在本机使用；联网后才能检查更新。","离线可查询已缓存词库；联网后检查更新。"),
+              ("DWSS 已以独立窗口方式运行。联网时可检查更新；首次安装后请确认离线资源已缓存。","已从桌面启动。联网可检查更新。"),
+              ("首次打开请保持网络连接，等待页面、完整词库、封面和图标缓存完成。缓存成功后，后续可断网使用。","首次打开请保持联网，待缓存完成后即可离线使用。"),
+              ("DWSS 已添加到手机桌面。请打开一次并确认离线资源已缓存；以后可断网使用。","已添加到桌面。首次启动请等待缓存完成。"),
+              ("当前网址不是安全 HTTPS 连接，浏览器不能启用离线缓存和版本检查。请使用 DWSS 官方 HTTPS 网址。","请使用官方 HTTPS 地址，以启用离线缓存和更新。"),
+              ("核心程序、内置词库、共享词库组件、封面和图标已由 Service Worker 缓存。现在可以断开网络测试。","离线资源已缓存，可断网使用。"),
+              ("核心程序、当地词库、法语辅助词表、云端共享词库组件、新封面和图标已缓存。现在可以断开网络测试。","核心程序与词库已缓存，可离线使用。"),
+              ("更新检查服务已连接。正在完成首次离线缓存；请保持网络并稍后重新打开一次软件，再测试断网使用。","正在缓存资源，请保持联网并稍后重新打开。"),
+              ("浏览器未能注册离线更新服务。请确认使用官方 HTTPS 地址、网络正常，并尝试刷新页面；若使用微信等内置浏览器，请改用 Chrome 或 Safari。","离线更新服务连接失败。请检查网络后刷新；建议使用 Chrome 或 Safari。"),
+              ("请通过 HTTPS 官方网址打开本软件，浏览器才能启用 PWA 离线缓存和版本更新检查。","请使用官方 HTTPS 地址，以启用离线缓存和更新。"),
+              ("当前浏览器不支持 Service Worker。请使用最新版 Android Chrome 或 iPhone Safari 打开 DWSS 官方 HTTPS 网址。","当前浏览器不支持离线更新，请使用最新版 Chrome 或 Safari。"),
+              ("有新的 DWSS 软件版本已下载。点击“安装软件更新”后将刷新页面。更新不会主动删除本机自定义词库，但仍建议先备份。","新版本已下载。点击“安装软件更新”刷新；建议先备份个人词条。"),
+              ("页面刚打开时，浏览器需要先注册离线更新服务。请等待几秒后再点“检查更新”；如果按钮仍不可用，请刷新官方 HTTPS 页面或换用 Chrome / Safari。","更新服务仍在启动，请稍后重试。"),
+              ("没有网络，无法检查服务器更新；已缓存的软件仍可继续使用。","离线状态无法检查更新；已缓存版本仍可使用。"),
+              ("正在联系 DWSS 官方网站检查是否有新版本，请稍候。","正在检查更新…"),
+              ("更新服务已连接，服务器没有提供更新版本。当前软件可以继续正常使用。","当前已是最新版本。"),
+              ("虽然设备显示已联网，但更新服务器暂时没有响应。请稍后重试；当前已缓存版本仍可使用。","暂时无法连接更新服务器，请稍后重试。")
+          ]
+          for old, new in pwa_replacements:
+              pwa = pwa.replace(old, new, 1)
+          write("pwa.js", pwa)
+
+          # Compact the translation result while keeping candidate selection intact.
+          app = read("app.js")
+          new_recommend = '''function renderUnknownRecommendations(segment,contextText=''){
+           const candidates=recommendAlternativesForUnknown(segment.text,contextText);
+           if(!candidates.length)return \`<div class="recommendation-box"><div class="recommendation-title">相关候选</div><div class="candidate-intro">暂未找到可靠候选，可换种说法或补充词条。</div></div>\`;
+           return \`<div class="recommendation-box"><div class="recommendation-title">相关候选</div><div class="candidate-intro">仅供参考 · 选择后替换并重新翻译</div><div class="recommendation-list">\${candidates.map(c=>\`<div class="recommendation-item"><div class="recommendation-main"><b>\${esc(c.item.zh)}</b><span>\${esc(c.reading)}</span><div class="candidate-meta">\${esc(c.kind)} · \${esc(c.contextLabel)}\${c.reading&&!c.reading.startsWith('拉丁拼写：')?' · 读音待核':''}</div><details class="candidate-extra"><summary>更多信息</summary><div>\${esc(c.note||'请结合上下文确认')} · 来源：\${esc(c.source)}</div></details></div><button class="soft mini" type="button" data-recommend-start="\${Number(segment.start)||0}" data-recommend-end="\${Number(segment.end)||0}" data-recommend-target="\${esc(c.item.zh)}">替换</button></div>\`).join('')}</div></div>\`;
+          }'''
+          app, n = re.subn(r"function renderUnknownRecommendations\(segment,contextText=''\)\{.*?\n\}", lambda _: new_recommend, app, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit(f"Recommendation renderer: expected one function, found {n}")
+          segment_pattern = r"\$\('segmentList'\)\.innerHTML=r\.segments\.map\(s=>\{.*?\}\)\.join\(''\)\|\|'<div class=\"nores\">没有匹配结果</div>';"
+          new_segment = '''$('segmentList').innerHTML=r.segments.map(s=>{
+            if(s.type==='punct')return '';
+            if(s.type==='local'){
+             const alts=uniqueLocalVariants(s.item).filter(v=>norm(v.reading)!==norm(s.reading));
+             const latinHtml=s.latin.length?\`<div class="src">拼写：\${esc(s.latin.join(' / '))}</div>\`:'';
+             const aliasHtml=s.matchedBy==='近义替代'?\`<div class="src alias-note">近义替代：\${esc(s.originalTerm)} → \${esc(s.canonical)}\${s.aliasCaution?' · 请确认语境':''}</div>\`:'';
+             const detailParts=[];
+             if(s.source)detailParts.push('来源：'+s.source);
+             if(alts.length)detailParts.push('其他读音：'+alts.map(v=>v.reading+'（'+v.source+'）').join('；')+'；请核对当地用法');
+             const detailHtml=detailParts.length?\`<details class="segment-meta"><summary>更多信息</summary><div class="src">\${esc(detailParts.join(' · '))}</div></details>\`:'';
+             return \`<div class="seg"><div class="zh">\${esc(s.zh)}</div><div class="rd">\${esc(s.reading)}\${latinHtml}\${aliasHtml}\${detailHtml}</div></div>\`;
+            }
+            if(s.type==='french')return \`<div class="seg french-fallback"><div class="zh">\${esc(s.zh)}</div><div class="rd">\${esc(s.frenchReadingZh||frenchReadingFor(s.french))}（法语）<details class="segment-meta"><summary>查看法语原文</summary><div class="src">\${esc(s.french)} · 法语备用，不是当地斯语；中文读音仅作近似提示。</div></details></div></div>\`;
+            if(s.type==='latinOnly')return \`<div class="seg unknown"><div class="zh">\${esc(s.zh)}</div><div class="rd">\${esc(s.latin.join(' / '))}<div class="src">中文谐音待补</div></div></div>\`;
+            return \`<div class="seg unknown"><div class="zh">\${esc(s.text)}</div><div class="rd">未收录 · 暂不自动猜译\${renderUnknownRecommendations(s,raw)}</div></div>\`;
+           }).join('')||'<div class="nores">没有匹配词条</div>';'''
+          app, n = re.subn(segment_pattern, lambda _: new_segment, app, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit(f"Segment renderer: expected one block, found {n}")
+          for old, new, label in [
+              ("当地斯语覆盖：\${pct}%（按字符估算）", "本地覆盖约 \${pct}%", "coverage chip"),
+              ("当地词条 \${r.localHits} 段 · 法语补位 \${r.frenchHits} 段 · 未收录 \${r.unknownChars} 字", "本地 \${r.localHits} · 法语 \${r.frenchHits} · 未收录 \${r.unknownChars}", "match chip"),
+              ("输入中文后，显示当地斯语命中、法语补位和仍未收录的部分。", "输入后显示匹配结果与未收录内容。", "empty result hint")
+          ]:
+              if old not in app:
+                  raise SystemExit(f"Missing app copy: {label}")
+              app = app.replace(old, new, 1)
+          write("app.js", app)
+
+          # Cache bust, so installed PWAs fetch the new interface.
+          sw = read("sw.js")
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.1';", sw, count=1)
+          if n != 1:
+              raise SystemExit("Service-worker version anchor missing")
+          write("sw.js", sw)
+          version = read("VERSION.txt")
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.1", version, count=1)
+          if n != 1:
+              raise SystemExit("Version file anchor missing")
+          write("VERSION.txt", version)
+          print("DWSS 0.9.1 compact interface installed; dictionary and cover untouched.")
+          PY
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
