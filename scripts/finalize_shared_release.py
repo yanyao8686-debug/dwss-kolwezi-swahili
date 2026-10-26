@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Finalize DWSS 0.6.5 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
-import re
 import sys
 
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "public")
@@ -31,15 +30,16 @@ write("index.html", html)
 sw = read("sw.js")
 if sw is None:
     raise SystemExit("sw.js is missing")
-sw = re.sub(r"const APP_VERSION = ['\"]0\\.6\\.4['\"];", "const APP_VERSION = '0.6.5';", sw, count=1)
-match = re.search(r"(const PRECACHE_URLS = \\[)([\\s\\S]*?)(\\];)", sw)
-if not match:
+sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.5';")
+start = sw.find("const PRECACHE_URLS = [")
+end = sw.find("];", start)
+if start < 0 or end < 0:
     raise SystemExit("Could not find PRECACHE_URLS in sw.js")
-fragment = match.group(2)
+fragment = sw[start:end]
 for asset in ("./shared-lexicon.js", "./supabase.min.js"):
     if asset not in fragment:
-        fragment += "  '" + asset + "',\\n"
-sw = sw[:match.start()] + match.group(1) + fragment + match.group(3) + sw[match.end():]
+        sw = sw[:end] + "  '" + asset + "',\n" + sw[end:]
+        end += len("  '" + asset + "',\n")
 write("sw.js", sw)
 
 # Update user-facing PWA offline diagnostics.
