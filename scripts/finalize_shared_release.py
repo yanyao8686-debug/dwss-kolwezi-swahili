@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize DWSS 0.6.8 release files after unpacking the 0.6.4 archive."""
+"""Finalize DWSS 0.6.9 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
 import sys
 
@@ -23,14 +23,14 @@ if "supabase.min.js" not in html or "shared-lexicon.js" not in html:
         html = html.replace(boot, boot + "\n" + additions, 1)
     else:
         html = html.replace("</body>", additions + "\n</body>", 1)
-html = html.replace("版本 0.6.4", "版本 0.6.8").replace("版本 0.6.5", "版本 0.6.8")
+html = html.replace("版本 0.6.4", "版本 0.6.9").replace("版本 0.6.5", "版本 0.6.9").replace("版本 0.6.6", "版本 0.6.9").replace("版本 0.6.7", "版本 0.6.9").replace("版本 0.6.8", "版本 0.6.9")
 write("index.html", html)
 
 # Bump the Service Worker cache key and include cloud scripts in the core offline cache.
 sw = read("sw.js")
 if sw is None:
     raise SystemExit("sw.js is missing")
-sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.8';").replace("const APP_VERSION = '0.6.7';", "const APP_VERSION = '0.6.8';")
+sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.7';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.8';", "const APP_VERSION = '0.6.9';")
 start = sw.find("const PRECACHE_URLS = [")
 end = sw.find("];", start)
 if start < 0 or end < 0:
@@ -545,11 +545,43 @@ fp=fp[:mm.start()]+"window.SW_FRENCH = "+json.dumps(fm,ensure_ascii=False,separa
 rr=re.search(r"window\.SW_FRENCH_READINGS\s*=\s*(\{.*?\})\s*;",fp,re.S)
 fp=fp[:rr.start()]+"window.SW_FRENCH_READINGS = "+json.dumps(fr,ensure_ascii=False,separators=(",",":"))+";"+fp[rr.end():]
 write("french-fallback.js",fp)
+
+# User-requested correction to the immutable built-in Katanga Swahili dictionary:
+# "车辆" must have exactly one Chinese phonetic reading: "摸多嘎".
+# Replace the older "瓦居勒" variant rather than adding a competing pronunciation.
+import gzip
+db_path = root / "dictionary.js.gz"
+if not db_path.exists():
+    raise SystemExit("dictionary.js.gz is missing")
+db_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
+db_match = re.fullmatch(r"\\s*window\\.SW_DB\\s*=\\s*(\\[.*\\])\\s*;\\s*", db_source, re.S)
+if not db_match:
+    raise SystemExit("Could not parse the built-in dictionary")
+db = json.loads(db_match.group(1))
+vehicle_rows = [item for item in db if item.get("zh") == "车辆"]
+if len(vehicle_rows) != 1:
+    raise SystemExit(f"Expected exactly one built-in '车辆' entry, found {len(vehicle_rows)}")
+vehicle_rows[0]["variants"] = [{
+    "reading": "摸多嘎",
+    "source": "用户指定的科卢韦齐当地读音",
+    "kind": "用户修订"
+}]
+db_output = "window.SW_DB = " + json.dumps(db, ensure_ascii=False, separators=(",", ":")) + ";"
+db_path.write_bytes(gzip.compress(db_output.encode("utf-8"), compresslevel=9, mtime=0))
+# Verify the compressed output and make sure the removed pronunciation is absent.
+verified_db = json.loads(re.fullmatch(
+    r"\\s*window\\.SW_DB\\s*=\\s*(\\[.*\\])\\s*;\\s*",
+    gzip.decompress(db_path.read_bytes()).decode("utf-8"), re.S
+).group(1))
+verified_vehicle = [item for item in verified_db if item.get("zh") == "车辆"]
+if len(verified_vehicle) != 1 or [v.get("reading") for v in verified_vehicle[0].get("variants", [])] != ["摸多嘎"]:
+    raise SystemExit("Vehicle pronunciation correction verification failed")
+
 app=read("app.js")
 if app is None:
     raise SystemExit("app.js is missing")
 # Mark the provenance of each local record so pronunciation selection follows the required tiers.
-app=app.replace("version:'0.6.5'", "version:'0.6.8'")
+app=app.replace("version:'0.6.5'", "version:'0.6.9'").replace("version:'0.6.7'", "version:'0.6.9'").replace("version:'0.6.8'", "version:'0.6.9'")
 app=app.replace(
  "variants:(item.variants||[]).map(v=>({...v}))",
  "variants:(item.variants||[]).map(v=>({...v,origin:'builtin'}))"
@@ -661,7 +693,7 @@ write("app.js",app)
 version = read("VERSION.txt")
 if version is None:
     raise SystemExit("VERSION.txt is missing")
-version = version.replace("Version: 0.6.4", "Version: 0.6.8").replace("Version: 0.6.5", "Version: 0.6.8").replace("Version: 0.6.7", "Version: 0.6.8")
+version = version.replace("Version: 0.6.4", "Version: 0.6.9").replace("Version: 0.6.5", "Version: 0.6.9").replace("Version: 0.6.6", "Version: 0.6.9").replace("Version: 0.6.7", "Version: 0.6.9").replace("Version: 0.6.8", "Version: 0.6.9")
 if "Shared vocabulary:" not in version:
     version += "\nShared vocabulary: cloud terms participate in main translation and dictionary search; real-time updates, offline cache and retry queue included.\n"
 write("VERSION.txt", version)
@@ -669,7 +701,7 @@ write("VERSION.txt", version)
 # Keep release documentation consistent with the new shared behavior.
 guide = read("README_部署与使用.md")
 if guide is not None:
-    guide = guide.replace("PWA 0.6.3", "PWA 0.6.7").replace("PWA 0.6.5", "PWA 0.6.7").replace("版本 0.6.3", "版本 0.6.7").replace("版本 0.6.5", "版本 0.6.7")
+    guide = guide.replace("PWA 0.6.3", "PWA 0.6.9").replace("PWA 0.6.5", "PWA 0.6.9").replace("PWA 0.6.7", "PWA 0.6.9").replace("版本 0.6.3", "版本 0.6.9").replace("版本 0.6.5", "版本 0.6.9").replace("版本 0.6.7", "版本 0.6.9").replace("版本 0.6.8", "版本 0.6.9")
     marker = "## 备份与恢复"
     section = """## 云端共享词库
 
