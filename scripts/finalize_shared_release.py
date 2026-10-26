@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize DWSS 0.6.10 release files after unpacking the 0.6.4 archive."""
+"""Finalize DWSS 0.6.11 release files after unpacking the 0.6.4 archive."""
 from pathlib import Path
 import sys
 
@@ -23,14 +23,14 @@ if "supabase.min.js" not in html or "shared-lexicon.js" not in html:
         html = html.replace(boot, boot + "\n" + additions, 1)
     else:
         html = html.replace("</body>", additions + "\n</body>", 1)
-html = html.replace("版本 0.6.4", "版本 0.6.9").replace("版本 0.6.5", "版本 0.6.9").replace("版本 0.6.6", "版本 0.6.9").replace("版本 0.6.7", "版本 0.6.9").replace("版本 0.6.8", "版本 0.6.9")
+html = html.replace("版本 0.6.4", "版本 0.6.11").replace("版本 0.6.5", "版本 0.6.11").replace("版本 0.6.6", "版本 0.6.11").replace("版本 0.6.7", "版本 0.6.11").replace("版本 0.6.8", "版本 0.6.11")
 write("index.html", html)
 
 # Bump the Service Worker cache key and include cloud scripts in the core offline cache.
 sw = read("sw.js")
 if sw is None:
     raise SystemExit("sw.js is missing")
-sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.7';", "const APP_VERSION = '0.6.9';").replace("const APP_VERSION = '0.6.8';", "const APP_VERSION = '0.6.9';")
+sw = sw.replace("const APP_VERSION = '0.6.4';", "const APP_VERSION = '0.6.11';").replace("const APP_VERSION = '0.6.5';", "const APP_VERSION = '0.6.11';").replace("const APP_VERSION = '0.6.6';", "const APP_VERSION = '0.6.11';").replace("const APP_VERSION = '0.6.7';", "const APP_VERSION = '0.6.11';").replace("const APP_VERSION = '0.6.8';", "const APP_VERSION = '0.6.11';")
 start = sw.find("const PRECACHE_URLS = [")
 end = sw.find("];", start)
 if start < 0 or end < 0:
@@ -539,6 +539,9 @@ pron.update({
  "Bon voyage.":"邦 沃瓦雅日","Bonne chance.":"邦 香斯","Joyeux anniversaire.":"茹瓦耶 扎尼韦赫塞赫","Bon week-end.":"邦 维肯德"
 })
 
+# French fallback for 11-13, copied from the user's original numeral reference.
+for k,v in {"十一":"onze","11":"onze","十二":"douze","12":"douze","十三":"treize","13":"treize"}.items(): fm[k]=v
+for k,v in {"onze":"昂 日","douze":"独日","treize":"特累死"}.items(): fr[k]=v
 for k,v in extra.items(): fm[k]=v
 for k,v in pron.items(): fr[k]=v
 fp=fp[:mm.start()]+"window.SW_FRENCH = "+json.dumps(fm,ensure_ascii=False,separators=(",",":"))+";"+fp[mm.end():]
@@ -572,25 +575,46 @@ def set_unique_reading(term, reading):
 set_unique_reading("车辆", "摸多嘎")
 set_unique_reading("车", "摸多嘎")
 
-# Bind Chinese numerals 一至十三 to the existing Arabic-number dictionary
-# entries 1至13, cloning the local pronunciations instead of inventing new ones.
-numerals = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三"]
-for value, numeral in enumerate(numerals, 1):
-    source_rows = [item for item in db if item.get("zh") == str(value)]
-    if len(source_rows) != 1:
-        raise SystemExit(f"Expected exactly one built-in numeric entry {value}, found {len(source_rows)}")
-    existing = [item for item in db if item.get("zh") == numeral]
-    if existing:
-        existing[0]["variants"] = json.loads(json.dumps(source_rows[0].get("variants", []), ensure_ascii=False))
+# Numbers 1-10 come from the original Swahili vocabulary document.
+# The user explicitly corrected number 1 to "摸雅"; preserve that exact local reading.
+local_number_readings = {
+    "1": "摸雅",
+    "2": "比利",
+    "3": "大肚",
+    "4": "伊奈",
+    "5": "打闹",
+    "6": "sei哒",
+    "7": "撒把",
+    "8": "木纳内",
+    "9": "根达",
+    "10": "故米",
+}
+chinese_numerals = ["一","二","三","四","五","六","七","八","九","十"]
+def upsert_number_reading(term, reading):
+    rows = [item for item in db if item.get("zh") == term]
+    if len(rows) > 1:
+        raise SystemExit(f"Duplicate built-in number entry for {term!r}")
+    variant = [{
+        "reading": reading,
+        "source": "原始斯语数字资料；数字1按用户指定读音修订",
+        "kind": "数字词条"
+    }]
+    if rows:
+        rows[0]["variants"] = variant
     else:
-        clone = json.loads(json.dumps(source_rows[0], ensure_ascii=False))
-        clone["zh"] = numeral
-        db.append(clone)
+        db.append({"zh": term, "variants": variant})
 
+for value, numeral in enumerate(chinese_numerals, 1):
+    reading = local_number_readings[str(value)]
+    upsert_number_reading(str(value), reading)
+    upsert_number_reading(numeral, reading)
+
+# 11-13 have no Katanga Swahili phonetic entries in the original word list;
+# they are deliberately kept in the French fallback layer, not invented as Swahili.
 db_output = "window.SW_DB = " + json.dumps(db, ensure_ascii=False, separators=(",", ":")) + ";"
 db_path.write_bytes(gzip.compress(db_output.encode("utf-8"), compresslevel=9, mtime=0))
 
-# Verify all requested dictionary changes after compression.
+# Verify both car terms, 1-10 digit/Chinese bindings, and absence of false local 11-13 entries.
 verified_source = gzip.decompress(db_path.read_bytes()).decode("utf-8")
 verified_start = verified_source.find("[", verified_source.find("window.SW_DB"))
 verified_end = verified_source.rfind("]")
@@ -601,16 +625,20 @@ for term in ["车辆", "车"]:
     rows = [item for item in verified_db if item.get("zh") == term]
     if len(rows) != 1 or [v.get("reading") for v in rows[0].get("variants", [])] != ["摸多嘎"]:
         raise SystemExit(f"Reading verification failed for {term}")
-for value, numeral in enumerate(numerals, 1):
-    rows = [item for item in verified_db if item.get("zh") == numeral]
-    if len(rows) != 1 or not rows[0].get("variants"):
-        raise SystemExit(f"Chinese numeral binding verification failed for {numeral}")
+for value, numeral in enumerate(chinese_numerals, 1):
+    for term in [str(value), numeral]:
+        rows = [item for item in verified_db if item.get("zh") == term]
+        if len(rows) != 1 or [v.get("reading") for v in rows[0].get("variants", [])] != [local_number_readings[str(value)]]:
+            raise SystemExit(f"Numeric pronunciation/binding verification failed for {term}")
+for term in ["11", "12", "13", "十一", "十二", "十三"]:
+    if any(item.get("zh") == term for item in verified_db):
+        raise SystemExit(f"{term} must remain in French fallback, not be fabricated as local Swahili")
 
 app=read("app.js")
 if app is None:
     raise SystemExit("app.js is missing")
 # Mark the provenance of each local record so pronunciation selection follows the required tiers.
-app=app.replace("version:'0.6.5'", "version:'0.6.9'").replace("version:'0.6.7'", "version:'0.6.9'").replace("version:'0.6.8'", "version:'0.6.9'")
+app=app.replace("version:'0.6.5'", "version:'0.6.11'").replace("version:'0.6.7'", "version:'0.6.11'").replace("version:'0.6.8'", "version:'0.6.11'")
 app=app.replace(
  "variants:(item.variants||[]).map(v=>({...v}))",
  "variants:(item.variants||[]).map(v=>({...v,origin:'builtin'}))"
@@ -672,6 +700,17 @@ function lookupFrenchWithoutLocalOverlap(input,index){
   if(!overlap)return {key,french:FRENCH_MAP.get(key)};
  }
  return null;
+}
+function lookupFrenchNumberAt(input,index){
+ for(const key of ['十三','十二','十一','13','12','11']){
+  if(norm(input.slice(index,index+key.length))!==norm(key))continue;
+  const exactLocal=keys.some(item=>norm(item.zh||'')===norm(key)&&localOrigin(item));
+  if(!exactLocal){
+   const french=FRENCH_MAP.get(norm(key));
+   if(french)return {key,french};
+  }
+ }
+ return null;
 }"""
 if old_helpers not in app:
     raise SystemExit("local reading helper anchor missing")
@@ -685,7 +724,14 @@ start=app.find("  let found=null,foundLen=0;",tok)
 end=app.find("  let j=i+1;",start)
 if tok<0 or start<0 or end<0:
     raise SystemExit("tokenizer matching block anchors missing")
-new_match="""  const localMatch=lookupLocalAt(input,i);
+new_match="""  // Keep 11-13 as whole French numbers; otherwise local 1-10 entries would split 11 into 1+1.
+  const frenchNumber=lookupFrenchNumberAt(input,i);
+  if(frenchNumber){
+   const pron=frenchReadingFor(frenchNumber.french);
+   segments.push({type:'french',zh:input.slice(i,i+frenchNumber.key.length),canonical:frenchNumber.key,french:frenchNumber.french,frenchReadingZh:pron,source:'DWSS 法语辅助词表'});
+   frenchChars+=frenchNumber.key.length;frenchHits++;i+=frenchNumber.key.length;continue;
+  }
+  const localMatch=lookupLocalAt(input,i);
   const found=localMatch?localMatch.item:null;
   const foundLen=localMatch?localMatch.length:0;
   // Local-language synonyms are considered only when no longer exact local entry exists.
@@ -713,6 +759,7 @@ app=app[:start]+new_match+app[end:]
 old_unknown="""   for(const it of keys){if(it.zh.length>0&&norm(input.slice(j,j+it.zh.length))===norm(it.zh)){exists=true;break;}}
    if(!exists&&lookupFrenchAt(input,j))exists=true;"""
 new_unknown="""   if(lookupLocalAt(input,j))exists=true;
+   if(!exists&&lookupFrenchNumberAt(input,j))exists=true;
    if(!exists&&lookupFrenchWithoutLocalOverlap(input,j))exists=true;"""
 if old_unknown not in app:
     raise SystemExit("unknown-segment boundary anchor missing")
@@ -722,7 +769,7 @@ write("app.js",app)
 version = read("VERSION.txt")
 if version is None:
     raise SystemExit("VERSION.txt is missing")
-version = version.replace("Version: 0.6.4", "Version: 0.6.9").replace("Version: 0.6.5", "Version: 0.6.9").replace("Version: 0.6.6", "Version: 0.6.9").replace("Version: 0.6.7", "Version: 0.6.9").replace("Version: 0.6.8", "Version: 0.6.9")
+version = version.replace("Version: 0.6.4", "Version: 0.6.11").replace("Version: 0.6.5", "Version: 0.6.11").replace("Version: 0.6.6", "Version: 0.6.11").replace("Version: 0.6.7", "Version: 0.6.11").replace("Version: 0.6.8", "Version: 0.6.11")
 if "Shared vocabulary:" not in version:
     version += "\nShared vocabulary: cloud terms participate in main translation and dictionary search; real-time updates, offline cache and retry queue included.\n"
 write("VERSION.txt", version)
@@ -730,7 +777,7 @@ write("VERSION.txt", version)
 # Keep release documentation consistent with the new shared behavior.
 guide = read("README_部署与使用.md")
 if guide is not None:
-    guide = guide.replace("PWA 0.6.3", "PWA 0.6.9").replace("PWA 0.6.5", "PWA 0.6.9").replace("PWA 0.6.7", "PWA 0.6.9").replace("版本 0.6.3", "版本 0.6.9").replace("版本 0.6.5", "版本 0.6.9").replace("版本 0.6.7", "版本 0.6.9").replace("版本 0.6.8", "版本 0.6.9")
+    guide = guide.replace("PWA 0.6.3", "PWA 0.6.9").replace("PWA 0.6.5", "PWA 0.6.11").replace("PWA 0.6.7", "PWA 0.6.11").replace("版本 0.6.3", "版本 0.6.9").replace("版本 0.6.5", "版本 0.6.11").replace("版本 0.6.7", "版本 0.6.11").replace("版本 0.6.8", "版本 0.6.11")
     marker = "## 备份与恢复"
     section = """## 云端共享词库
 
@@ -742,4 +789,4 @@ if guide is not None:
     guide = guide.replace("个人新增词条只保存在当前设备，不会自动跨设备同步。", "个人“词库维护”新增词条仍保存在当前设备；需要跨设备共享时，请使用首页右下角的“共享词库”提交。")
     write("README_部署与使用.md", guide)
 
-print("DWSS 0.6.10 release files finalized.")
+print("DWSS 0.6.11 release files finalized.")
