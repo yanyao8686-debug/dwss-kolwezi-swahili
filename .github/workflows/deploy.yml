@@ -59,20 +59,20 @@ jobs:
           from pathlib import Path
           p = Path("public/index.html")
           html = p.read_text(encoding="utf-8")
-          scripts = ('<script defer src="./supabase.min.js"></script>\\n'
+          scripts = ('<script defer src="./supabase.min.js"></script>\n'
                      '<script defer src="./shared-lexicon.js"></script>')
           if "shared-lexicon.js" not in html:
               if "</body>" in html:
-                  html = html.replace("</body>", scripts + "\\n</body>", 1)
+                  html = html.replace("</body>", scripts + "\n</body>", 1)
               else:
-                  html += "\\n" + scripts
+                  html += "\n" + scripts
           p.write_text(html, encoding="utf-8")
           sw = Path("public/sw.js")
           sw_text = sw.read_text(encoding="utf-8")
           marker = "DWSS_SHARED_OFFLINE_ASSETS_V1"
           if marker not in sw_text:
               sw_text += """
-          \\n/* DWSS_SHARED_OFFLINE_ASSETS_V1 */
+          /* DWSS_SHARED_OFFLINE_ASSETS_V1 */
           self.addEventListener("install", function(event) {
             event.waitUntil((async function() {
               try {
