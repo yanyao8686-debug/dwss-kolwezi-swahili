@@ -662,9 +662,31 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.15" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.15';" public/sw.js
-          grep -Fq "DWSS 0.9.15 — centered navigation, source variants and owner signature" public/index.html
+          grep -Fq "Version: 0.9.16" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.16';" public/sw.js
+          test -s public/source_variant_audit.csv
+          test -s public/source_variant_audit_summary.txt
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          report = list(csv.DictReader((Path("public") / "source_variant_audit.csv").open(encoding="utf-8-sig", newline="")))
+          if len(report) != 246:
+              raise SystemExit(f"Expected 246 multi-variant audit groups; found {len(report)}")
+          pen = next((row for row in report if row["中文词头"].split(" / ")[0] == "笔"), None)
+          give = next((row for row in report if "给我" in row["中文词头"]), None)
+          if not pen or "比克" not in pen["当地读音（原始记录，去重后并列）"] or "比各" not in pen["当地读音（原始记录，去重后并列）"]:
+              raise SystemExit("笔 must show both source-local readings in the audit")
+          if "撕提" not in pen["法语标注读音（单独列出，不作当地斯语）"]:
+              raise SystemExit("笔's French-marked form must be classified separately")
+          if not give or "木尼白" not in give["当地读音（原始记录，去重后并列）"] or "刀呢莫挖" not in give["当地读音（原始记录，去重后并列）"] or "刀呢摸挖" not in give["用户待核对补充"]:
+              raise SystemExit("给我 must preserve both book readings and the user's spelling candidate")
+          summary = (Path("public") / "source_variant_audit_summary.txt").read_text(encoding="utf-8")
+          for marker in ["当地读音的词组：229", "法语标注表达（单独归类）：54", "按应用匹配规则归并后的中文词组：1844"]:
+              if marker not in summary:
+                  raise SystemExit("Audit summary missing verified statistic: " + marker)
+          print("PASS full source-variant audit: 246 grouped entries, 229 multi-local groups, French separated.")
+          PY
+          grep -Fq "DWSS 0.9.16 — centered navigation, source variants and owner signature" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
@@ -672,6 +694,9 @@ jobs:
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
               "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
+              "side mottos match owner name color": bool(re.search(r"\\.owner-name\\{[^}]*color:#f7f8fc", html)) and bool(re.search(r"\\.owner-sides\\{[^}]*color:#f7f8fc", html)),
+              "local and French variants are separated correctly": "localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\\\s*法\\\\s*[)）]/.test(v.reading||''))||null;" in (Path("scripts/refine_release_0_9_13.py").read_text(encoding="utf-8")),
+
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
@@ -699,6 +724,10 @@ jobs:
               raise SystemExit("Missing File 2 source readings for 笔 or 给我")
           if "uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.reading).join(' / ')" not in app:
               raise SystemExit("Multiple source readings are not promoted to the main translation result")
+          if "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\\\s*法\\\\s*[)）]/.test(v.reading||''))||null;}" not in app:
+              raise SystemExit("French-marked records can still be selected as local Swahili readings")
+          if "刀呢摸挖" not in app:
+              raise SystemExit("User-reported spelling correction candidate for 给我 is missing")
           if shared.count("notes: null") < 2:
               raise SystemExit("Personal source/note data may still be published")
           if "scheduleRetry()" not in shared or "visibleLimit += 300" not in shared:
