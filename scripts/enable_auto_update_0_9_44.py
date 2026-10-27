@@ -269,7 +269,7 @@ write("sw.js", sw)
 html = read("index.html")
 html = once(html, "版本 0.9.42 · DWSS 智能翻译 PWA", "版本 0.9.44 · DWSS 智能翻译 PWA", "footer version")
 if "DWSS_AUTO_UPDATE_0_9_44" not in html:
-    html = once(html, "</head>", '<meta name="dwss-auto-update" content="0.9.44"><!-- DWSS_AUTO_UPDATE_0_9_44 --></head>', "auto-update build marker")
+    html = once(html, "</head>", '<meta name="dwss-auto-update" content="0.9.44"><!-- DWSS_AUTO_UPDATE_0_9_44 --><!-- DWSS 0.9.44 automatic updates --></head>', "auto-update build marker")
 write("index.html", html)
 
 version = once(read("VERSION.txt"), "Version: 0.9.43", "Version: 0.9.44", "release version")
@@ -285,4 +285,5 @@ assert "version:'0.9.44'" in app
 assert "const APP_VERSION = '0.9.44';" in sw
 assert "Version: 0.9.44" in version
 assert "DWSS_AUTO_UPDATE_0_9_44" in html
+assert "DWSS 0.9.44" in html
 print("PASS: DWSS 0.9.44 automatic update check, activation, safe reload, and draft restore.")
