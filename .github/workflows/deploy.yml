@@ -1371,6 +1371,15 @@ jobs:
           node --check public/shared-lexicon.js
           node --check public/sw.js
           node scripts/test_personal_add_share_translate_0_9_41.cjs
+      - name: Apply DWSS 0.9.41 strict Swahili form validation and end-to-end test
+        id: add_word_flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/harden_add_word_flow_0_9_41.py
+          node --check public/app.js
+          node --check public/sw.js
+          node scripts/test_add_word_flow_0_9_41.cjs
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -1397,6 +1406,7 @@ jobs:
           SWAHILI_PRIORITY_OUTCOME: ${{ steps.swahili_priority.outcome }}
           SHARED_AUTO_PUBLISH_OUTCOME: ${{ steps.shared_auto_publish.outcome }}
           SHARE_SYNC_FIX_OUTCOME: ${{ steps.share_sync_fix.outcome }}
+          ADD_WORD_FLOW_OUTCOME: ${{ steps.add_word_flow.outcome }}
           SWAHILI_ENTRY_GUARD_OUTCOME: ${{ steps.swahili_entry_guard.outcome }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
