@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.21 responsive translation workspace and quality refinements."""
+"""DWSS 0.9.22 responsive translation workspace and quality refinements."""
 from pathlib import Path
 import csv
 import gzip
@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.21 — centered navigation, full source additions and gold cover mottos",
+    "DWSS 0.9.22 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -97,7 +97,7 @@ owner_css = """
 .cover-image{display:block;width:100%!important;max-width:none!important;height:100%!important;max-height:none!important;object-fit:contain}
 .owner-signature{--owner-gold:#e9c978;position:absolute;inset:0;z-index:5;margin:0;padding:0;pointer-events:none}
 .owner-cover-author-backdrop{position:absolute;left:50%;top:81.2%;width:34%;height:10.5%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse at center,rgba(3,20,64,.98) 0%,rgba(3,20,64,.94) 52%,rgba(3,20,64,.60) 72%,rgba(3,20,64,0) 100%);filter:blur(2px)}
-.owner-cover-author,.owner-sides span{position:relative;display:inline-block;margin:0;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(14px,5.0vw,34px);font-weight:700;line-height:1.02;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.58);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28);white-space:nowrap}
+.owner-cover-author,.owner-sides span{position:relative;display:inline-block;margin:0;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(14px,5.0vw,34px);font-weight:700;line-height:1.02;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.58);text-shadow:0 1px 0 rgba(96,62,17,.72),0 2px 2px rgba(0,0,0,.42),0 0 7px rgba(255,220,145,.38);filter:brightness(1.15);white-space:nowrap}
 @supports (font-size:1cqw){.owner-cover-author,.owner-sides span{font-size:5.0cqw}}
 .owner-cover-author{position:absolute;left:50%;top:81.2%;transform:translate(-50%,-50%);letter-spacing:.12em}
 .owner-sides{position:absolute;left:6.5%;right:6.5%;bottom:7.2%;display:flex;justify-content:space-between;align-items:center;gap:10px;width:auto;margin:0;padding:0}
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.21 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.22 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -275,7 +275,7 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.21 — unified Google-Translate-style input and result surface */
+/* DWSS 0.9.22 — unified Google-Translate-style input and result surface */
 #translate.panel.active{display:block!important}
 #translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:22px;background:#fff;box-shadow:0 12px 34px rgba(17,44,82,.075);margin:0 0 16px}
 .translation-input-section,.translation-output-section{min-width:0;padding:clamp(16px,3.2vw,25px)}
@@ -751,10 +751,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.21';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.22';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.21", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.22", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -762,4 +762,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.21 matched-gold cover typography, unified live translation workspace and release updates applied.")
+print("DWSS 0.9.22 matched-gold cover typography, unified live translation workspace and release updates applied.")
