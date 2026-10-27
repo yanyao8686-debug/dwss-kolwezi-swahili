@@ -1,0 +1,123 @@
+name: Deploy DWSS 0.9.50 remove two explanatory notes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-remove-two-notes-0_9_50.yml'
+      - 'scripts/fix_remove_two_notes_0_9_50.py'
+      - 'scripts/test_remove_two_notes_0_9_50.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Fetch current verified DWSS 0.9.49 live assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --max-time 30 "$BASE_URL/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.49' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp COPYRIGHT_AND_LICENSE.txt shared-lexicon.js supabase.min.js _headers cover.jpg; do
+            curl -fsSL --max-time 60 "$BASE_URL/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+
+      - name: Remove two notes and check DWSS 0.9.50
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fix_remove_two_notes_0_9_50.py
+          node --check public/app.js
+          node --check public/pwa.js
+          node --check public/sw.js
+          node scripts/test_remove_two_notes_0_9_50.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          app=(p/"app.js").read_text(encoding="utf-8")
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          checks={
+            "release version": "Version: 0.9.50" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "visible version": "版本 0.9.50 · DWSS" in html,
+            "service worker": "const APP_VERSION = '0.9.50';" in sw,
+            "both marked notes absent": "保存后立即用于本机翻译，并自动同步给所有用户。" not in html and "优先使用当地斯语中文谐音；当地斯语没有对应词条时" not in html,
+            "dynamic status node retained": 'id="maintenanceMessage"' in html,
+            "all three add-word inputs retained": all(x in html for x in ['id="newZh"','id="newReading"','id="newFrenchReadingZh"']),
+            "save button retained": 'id="entrySubmit"' in html and "保存新词" in html,
+            "cloud sync indicator retained": 'id="shareSyncSummary"' in html,
+            "single home result retained": 'id="resultReading"' in html and 'id="resultFrenchReading"' not in html,
+            "app fallback logic retained": "type:'frenchFallback'" in app,
+            "cover retained": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
+            "dictionary retained": (p/"dictionary.js.gz").is_file(),
+          }
+          for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("DWSS 0.9.50 release checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.50
+        shell: bash
+        env:
+          PAGE_URL: \${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="\${PAGE_URL%/}"
+          TMP="\${RUNNER_TEMP}/dwss-live-0.9.50"
+          mkdir -p "$TMP"
+          VERIFIED=0
+          for attempt in $(seq 1 24); do
+            if curl -fsSL --max-time 20 "$BASE_URL/VERSION.txt?verify=$GITHUB_SHA" -o "$TMP/VERSION.txt" &&
+               curl -fsSL --max-time 20 "$BASE_URL/index.html?verify=$GITHUB_SHA" -o "$TMP/index.html" &&
+               curl -fsSL --max-time 20 "$BASE_URL/app.js?verify=$GITHUB_SHA" -o "$TMP/app.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/sw.js?verify=$GITHUB_SHA" -o "$TMP/sw.js"; then
+              if grep -Fq 'Version: 0.9.50' "$TMP/VERSION.txt" &&
+                 grep -Fq '版本 0.9.50 · DWSS' "$TMP/index.html" &&
+                 ! grep -Fq '保存后立即用于本机翻译，并自动同步给所有用户。' "$TMP/index.html" &&
+                 ! grep -Fq '优先使用当地斯语中文谐音；当地斯语没有对应词条时' "$TMP/index.html" &&
+                 grep -Fq 'id="newFrenchReadingZh"' "$TMP/index.html" &&
+                 grep -Fq 'id="entrySubmit"' "$TMP/index.html" &&
+                 grep -Fq "const APP_VERSION = '0.9.50';" "$TMP/sw.js" &&
+                 grep -Fq "function setMessage(s,type)" "$TMP/app.js"; then
+                VERIFIED=1
+                break
+              fi
+            fi
+            echo "Live Pages verification attempt $attempt did not match 0.9.50; retrying."
+            sleep 5
+          done
+          test "$VERIFIED" = "1"
+          echo "PASS: live DWSS 0.9.50 - both explanations removed; dynamic status, all fields, save button and cloud sync retained."
