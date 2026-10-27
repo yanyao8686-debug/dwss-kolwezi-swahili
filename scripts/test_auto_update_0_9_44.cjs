@@ -19,6 +19,7 @@ assert.match(sw,/await self\.clients\.claim\(\)/,'new worker takes control of op
 assert.match(sw,/APP_VERSION = '0\.9\.44'/,'cache version is bumped to invalidate old app resources');
 assert.match(app,/version:'0\.9\.44'/,'app metadata updated');
 assert.match(html,/DWSS_AUTO_UPDATE_0_9_44/,'page build marker updated');
+assert.match(html,/DWSS 0\.9\.44/,'explicit release marker is present for the live Pages verifier');
 assert.match(version,/Version: 0\.9\.44/,'release marker updated');
 assert.match(pwa,/dwss:pwa-resume:0\.9\.44/,'draft snapshot is version-scoped');
 
