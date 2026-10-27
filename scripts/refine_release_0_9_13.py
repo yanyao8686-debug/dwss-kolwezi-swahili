@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.19 — centered navigation, full source additions and owner signature",
+    "DWSS 0.9.20 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -87,12 +87,13 @@ html, owner_count = re.subn(r'(<section class="cover-frame"[^>]*>)(.*?)(</sectio
 if owner_count != 1:
     raise SystemExit("Could not place owner signature inside cover artwork")
 owner_css = """
+/* Gold cover mottos use the same metallic finish as the embedded 斯语 / 陈谍 lettering. */
 .cover-frame{position:relative}
-.owner-signature{--owner-text-color:#debe79;position:absolute;left:0;right:0;bottom:7.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:var(--owner-text-color);box-shadow:none;pointer-events:none}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:0 auto;max-width:none;font-size:clamp(16px,3.2vw,22px);font-weight:800;letter-spacing:.1em;color:var(--owner-text-color);text-shadow:0 1px 2px rgba(0,0,0,.72),0 0 7px rgba(222,190,121,.22)}
+.owner-signature{--owner-gold:#e9c978;position:absolute;left:0;right:0;bottom:9%;z-index:5;margin:0;padding:0 8%;box-sizing:border-box;text-align:center;border:0;border-radius:0;background:transparent!important;color:var(--owner-gold);box-shadow:none!important;pointer-events:none}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;width:100%;margin:0 auto;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(18px,5.4vw,25px);font-weight:800;line-height:1.08;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.55);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28)}
 .owner-sides span{white-space:nowrap}
-@media(min-width:700px){.owner-signature{bottom:7.5%;padding:0 8%}.owner-sides{font-size:22px}}
-@media(max-width:380px){.owner-signature{padding:0 6%}.owner-sides{font-size:clamp(15px,4vw,17px);letter-spacing:.06em}}
+@media(min-width:700px){.owner-signature{bottom:9%;padding:0 8%}.owner-sides{font-size:25px}}
+@media(max-width:380px){.owner-signature{padding:0 7%}.owner-sides{font-size:clamp(18px,5.2vw,21px);letter-spacing:.06em}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
 # Simplify the translation result: keep the local reading prominent and remove auxiliary panels.
@@ -152,7 +153,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.19 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.20 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
