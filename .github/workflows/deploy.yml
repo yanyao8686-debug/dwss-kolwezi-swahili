@@ -664,8 +664,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.19" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.19';" public/sw.js
+          grep -Fq "Version: 0.9.20" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.20';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -695,7 +695,7 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.18 — centered navigation, full source additions and owner signature" public/index.html
+          grep -Fq "DWSS 0.9.20 — centered navigation, full source additions and gold cover mottos" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
@@ -703,15 +703,15 @@ jobs:
           checks = {
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
-              "owner signature stays on cover without duplicate white lettering": 'class="owner-signature"' in html and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
-              "side mottos match embedded cover gold": "--owner-text-color:#debe79" in html.split(".owner-signature{",1)[1].split("}",1)[0] and "color:var(--owner-text-color)" in html.split(".owner-sides{",1)[1].split("}",1)[0],
+              "only one gold motto block is overlaid inside the cover": html.count('class="owner-signature"') == 1 and re.search(r'<section class="cover-frame"[^>]*>.*?class="owner-signature".*?</section>',html,re.S) and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
+              "side mottos match embedded cover gold": "--owner-gold:#e9c978" in html.split(".owner-signature{",1)[1].split("}",1)[0] and "background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%)" in html.split(".owner-sides{",1)[1].split("}",1)[0],
               "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
               "source and user-proposed 给我 forms are both preserved and clearly marked": "刀呢摸挖" in app and "刀呢莫挖" in app and "原始PDF记录为" in app,
-              "side motto typography matches the cover title scale": "font-size:clamp(16px,3.2vw,22px)" in html and "font-weight:800" in html and "white-space:nowrap" in html,
+              "side motto typography matches the cover title scale": "font-size:clamp(18px,5.4vw,25px)" in html and "font-weight:800" in html and "white-space:nowrap" in html and "bottom:9%" in html,
               "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
               "personal sharing privacy notice is visible": 'id="personalShareNotice"' in html and "不会上传" in html,
               "dictionary panel remains present": 'id="dictionary"' in html and 'id="dictSearch"' in html,
