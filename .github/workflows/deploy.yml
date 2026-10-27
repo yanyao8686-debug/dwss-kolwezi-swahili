@@ -698,6 +698,7 @@ jobs:
           grep -Fq "DWSS 0.9.20 — centered navigation, full source additions and gold cover mottos" public/index.html
           python3 - <<'PY'
           from pathlib import Path
+          import re
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
           checks = {
