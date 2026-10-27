@@ -662,8 +662,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.16" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.16';" public/sw.js
+          grep -Fq "Version: 0.9.17" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.17';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -686,7 +686,7 @@ jobs:
                   raise SystemExit("Audit summary missing verified statistic: " + marker)
           print("PASS full source-variant audit: 246 grouped entries, 229 multi-local groups, French separated.")
           PY
-          grep -Fq "DWSS 0.9.16 — centered navigation, source variants and owner signature" public/index.html
+          grep -Fq "DWSS 0.9.17 — centered navigation, source variants and owner signature" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
