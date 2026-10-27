@@ -23,12 +23,11 @@ def replace_once(source, old, new, label, expected=1):
         raise SystemExit(f"{label}: expected {expected} exact match(es), found {count}")
     return source.replace(old, new, expected)
 
-# 1. Restore the dictionary tab. The dictionary panel and search code were kept,
-#    but the previous compact navigation accidentally removed its only entry point.
+# 1. Keep the dictionary engine/data, but permanently remove its primary-navigation entry.
 html = read("index.html")
 nav_old = """<nav class="tabs"><button class="tab active" data-tab="translate">翻译</button><button class="tab" data-tab="saved">收藏 / 历史</button><button class="tab" data-tab="maintenance">添加新词</button></nav>"""
-nav_new = """<nav class="tabs"><button class="tab active" data-tab="translate">翻译</button><button class="tab" data-tab="dictionary">词典</button><button class="tab" data-tab="saved">收藏 / 历史</button><button class="tab" data-tab="maintenance">添加新词</button></nav>"""
-html = replace_once(html, nav_old, nav_new, "restore dictionary navigation")
+nav_new = """<nav class="tabs"><button class="tab" data-tab="maintenance"><span>添加</span><span>新词</span></button><button class="tab active" data-tab="translate"><span>翻译</span></button><button class="tab" data-tab="saved"><span>历史</span><span>记录</span></button></nav>"""
+html = replace_once(html, nav_old, nav_new, "three-tab add/translate/history navigation")
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
@@ -36,8 +35,8 @@ html = replace_once(
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
-if 'id="dictionary"' not in html or 'id="dictSearch"' not in html or 'data-tab="dictionary"' not in html:
-    raise SystemExit("Dictionary navigation/panel/search was not restored")
+if 'id="dictionary"' not in html or 'id="dictSearch"' not in html or 'data-tab="dictionary"' in html:
+    raise SystemExit("Dictionary data panel should remain but no dictionary tab may appear")
 
 # A visible, plain-language privacy boundary for the personal vocabulary form.
 privacy_note = (
@@ -63,14 +62,51 @@ html = replace_once(html, hidden_install, visible_install, "PWA install button v
 html = replace_once(
     html,
     "grid-template-columns:repeat(3,minmax(0,1fr))",
-    "grid-template-columns:repeat(4,minmax(0,1fr))",
-    "four-column tab layout",
+    "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)",
+    "centered three-column navigation",
 )
+nav_css = """
+.tabs .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;line-height:1.15;padding:8px 4px}
+.tabs .tab span{display:block}
+.tabs .tab[data-tab="translate"]{font-size:15px;font-weight:800;letter-spacing:.08em}
+.tabs .tab[data-tab="maintenance"],.tabs .tab[data-tab="saved"]{font-size:12px}
+@media(max-width:420px){.tabs .tab{min-height:54px;font-size:11px}.tabs .tab[data-tab="translate"]{font-size:14px}}
+"""
+html = html.replace("</style>", nav_css + "\\n</style>", 1)
+owner_markup = (
+    '<section class="owner-signature" aria-label="品牌寄语">'
+    '<div class="owner-name">陈谍</div>'
+    '<div class="owner-motto">以德立身 · 以信行远</div>'
+    '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
+    '</section>'
+)
+html, owner_count = re.subn(r'(<section class="cover-frame"[^>]*>.*?</section>)', lambda m: m.group(1) + owner_markup, html, count=1, flags=re.S)
+if owner_count != 1:
+    raise SystemExit("Could not place owner signature below cover artwork")
+owner_css = """
+.owner-signature{margin:0 0 13px;padding:11px 14px 10px;text-align:center;border:1px solid rgba(214,224,239,.2);border-radius:0 0 16px 16px;background:linear-gradient(135deg,#071b49,#102e62 55%,#071b49);color:#f2f5fb;box-shadow:0 8px 22px rgba(4,20,54,.12)}
+.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:#f7f8fc;text-shadow:0 1px 2px rgba(255,255,255,.28),0 0 10px rgba(222,232,250,.22)}
+.owner-motto{margin-top:3px;font-size:11px;letter-spacing:.12em;color:#dce3ef;text-shadow:0 0 7px rgba(230,238,250,.22)}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:7px auto 0;max-width:390px;font-size:12px;font-weight:700;letter-spacing:.16em;color:#e8edf5;text-shadow:0 0 7px rgba(230,238,250,.24)}
+@media(min-width:700px){.owner-signature{margin-top:-2px;padding:13px 18px 11px}.owner-sides{font-size:13px}}
+"""
+html = html.replace("</style>", owner_css + "\\n</style>", 1)
+html = re.sub(r"版本 0\\.9\\.11[^<]*", "版本 0.9.14 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
-# 2. Do not silently substitute a synonym. Unknown input now displays curated candidates;
-#    the user must click "替换并重译".
+# 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
+#    File 2 separately records 笔—比各. File 1 records 给我…—木尼白…;
+#    File 2 separately records 给我—刀呢莫挖. The latter PDF rows had remained
+#    raw source lines and were not parsed into the structured dictionary.
 app = read("app.js")
+db_anchor = "const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];"
+db_patch = """const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];
+DB.push(
+ {zh:"笔",variants:[{reading:"比各",source:"文件2《德威安保集团斯瓦西里语参考资料汇编》原文词表",kind:"原始词条"}]},
+ {zh:"给我",variants:[{reading:"刀呢莫挖",source:"文件2《德威安保集团斯瓦西里语参考资料汇编》原文词表",kind:"原始词条"}]}
+);"""
+app = replace_once(app, db_anchor, db_patch, "restore File 2 pen and give-me entries")
+
 old_shared_variant = """  const isFrench=c.source_language==='fr';
   item.variants.push({
    reading:isFrench?'':(c.reading||''), latin:isFrench?'':(c.latin||''),
@@ -102,7 +138,20 @@ if "matchedBy:'近义替代'" not in alias_block or "i+=alias.alias.length" not 
     raise SystemExit("Automatic synonym block did not match expected reviewed logic")
 app = app[:alias_start] + app[alias_end:]
 
-# Keep the app's dictionary results and the French fallback attached to a shared row.
+# Keep the app's dictionary results and French fallback attached to a shared row.
+# Promote all unique source readings for a Chinese headword into the main result.
+app = replace_once(
+    app,
+    "reading:localV.reading,latin,source:localV.source||'原始资料',item:found",
+    "reading:uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.reading).join(' / '),latin,source:uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.source||'原始资料').join('；'),variants:uniqueLocalVariants(found).filter(v=>v.reading),item:found",
+    "promote all source readings to primary translation",
+)
+app = replace_once(
+    app,
+    "const alts=uniqueLocalVariants(s.item).filter(v=>norm(v.reading)!==norm(s.reading));",
+    "const alts=[];",
+    "remove duplicate tiny alternative list",
+)
 if "lookupLocalSynonymAt(input,i)" in app[app.find("function tokenize(raw)"):app.find("function tokenize(raw)")+4000]:
     raise SystemExit("Automatic synonym lookup remains in the tokenizer")
 # 2b. The dictionary has more entries than should be rendered in one DOM update.
@@ -256,13 +305,13 @@ write("shared-lexicon.js", shared)
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-if "const APP_VERSION = '0.9.13';" not in sw:
-    raise SystemExit("Service worker version is not already 0.9.13")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.14';", "service worker cache version")
+write("sw.js", sw)
 version = read("VERSION.txt")
-if "Version: 0.9.13" not in version:
-    raise SystemExit("Version metadata is not already 0.9.13")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.14", "release version metadata")
+write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.13 product-quality patches applied.")
+print("DWSS 0.9.14 navigation, source variants and owner signature applied.")
