@@ -509,6 +509,80 @@ jobs:
           if old_history_listener not in app:
               raise SystemExit("Save-to-history event binding not found")
           app = app.replace(old_history_listener, new_history_listener, 1)
+
+          # The 0.9.0 core is installed after the legacy release finalizer.
+          # Therefore bind automatic personal-to-shared sync here, after the final core is in place.
+          def replace_app_once(old, new, label):
+              nonlocal_placeholder = None
+              if new in app:
+                  return
+              count = app.count(old)
+              if count != 1:
+                  raise SystemExit(f"Personal-to-shared app bridge {label}: expected one anchor, found {count}")
+              return None
+
+          old_add = """function addCustomEntry(data){
+           const v=validateEntry(data); if(typeof v==='string')return {ok:false,error:v};
+           const duplicate=custom.find(c=>norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+           if(duplicate)return {ok:false,error:'这条自定义词条已经存在。你可以在下方列表中编辑它。'};
+           custom.push({...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); saveCustom(); rebuild(); return {ok:true};
+          }"""
+          new_add = """function addCustomEntry(data){
+           const v=validateEntry(data); if(typeof v==='string')return {ok:false,error:v};
+           const duplicate=custom.find(c=>norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+           if(duplicate)return {ok:false,error:'这条自定义词条已经存在。你可以在下方列表中编辑它。'};
+           const entry={...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),shareSyncStatus:'pending'};
+           custom.push(entry); saveCustom(); rebuild();
+           window.dispatchEvent(new CustomEvent('dwss:personal-term-added',{detail:{entry:{...entry}}}));
+           return {ok:true};
+          }"""
+          def app_swap(source, old, new, label):
+              if new in source:
+                  return source
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"Personal-to-shared app bridge {label}: expected one anchor, found {count}")
+              return source.replace(old, new, 1)
+          app = app_swap(app, old_add, new_add, "addCustomEntry")
+
+          old_update = """function updateCustomEntry(id,data){
+           const i=custom.findIndex(c=>c.id===id);if(i<0)return {ok:false,error:'没有找到要修改的自定义词条。'};
+           const v=validateEntry(data);if(typeof v==='string')return {ok:false,error:v};
+           const dup=custom.find((c,j)=>j!==i&&norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+           if(dup)return {ok:false,error:'相同的自定义词条已存在。'};
+           custom[i]={...custom[i],...v,updatedAt:new Date().toISOString()};saveCustom();rebuild();return {ok:true};
+          }"""
+          new_update = """function updateCustomEntry(id,data){
+           const i=custom.findIndex(c=>c.id===id);if(i<0)return {ok:false,error:'没有找到要修改的自定义词条。'};
+           const v=validateEntry(data);if(typeof v==='string')return {ok:false,error:v};
+           const dup=custom.find((c,j)=>j!==i&&norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+           if(dup)return {ok:false,error:'相同的自定义词条已存在。'};
+           const retryShare=custom[i].shareSyncStatus==='needs-info';
+           custom[i]={...custom[i],...v,updatedAt:new Date().toISOString(),...(retryShare?{shareSyncStatus:'pending'}:{})};
+           saveCustom();rebuild();
+           if(retryShare)window.dispatchEvent(new CustomEvent('dwss:personal-term-added',{detail:{entry:{...custom[i]}}}));
+           return {ok:true};
+          }"""
+          app = app_swap(app, old_update, new_update, "updateCustomEntry")
+
+          old_message = "function setMessage(s,type){$('maintenanceMessage').textContent=s;$('maintenanceMessage').className='form-message '+(type||'');}"
+          new_message = """function setMessage(s,type){$('maintenanceMessage').textContent=s;$('maintenanceMessage').className='form-message '+(type||'');}
+          window.addEventListener('dwss:personal-share-status',e=>{
+           const d=e&&e.detail||{};
+           if(d.message)setMessage(d.message,d.type||'ok');
+          });"""
+          app = app_swap(app, old_message, new_message, "maintenance share feedback")
+
+          old_api = "getCustom:()=>custom.map(x=>({...x})),french:"
+          new_api = "getCustom:()=>custom.map(x=>({...x})),setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;custom[i]={...custom[i],shareSyncStatus:status,sharedSubmitId:submitId||custom[i].sharedSubmitId||''};saveCustom();return true;},french:"
+          app = app_swap(app, old_api, new_api, "public share status API")
+
+          app = app_swap(
+              app,
+              "renderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+              "window.dispatchEvent(new Event('dwss:app-ready'));\\nrenderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+              "app ready event"
+          )
           write("app.js", app)
 
           # Cache bust, so installed PWAs fetch the new interface.
