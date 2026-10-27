@@ -1,5 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
-# 0.9.32 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
+# 0.9.35: publish the original 1536x1536 DWSS cover and strictly verify live image bytes.
 
 on:
   push:
@@ -897,7 +897,7 @@ jobs:
           node --check public/sw.js
           node --check public/shared-lexicon.js
           node --check public/french-fallback.js
-      - name: Apply requested DWSS cover and fire-orange headings (0.9.34)
+      - name: Apply requested DWSS cover and fire-orange headings (0.9.35)
         shell: bash
         run: |
           set -euo pipefail
@@ -923,7 +923,7 @@ jobs:
           # The supplied square cover already contains the DWSS emblem, 陈谍 and both mottos.
           # Hide the old HTML overlay so the wording is not duplicated.
           css = r"""
-          /* DWSS 0.9.34 — requested cover and fire-orange translation headings */
+          /* DWSS 0.9.35 — requested cover and fire-orange translation headings */
           .cover-frame .owner-signature{display:none!important}
           .translation-input-section>h2,#resultCard .sectionTitle h2{
             color:#ff4b12!important;
@@ -954,7 +954,7 @@ jobs:
           if "</style>" not in html:
               raise SystemExit("Main stylesheet end marker missing.")
           html = html.replace("</style>", css + "\n</style>", 1)
-          html = html.replace("DWSS 0.9.32", "DWSS 0.9.34")
+          html = html.replace("DWSS 0.9.32", "DWSS 0.9.35")
           html = html.replace("等待输入", "")
           if "等待输入" in html or "color:#ff4b12!important" not in html:
               raise SystemExit("Orange heading or waiting-text replacement failed.")
@@ -972,31 +972,38 @@ jobs:
           version = version_path.read_text(encoding="utf-8")
           if "Version: 0.9.32" not in version:
               raise SystemExit("Unexpected base VERSION.txt; expected 0.9.32.")
-          version_path.write_text(version.replace("Version: 0.9.32", "Version: 0.9.34", 1), encoding="utf-8")
+          version_path.write_text(version.replace("Version: 0.9.32", "Version: 0.9.35", 1), encoding="utf-8")
 
           sw = sw_path.read_text(encoding="utf-8")
           if "const APP_VERSION = '0.9.32';" not in sw:
               raise SystemExit("Unexpected base service-worker version; expected 0.9.32.")
-          sw = sw.replace("const APP_VERSION = '0.9.32';", "const APP_VERSION = '0.9.34';", 1)
+          sw = sw.replace("const APP_VERSION = '0.9.32';", "const APP_VERSION = '0.9.35';", 1)
           if "cover.jpg" not in sw:
               raise SystemExit("Service worker does not cache the old cover asset as expected.")
           sw = sw.replace("cover.jpg", "cover.webp")
-          if "const APP_VERSION = '0.9.34';" not in sw or "cover.webp" not in sw:
+          if "const APP_VERSION = '0.9.35';" not in sw or "cover.webp" not in sw:
               raise SystemExit("Service worker cache version or cover path was not updated.")
           sw_path.write_text(sw, encoding="utf-8")
 
           cover = public / "cover.webp"
-          if not cover.is_file() or cover.stat().st_size < 8000:
-              raise SystemExit("The replacement cover.webp is missing or unexpectedly small.")
-          print("PASS: cover, orange underlined single-line headings, no waiting text, and PWA cache version 0.9.34.")
+          if not cover.is_file() or cover.stat().st_size < 150000:
+              raise SystemExit("The high-resolution replacement cover.webp is missing or smaller than 150 KB.")
+          image_bytes = cover.read_bytes()
+          if len(image_bytes) < 30 or image_bytes[:4] != b"RIFF" or image_bytes[8:12] != b"WEBP" or image_bytes[12:16] != b"VP8 " or image_bytes[23:26] != bytes((0x9d, 0x01, 0x2a)):
+              raise SystemExit("cover.webp is not the expected VP8 WebP image.")
+          width = int.from_bytes(image_bytes[26:28], "little") & 0x3fff
+          height = int.from_bytes(image_bytes[28:30], "little") & 0x3fff
+          if (width, height) != (1536, 1536):
+              raise SystemExit(f"Unexpected cover resolution: {width}x{height}.")
+          print("PASS: 1536x1536 cover over 150 KB, orange single-line headings, and PWA cache version 0.9.35.")
           PY
           node --check public/app.js
           node --check public/sw.js
           grep -Fq 'src="cover.webp"' public/index.html
           grep -Fq 'color:#ff4b12!important' public/index.html
           grep -Fq 'white-space:nowrap!important' public/index.html
-          grep -Fq 'Version: 0.9.34' public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.34';" public/sw.js
+          grep -Fq 'Version: 0.9.35' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.35';" public/sw.js
           test -s public/cover.webp
       - name: Upload Pages artifact
         id: upload_artifact
@@ -1050,8 +1057,12 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.webp?verify=${GITHUB_SHA}" -o "$TMP/cover.webp"; then
-                if grep -Fq "Version: 0.9.34" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.34" "$TMP/index.html" \
+                LIVE_COVER_VALID=0
+                if python3 -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes(); w=(int.from_bytes(b[26:28],"little") & 0x3fff) if len(b)>=30 else 0; h=(int.from_bytes(b[28:30],"little") & 0x3fff) if len(b)>=30 else 0; sys.exit(0 if len(b)>=150000 and b[:4]==b"RIFF" and b[8:12]==b"WEBP" and b[12:16]==b"VP8 " and b[23:26]==bytes((0x9d,0x01,0x2a)) and w==1536 and h==1536 else 1)' "$TMP/cover.webp"; then
+                  LIVE_COVER_VALID=1
+                fi
+                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.35" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.35" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
@@ -1073,9 +1084,11 @@ jobs:
                   && grep -Fq "'compositionend'" "$TMP/app.js" \
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg" \
-                  && test -s "$TMP/cover.webp"; then
+                  && test -s "$TMP/cover.webp" \
+                  && [ "$(stat -c%s "$TMP/cover.webp")" -ge 150000 ] \
+                  && [ "$(sha256sum "$TMP/cover.webp" | cut -d' ' -f1)" = "$(sha256sum custom-cover.webp | cut -d' ' -f1)" ]; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.34"
+                  FAILURE_REASON="all live assets match 0.9.35"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -1089,7 +1102,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.34 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.35 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
