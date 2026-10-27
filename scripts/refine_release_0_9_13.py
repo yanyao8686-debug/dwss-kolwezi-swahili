@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """DWSS 0.9.13 focused product-quality fixes applied after the compact UI build."""
 from pathlib import Path
+import csv
+import gzip
+import json
 import re
 import sys
+import unicodedata
 
 public = Path(sys.argv[1] if len(sys.argv) > 1 else "public")
 if not public.is_dir():
@@ -32,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.15 — centered navigation, source variants and owner signature",
+    "DWSS 0.9.16 — centered navigation, source variants and owner signature",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -89,7 +93,7 @@ owner_css = """
 .owner-signature{position:absolute;left:0;right:0;bottom:3.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:#f2f5fb;box-shadow:none;pointer-events:none}
 .owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:#f7f8fc;text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(222,232,250,.35)}
 .owner-motto{margin-top:2px;font-size:11px;letter-spacing:.12em;color:#e7edf8;text-shadow:0 1px 4px rgba(0,0,0,.65)}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:#f1f5fb;text-shadow:0 1px 4px rgba(0,0,0,.75)}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:#f7f8fc;text-shadow:0 1px 4px rgba(0,0,0,.75)}
 @media(min-width:700px){.owner-signature{bottom:4%;padding:0 9%}.owner-name{font-size:28px}.owner-sides{font-size:15px}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
@@ -150,7 +154,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.15 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.16 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -161,10 +165,23 @@ app = read("app.js")
 db_anchor = "const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];"
 db_patch = """const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];
 DB.push(
- {zh:"笔",variants:[{reading:"比各",source:"文件2《德威安保集团斯瓦西里语参考资料汇编》原文词表",kind:"原始词条"}]},
- {zh:"给我",variants:[{reading:"刀呢莫挖",source:"文件2《德威安保集团斯瓦西里语参考资料汇编》原文词表",kind:"原始词条"}]}
+ {zh:"给我",variants:[{reading:"刀呢摸挖",source:"用户提出的字形校正候选；文件2索引摘录为“刀呢莫挖”，两者待核对",kind:"用户校正候选（待科卢韦齐母语者核验）"}]}
 );"""
-app = replace_once(app, db_anchor, db_patch, "restore File 2 pen and give-me entries")
+app = replace_once(app, db_anchor, db_patch, "preserve the user-reported reading candidate without overwriting the source spelling")
+
+# French-marked source readings must never qualify as local Swahili readings or spellings.
+app = replace_once(
+    app,
+    "function localReadingVariant(item){return (item.variants||[]).find(v=>v.reading)||null;}",
+    "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''))||null;}",
+    "exclude French-marked variants from local reading selection",
+)
+app = replace_once(
+    app,
+    "function localLatinVariants(item){return (item.variants||[]).map(v=>v.latin).filter(Boolean);}",
+    "function localLatinVariants(item){return (item.variants||[]).filter(v=>!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')).map(v=>v.latin).filter(Boolean);}",
+    "exclude French-marked variants from local spelling selection",
+)
 
 old_shared_variant = """  const isFrench=c.source_language==='fr';
   item.variants.push({
@@ -382,15 +399,140 @@ shared = replace_once(
 )
 write("shared-lexicon.js", shared)
 
+# 3b. Build a reproducible audit of every Chinese headword with multiple recorded readings.
+dictionary_gz = public / "dictionary.js.gz"
+if not dictionary_gz.is_file():
+    raise SystemExit("Missing compressed dictionary for source-variant audit")
+dictionary_text = gzip.decompress(dictionary_gz.read_bytes()).decode("utf-8")
+dictionary_payload = dictionary_text.split("=", 1)[1].strip()
+if dictionary_payload.endswith(";"):
+    dictionary_payload = dictionary_payload[:-1]
+source_entries = json.loads(dictionary_payload)
+
+def audit_norm(value):
+    value = unicodedata.normalize("NFKC", str(value or "")).lower()
+    value = re.sub(r"[\s\u3000]+", "", value)
+    return re.sub(r"[，。！？；：、,.!?;:（）()“”\"']", "", value)
+
+def is_french_marked(variant):
+    return bool(re.search(r"[（(]\s*法\s*[)）]", str(variant.get("reading") or "")))
+
+grouped_sources = {}
+raw_variant_count = 0
+for entry in source_entries:
+    zh = str(entry.get("zh") or "").strip()
+    key = audit_norm(zh)
+    if not key:
+        continue
+    group = grouped_sources.setdefault(key, {"labels": [], "variants": {}})
+    if zh not in group["labels"]:
+        group["labels"].append(zh)
+    for variant in entry.get("variants") or []:
+        raw_variant_count += 1
+        reading = str(variant.get("reading") or "").strip()
+        latin = str(variant.get("latin") or "").strip()
+        variant_key = audit_norm(reading) + "|" + audit_norm(latin)
+        if not reading and not latin:
+            continue
+        if variant_key not in group["variants"]:
+            group["variants"][variant_key] = {
+                "reading": reading, "latin": latin,
+                "kind": str(variant.get("kind") or ""),
+                "sources": []
+            }
+        src = str(variant.get("source") or "原始资料未注明")
+        if src not in group["variants"][variant_key]["sources"]:
+            group["variants"][variant_key]["sources"].append(src)
+
+all_unique_variants = sum(len(g["variants"]) for g in grouped_sources.values())
+local_unique_variants = 0
+french_unique_variants = 0
+multi_any_groups = 0
+multi_local_groups = 0
+local_and_french_groups = 0
+french_only_groups = 0
+audit_rows = []
+for key, group in grouped_sources.items():
+    variants = list(group["variants"].values())
+    local = [v for v in variants if not is_french_marked(v)]
+    french = [v for v in variants if is_french_marked(v)]
+    local_unique_variants += len(local)
+    french_unique_variants += len(french)
+    if len(variants) > 1:
+        multi_any_groups += 1
+    if len(local) > 1:
+        multi_local_groups += 1
+    if local and french:
+        local_and_french_groups += 1
+    if french and not local:
+        french_only_groups += 1
+    # Keep comma/slash-separated source text intact; no speculative splitting of uncertain OCR cells.
+    if len(local) > 1 or (local and french):
+        audit_rows.append({
+            "中文词头": " / ".join(sorted(group["labels"])),
+            "当地读音（原始记录，去重后并列）": " / ".join(v["reading"] or v["latin"] for v in local),
+            "当地读音来源": "；".join(
+                (v["reading"] or v["latin"]) + " ← " + "、".join(v["sources"]) for v in local
+            ),
+            "法语标注读音（单独列出，不作当地斯语）": " / ".join(v["reading"] for v in french),
+            "法语来源": "；".join("、".join(v["sources"]) for v in french),
+            "不同当地读音数量": str(len(local)),
+            "是否同时含法语标注": "是" if french else "否",
+            "用户待核对补充": "刀呢摸挖（用户提出的写法；原资料索引摘录为刀呢莫挖，待核对）" if key == audit_norm("给我") else "",
+            "核验状态": "保留所有来源读法；尚未完成科卢韦齐母语者逐条核音"
+        })
+
+if len(source_entries) != 1850 or raw_variant_count != 2244:
+    raise SystemExit(f"Unexpected source dictionary baseline: entries={len(source_entries)}, variants={raw_variant_count}")
+if len(grouped_sources) != 1844 or all_unique_variants != 2143:
+    raise SystemExit(f"Unexpected normalized dictionary baseline: groups={len(grouped_sources)}, unique_variants={all_unique_variants}")
+if (local_unique_variants, french_unique_variants, multi_any_groups, multi_local_groups, local_and_french_groups, french_only_groups) != (2089, 54, 246, 229, 27, 27):
+    raise SystemExit("Source-variant group counts changed; audit rules require review before release")
+by_label = {audit_norm(" / ".join(g["labels"])): g for g in grouped_sources.values()}
+pen = grouped_sources.get(audit_norm("笔"))
+give = grouped_sources.get(audit_norm("给我"))
+if not pen or not {"比克", "比各"}.issubset({v["reading"] for v in pen["variants"].values() if not is_french_marked(v)}):
+    raise SystemExit("Regression: the two local readings for 笔 are not both present")
+if not pen or not any(is_french_marked(v) and "撕提" in v["reading"] for v in pen["variants"].values()):
+    raise SystemExit("Regression: the French-marked pen entry was not retained separately")
+if not give or not {"木尼白...", "刀呢莫挖"}.issubset({v["reading"] for v in give["variants"].values()}):
+    raise SystemExit("Regression: the two source readings for 给我 are not grouped together")
+if not any(row["中文词头"].find("给我") >= 0 and row["用户待核对补充"] for row in audit_rows):
+    raise SystemExit("Regression: the user-reported 给我 spelling difference is not documented")
+
+audit_path = public / "source_variant_audit.csv"
+with audit_path.open("w", encoding="utf-8-sig", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=list(audit_rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(sorted(audit_rows, key=lambda row: row["中文词头"]))
+summary = [
+    "DWSS 两份来源词库多表达审计",
+    f"压缩词库原始中文词头记录：{len(source_entries)}",
+    f"压缩词库原始表达记录：{raw_variant_count}",
+    f"按应用匹配规则归并后的中文词组：{len(grouped_sources)}",
+    f"去重后的全部不同表达：{all_unique_variants}",
+    f"去重后的非纯法语当地表达：{local_unique_variants}",
+    f"法语标注表达（单独归类）：{french_unique_variants}",
+    f"含两个或以上不同表达的词组（含法语标注）：{multi_any_groups}",
+    f"含两个或以上不同当地读音的词组：{multi_local_groups}",
+    f"同时含当地读音和法语标注的词组：{local_and_french_groups}",
+    f"仅有法语标注读音的词组：{french_only_groups}",
+    "",
+    "处理规则：同一中文词组的不同当地读音在翻译主结果并列显示；完全相同的读音去重但来源留在审计CSV；（法）标注读音不作为当地斯语读音；不擅自拆分原资料中逗号/斜线连接的疑似复合读法。",
+    "重要边界：该审计只证明原始词库记录与软件呈现逻辑，不能替代科卢韦齐母语者对发音、拼写、词义和语境的逐条确认。",
+    "给我：原始词库含“木尼白...”和“刀呢莫挖”；“刀呢摸挖”为用户提出的字形校正候选，单独标记待核验，不覆盖原文记录。"
+]
+(public / "source_variant_audit_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
+
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.15';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.16';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.15", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.16", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.15 compact result UI, navigation, source variants and owner signature applied.")
+print("DWSS 0.9.16 compact result UI, navigation, source variants and owner signature applied.")
