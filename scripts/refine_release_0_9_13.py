@@ -169,19 +169,7 @@ DB.push(
 );"""
 app = replace_once(app, db_anchor, db_patch, "preserve the user-reported reading candidate without overwriting the source spelling")
 
-# French-marked source readings must never qualify as local Swahili readings or spellings.
-app = replace_once(
-    app,
-    "function localReadingVariant(item){return (item.variants||[]).find(v=>v.reading)||null;}",
-    "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''))||null;}",
-    "exclude French-marked variants from local reading selection",
-)
-app = replace_once(
-    app,
-    "function localLatinVariants(item){return (item.variants||[]).map(v=>v.latin).filter(Boolean);}",
-    "function localLatinVariants(item){return (item.variants||[]).filter(v=>!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')).map(v=>v.latin).filter(Boolean);}",
-    "exclude French-marked variants from local spelling selection",
-)
+# French/local separation is enforced in finalize_shared_release.py before this build step.
 
 old_shared_variant = """  const isFrench=c.source_language==='fr';
   item.variants.push({
