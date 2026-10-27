@@ -200,7 +200,7 @@ if 'id="translationWorkspace"' in html:
     if 'id="inputText"' not in html or 'id="resultReading"' not in html or 'id="resultCard"' not in html:
         raise SystemExit("Existing translation workspace is incomplete")
     visible_samples = re.search(
-        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*常用表达\s*</h2>',
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>[^<]*常用表达[^<]*</h2>',
         html, flags=re.S
     )
     if visible_samples:
@@ -209,7 +209,7 @@ if 'id="translationWorkspace"' in html:
     html = ensure_hidden_samples_node(html)
 else:
     input_match = re.search(
-        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*输入中文\s*</h2>',
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*输入[^<]*</h2>',
         html, flags=re.S
     )
     result_match = re.search(
@@ -217,7 +217,7 @@ else:
         html, flags=re.S
     )
     samples_match = re.search(
-        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*常用表达\s*</h2>',
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>[^<]*常用表达[^<]*</h2>',
         html, flags=re.S
     )
     if not input_match or not result_match or not samples_match:
