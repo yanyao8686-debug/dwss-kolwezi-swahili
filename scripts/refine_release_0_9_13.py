@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.24 matched input and result surfaces for the translation workspace."""
+"""DWSS 0.9.25 matched input and result surfaces for the translation workspace."""
 from pathlib import Path
 import csv
 import gzip
@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.24 — centered navigation, full source additions and gold cover mottos",
+    "DWSS 0.9.25 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.24 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.25 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -275,7 +275,7 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.24 — compact, adjacent translation surfaces with a non-scrolling auto-grow input */
+/* DWSS 0.9.25 — compact, adjacent translation surfaces with a non-scrolling auto-grow input */
 #translate.panel.active{display:block!important}
 #translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(17,44,82,.06);margin:0 0 10px}
 .translation-input-section,.translation-output-section{min-width:0}
@@ -286,7 +286,8 @@ workspace_css = r"""
 #inputText::placeholder{color:#8a7440;opacity:.8}
 #inputText:focus{outline:none;border-color:#b88d2e;box-shadow:0 0 0 3px rgba(217,184,91,.16)}
 .workspace-divider{height:1px;margin:0 12px;background:#e7edf4}
-#resultCard .sectionTitle{align-items:center;margin-bottom:5px}
+#resultCard .sectionTitle{align-items:center;margin-bottom:3px}
+#resultCard>.copyline{display:none!important}
 #resultCard .sectionTitle h2{font-size:16px;font-weight:750;letter-spacing:-.02em;color:#172b49}
 #resultCard .resultlabel{font-size:10px;color:#78869c;letter-spacing:.02em}
 #resultCard .copyline{margin-bottom:4px}
@@ -314,7 +315,8 @@ autogrow_script = r"""<script id="dwss-autogrow-input">
   function fit(input){
     if(!input)return;
     input.style.height='auto';
-    input.style.height=Math.max(88,input.scrollHeight)+'px';
+    const border=parseFloat(getComputedStyle(input).borderTopWidth||0)+parseFloat(getComputedStyle(input).borderBottomWidth||0);
+    input.style.height=Math.max(88,input.scrollHeight+border)+'px';
     input.style.overflowY='hidden';
   }
   function init(){
@@ -786,10 +788,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.24';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.25';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.24", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.25", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -797,4 +799,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.24 matched-gold cover typography, matched-color translation result box and release updates applied.")
+print("DWSS 0.9.25 matched-gold cover typography, matched-color translation result box and release updates applied.")
