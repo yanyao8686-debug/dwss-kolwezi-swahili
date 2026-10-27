@@ -182,11 +182,25 @@ def find_div_bounds(source, start):
                 return start, open_end, open_end + token.start(), open_end + token.end()
     raise SystemExit("Translation workspace: unbalanced div structure")
 
-input_match = re.search(r'<div class="card"><h2>输入中文</h2>', html)
-result_match = re.search(r'<div class="card" id="resultCard">', html)
-samples_match = re.search(r'<div class="card"><h2>常用表达</h2>', html)
+input_match = re.search(
+    r'<div\\b(?=[^>]*\\bclass=["\\'][^"\\']*\\bcard\\b[^"\\']*["\\'])[^>]*>\\s*<h2\\b[^>]*>\\s*输入中文\\s*</h2>',
+    html, flags=re.S
+)
+result_match = re.search(
+    r'<div\\b(?=[^>]*\\bid=["\\']resultCard["\\'])[^>]*>',
+    html, flags=re.S
+)
+samples_match = re.search(
+    r'<div\\b(?=[^>]*\\bclass=["\\'][^"\\']*\\bcard\\b[^"\\']*["\\'])[^>]*>\\s*<h2\\b[^>]*>\\s*常用表达\\s*</h2>',
+    html, flags=re.S
+)
 if not input_match or not result_match or not samples_match:
-    raise SystemExit("Translation input/result/samples card anchors were not found")
+    headings = [re.sub(r'<[^>]+>', '', value).strip() for value in re.findall(r'<h2\\b[^>]*>(.*?)</h2>', html, flags=re.S)]
+    raise SystemExit(
+        "Translation workspace anchors missing: "
+        f"input={bool(input_match)}, result={bool(result_match)}, samples={bool(samples_match)}; "
+        f"visible headings={headings[:20]}"
+    )
 if not (input_match.start() < result_match.start() < samples_match.start()):
     raise SystemExit("Translation cards are not in the expected input/result/samples order")
 input_bounds = find_div_bounds(html, input_match.start())
