@@ -1426,7 +1426,7 @@ jobs:
                   && curl -fsSL --max-time 20 "${BASE_URL}/shared-lexicon.js?verify=${GITHUB_SHA}" -o "$TMP/shared-lexicon.js" \
                   && grep -Fq "function needsAutomaticShare(entry)" "$TMP/shared-lexicon.js" \
                   && grep -Fq "return hasLocalSwahiliReading || [\"pending\", \"queued\"].includes(status);" "$TMP/shared-lexicon.js" \
-                  && [ "$(grep -Fc \"notes: null\" "$TMP/shared-lexicon.js")" -ge 2 ] \
+                  && [ "$(grep -Fc 'notes: null' "$TMP/shared-lexicon.js")" -ge 2 ] \
                   && grep -Fq "const rankOf={personal:0,shared:1,builtin:2};" "$TMP/app.js" \
                   && grep -Fq "if(lookupLocalAt(input,index))return null;" "$TMP/app.js" \
                   && grep -Fq "单个斯语读法释义（点击加号展开）：" "$TMP/index.html" \
