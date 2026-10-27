@@ -138,6 +138,26 @@ if "matchedBy:'近义替代'" not in alias_block or "i+=alias.alias.length" not 
     raise SystemExit("Automatic synonym block did not match expected reviewed logic")
 app = app[:alias_start] + app[alias_end:]
 
+# French-labelled entries in the old source are not local Swahili readings.
+# Exclude them from local matching so they cannot outrank a real local variant.
+app = replace_once(
+    app,
+    "const variants=(item.variants||[]).filter(v=>v.reading||v.latin);",
+    "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));",
+    "exclude French-marked entries from local matching",
+)
+app = replace_once(
+    app,
+    "if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)))return origin;",
+    "if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')))return origin;",
+    "do not classify French-only entries as local Swahili",
+)
+app = replace_once(
+    app,
+    "if(!v.reading&&!v.latin)return false;",
+    "if((!v.reading&&!v.latin)||/[（(]\\s*法\\s*[)）]/.test(v.reading||''))return false;",
+    "exclude French-marked entries from displayed local variants",
+)
 # Keep the app's dictionary results and French fallback attached to a shared row.
 # Promote all unique source readings for a Chinese headword into the main result.
 app = replace_once(
