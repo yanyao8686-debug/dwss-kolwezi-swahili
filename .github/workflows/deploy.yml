@@ -710,7 +710,7 @@ jobs:
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
-              "source give-me phonetic preserves original character": "刀呢摸挖" in app and "刀呢莫挖" not in app,
+              "source and user-proposed 给我 forms are both preserved and clearly marked": "刀呢摸挖" in app and "刀呢莫挖" in app and "原始PDF记录为" in app,
               "left and right mottos share exact owner-name color": "--owner-text-color:#f7f8fc" in html and "color:var(--owner-text-color)" in html,
               "silver side mottos": "德行四海" in html and "威震八方" in html,
               "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
