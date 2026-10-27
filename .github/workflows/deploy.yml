@@ -1217,6 +1217,115 @@ jobs:
           assert.equal((read('index.html').match(/name="description"/g)||[]).length,1);
           console.log('PASS: DWSS runtime regression suite; built-in entries='+api.dictCount);
           NODE
+      - name: Apply DWSS 0.9.37 data-protection and accessibility fixes
+        id: harden_0_9_37
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("public")
+          def read(name): return (root/name).read_text(encoding="utf-8")
+          def write(name,value): (root/name).write_text(value,encoding="utf-8")
+          def once(text,old,new,label):
+              n=text.count(old)
+              if n!=1: raise SystemExit(f"{label}: expected 1 match, found {n}")
+              return text.replace(old,new,1)
+
+          app=read("app.js")
+          app=once(app,"version:'0.9.36'","version:'0.9.37'","app metadata version")
+          old_load="""function loadCustom(){
+           try {
+            const x=JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]');
+            return Array.isArray(x)?x.filter(v=>v&&typeof v.zh==='string').slice(-MAX_CUSTOM_ENTRIES):[];
+           } catch(error){console.warn('[DWSS] Custom dictionary could not be read:',error);return [];}
+          }
+          let custom = loadCustom();
+          """
+          new_load="""let customStorageUnreadable = false;
+          function loadCustom(){
+           try {
+            const raw=localStorage.getItem(CUSTOM_KEY);
+            const x=JSON.parse(raw||'[]');
+            return Array.isArray(x)?x.filter(v=>v&&typeof v.zh==='string'):[];
+           } catch(error){
+            customStorageUnreadable=true;
+            console.error('[DWSS] Custom dictionary is unreadable; writes are disabled to protect its original data.',error);
+            return [];
+           }
+          }
+          let custom = loadCustom();
+          """
+          app=once(app,old_load,new_load,"custom dictionary recovery guard")
+          app=once(app,"function saveCustom(){return safeStore(CUSTOM_KEY,custom);}",
+              "function saveCustom(){if(customStorageUnreadable){console.error('[DWSS] Refusing to overwrite unreadable custom dictionary data.');return false;}return safeStore(CUSTOM_KEY,custom);}",
+              "custom dictionary write protection")
+          app=once(app,
+              "function exportCustom(){return JSON.stringify({app:PRODUCT_META.name,productId:PRODUCT_META.id,owner:PRODUCT_META.owner,appVersion:PRODUCT_META.version,formatVersion:2,exportedAt:new Date().toISOString(),entries:custom},null,2);}",
+              "function exportCustom(){if(customStorageUnreadable){try{return localStorage.getItem(CUSTOM_KEY)||'';}catch(error){return '无法读取本机自定义词库原始内容，请停止编辑并联系维护人员。';}}return JSON.stringify({app:PRODUCT_META.name,productId:PRODUCT_META.id,owner:PRODUCT_META.owner,appVersion:PRODUCT_META.version,formatVersion:2,exportedAt:new Date().toISOString(),entries:custom},null,2);}",
+              "corrupt data raw export")
+          app=once(app,
+              "deleteCustomEntry(id);renderAll();setMessage('已删除这条自定义词条。','ok');",
+              "if(!deleteCustomEntry(id)){setMessage('保存失败，词条未删除。请检查设备存储空间或浏览器权限。','err');return;}renderAll();setMessage('已删除这条自定义词条。','ok');",
+              "delete failure feedback")
+          app=once(app,
+              "$('exportCustom').addEventListener('click',()=>{$('backupText').value=exportCustom();$('backupText').focus();$('backupText').select();setMessage('备份内容已生成。请复制下面文本，保存到手机备忘录或电脑文件中。','ok');});",
+              "$('exportCustom').addEventListener('click',()=>{$('backupText').value=exportCustom();$('backupText').focus();$('backupText').select();setMessage(customStorageUnreadable?'本机词库无法解析。已显示原始数据，请立即复制保存；编辑和导入已暂停。':'备份内容已生成。请复制下面文本，保存到手机备忘录或电脑文件中。',customStorageUnreadable?'err':'ok');});",
+              "backup export corruption warning")
+          old_copy="async function copyText(text,buttonId,defaultLabel){try{await navigator.clipboard.writeText(text);$(buttonId).textContent='已复制';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$(buttonId).textContent='已复制';}setTimeout(()=>{$(buttonId).textContent=defaultLabel;},1800);}"
+          new_copy="""async function copyText(text,buttonId,defaultLabel){
+           let copied=false;
+           try{await navigator.clipboard.writeText(text);copied=true;}
+           catch(error){
+            try{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();copied=document.execCommand('copy')!==false;ta.remove();}
+            catch(fallbackError){console.warn('[DWSS] Clipboard fallback failed:',fallbackError);}
+           }
+           $(buttonId).textContent=copied?'已复制':'复制失败，请手动选择文本';
+           setTimeout(()=>{$(buttonId).textContent=defaultLabel;},1800);
+           return copied;
+          }"""
+          app=once(app,old_copy,new_copy,"clipboard fallback result handling")
+          app=once(app,
+              "window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},",
+              "window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},get customStorageUnreadable(){return customStorageUnreadable;},",
+              "custom data recovery status")
+          app=once(app,
+              "renderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+              "renderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();if(customStorageUnreadable){let raw='';try{raw=localStorage.getItem(CUSTOM_KEY)||'';}catch(error){raw='浏览器禁止读取本机原始词库数据。';}if($('backupText'))$('backupText').value=raw;setMessage('检测到本机自定义词库数据无法解析。为保护原始数据，已暂停新增、修改、删除和导入。请进入“备份与恢复”复制原始内容，再联系维护人员修复。','err');const alert=$('storageRecoveryAlert');if(alert){alert.textContent='检测到本机自定义词库数据无法解析，已暂停写入以防覆盖原始内容。请先进入“备份与恢复”复制原始内容。';alert.hidden=false;}}",
+              "visible custom-data recovery warning")
+          write("app.js",app)
+
+          html=read("index.html")
+          html=once(html,'<main>','<main>\n<div id="storageRecoveryAlert" class="maintenance-note" role="alert" hidden></div>',"persistent storage recovery notice")
+          html=once(html,'<select id="category">','<select id="category" aria-label="按分类筛选词条">',"category filter accessible name")
+          html=once(html,'<textarea id="backupText" class="backupbox" readonly','<textarea id="backupText" class="backupbox" aria-label="个人词库导出备份内容" readonly',"backup output accessible name")
+          if "DWSS 0.9.36" not in html: raise SystemExit("Expected HTML release base 0.9.36")
+          html=html.replace("DWSS 0.9.36","DWSS 0.9.37")
+          write("index.html",html)
+
+          version=read("VERSION.txt")
+          if "Version: 0.9.36" not in version: raise SystemExit("Expected VERSION.txt 0.9.36")
+          version=version.replace("Version: 0.9.36","Version: 0.9.37",1)
+          version += "\nHardening: corrupted personal dictionary data is preserved and made read-only until recovery; failed delete/copy operations report honestly; category and backup controls have accessible names.\n"
+          write("VERSION.txt",version)
+          sw=once(read("sw.js"),"const APP_VERSION = '0.9.36';","const APP_VERSION = '0.9.37';","Service Worker cache namespace")
+          write("sw.js",sw)
+
+          assert "customStorageUnreadable=true" in app
+          assert "slice(-MAX_CUSTOM_ENTRIES)" not in app
+          assert "Refusing to overwrite unreadable custom dictionary data" in app
+          assert "保存失败，词条未删除" in app
+          assert "复制失败，请手动选择文本" in app
+          assert 'aria-label="按分类筛选词条"' in html
+          assert 'aria-label="个人词库导出备份内容"' in html
+          assert 'id="storageRecoveryAlert"' in html
+          assert "Version: 0.9.37" in version
+          assert "const APP_VERSION = '0.9.37';" in sw
+          print("PASS: DWSS 0.9.37 custom-data protection and accessibility.")
+          PY
+          node --check public/app.js
+          node --check public/boot.js
+          node --check public/sw.js
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -1239,6 +1348,7 @@ jobs:
           APPLY_RELEASE_OUTCOME: ${{ steps.apply_release.outcome }}
           APPLY_RELEASE_ERROR: ${{ steps.apply_release.outputs.error_summary }}
           HARDEN_OUTCOME: ${{ steps.harden_0_9_36.outcome }}
+          HARDEN_037_OUTCOME: ${{ steps.harden_0_9_37.outcome }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
           UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
@@ -1246,7 +1356,7 @@ jobs:
           set -uo pipefail
           STATE=failure
           FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
-          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
+          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "hardening-0.9.37:${HARDEN_037_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
             STEP_NAME="${entry%%:*}"
             STEP_RESULT="${entry#*:}"
             if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
@@ -1276,8 +1386,8 @@ jobs:
                 if python3 -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes(); w=(int.from_bytes(b[26:28],"little") & 0x3fff) if len(b)>=30 else 0; h=(int.from_bytes(b[28:30],"little") & 0x3fff) if len(b)>=30 else 0; sys.exit(0 if len(b)>=150000 and b[:4]==b"RIFF" and b[8:12]==b"WEBP" and b[12:16]==b"VP8 " and b[23:26]==bytes((0x9d,0x01,0x2a)) and w==1536 and h==1536 else 1)' "$TMP/cover.webp"; then
                   LIVE_COVER_VALID=1
                 fi
-                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.36" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.36" "$TMP/index.html" \
+                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.37" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.37" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
@@ -1286,8 +1396,8 @@ jobs:
                   && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
                   && grep -Fq "font-size:16px!important" "$TMP/index.html" \
                   && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
-                  && grep -Fq "version:'0.9.36'" "$TMP/app.js" \
-                  && grep -Fq "const APP_VERSION = '0.9.36';" "$TMP/sw.js" \
+                  && grep -Fq "version:'0.9.37'" "$TMP/app.js" \
+                  && grep -Fq "const APP_VERSION = '0.9.37';" "$TMP/sw.js" \
                   && grep -Fq "清除网站数据会删除本机自定义词条" "$TMP/boot.js" \
                   && ! grep -Fq '等待输入' "$TMP/app.js" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
@@ -1306,7 +1416,7 @@ jobs:
                   && [ "$(stat -c%s "$TMP/cover.webp")" -ge 150000 ] \
                   && [ "$(sha256sum "$TMP/cover.webp" | cut -d' ' -f1)" = "$(sha256sum custom-cover.webp | cut -d' ' -f1)" ]; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.36"
+                  FAILURE_REASON="all live assets match 0.9.37"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -1320,7 +1430,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.36 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.37 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
