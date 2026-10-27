@@ -15,8 +15,10 @@ assert(shared.includes('result.error.code || "UNKNOWN"'),'error code is surfaced
 assert(shared.includes('if (!save(QUEUE_KEY, queue))'),'queue persistence checked');
 function extractFunction(source,name){
  const start=source.indexOf('function '+name+'(');assert(start>=0,'function '+name);
- const brace=source.indexOf('{',start);let depth=0,quote=null,escaped=false;
- for(let i=brace;i<source.length;i++){const ch=source[i];if(quote){if(escaped){escaped=false;continue;}if(ch==='\\'){escaped=true;continue;}if(ch===quote)quote=null;continue;}if(ch==='"'||ch==="'"){quote=ch;continue;}if(ch==='{')depth++;if(ch==='}'&&--depth===0)return source.slice(start,i+1);}
+ const clean=source.slice(start).replace(/\/\/[^\n]*/g,'');
+ const brace=clean.indexOf('{');let depth=0,quote=null,escaped=false;
+ for(let i=brace;i<clean.length;i++){const ch=clean[i];if(quote){if(escaped){escaped=false;continue;}if(ch==='\\\\'){escaped=true;continue;}if(ch===quote)quote=null;continue;}if(ch==='"'||ch==="'"){quote=ch;continue;}if(ch==='{')depth++;if(ch==='}'&&--depth===0)return clean.slice(0,i+1);}
+ throw new Error('function extraction failed');
  throw new Error('function extraction failed');
 }
 const fn=extractFunction(shared,'buildPersonalPayload');
