@@ -32,7 +32,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.14 — centered navigation, source variants and owner signature",
+    "DWSS 0.9.15 — centered navigation, source variants and owner signature",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -93,7 +93,64 @@ owner_css = """
 @media(min-width:700px){.owner-signature{bottom:4%;padding:0 9%}.owner-name{font-size:28px}.owner-sides{font-size:15px}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.14 · DWSS 智能翻译 PWA", html, count=1)
+# Simplify the translation result: keep the local reading prominent and remove auxiliary panels.
+result_css = """
+#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}
+#resultCard .dwss-result-surface{background:#fff!important;color:inherit!important;border-color:transparent!important;box-shadow:none!important;border-radius:14px!important}
+#resultCard #resultReading{background:#fff!important;border:0!important;box-shadow:none!important;cursor:pointer}
+#resultCard #resultReading:focus-visible{outline:2px solid rgba(28,86,136,.35);outline-offset:3px}
+"""
+html = html.replace("</style>", result_css + "\n</style>", 1)
+result_ui_script = r"""<script id="dwss-simple-result-ui">
+(function(){
+  function apply(){
+    const card=document.getElementById('resultCard');
+    if(!card)return;
+    card.querySelectorAll('button').forEach(function(btn){
+      const label=(btn.innerText||btn.textContent||'').replace(/[\s\u00a0]+/g,'');
+      if(label.includes('复制读音'))btn.remove();
+    });
+    const reading=document.getElementById('resultReading');
+    if(!reading)return;
+    reading.classList.add('dwss-result-surface');
+    if(reading.parentElement&&reading.parentElement!==card)reading.parentElement.classList.add('dwss-result-surface');
+    reading.setAttribute('role','button');
+    reading.setAttribute('tabindex','0');
+    reading.setAttribute('aria-label','点击当地读音复制');
+    reading.title='点击读音可复制';
+    if(reading.dataset.dwssCopyBound==='1')return;
+    async function copyReading(){
+      const value=(reading.innerText||reading.textContent||'').trim();
+      if(!value)return;
+      let copied=false;
+      try{await navigator.clipboard.writeText(value);copied=true;}
+      catch(_){
+        const field=document.createElement('textarea');
+        field.value=value;field.setAttribute('readonly','');
+        field.style.position='fixed';field.style.opacity='0';
+        document.body.appendChild(field);field.select();
+        try{copied=document.execCommand('copy');}catch(__){}
+        field.remove();
+      }
+      reading.title=copied?'已复制当地读音':'复制失败，请长按读音选择文字';
+    }
+    reading.addEventListener('click',copyReading);
+    reading.addEventListener('keydown',function(event){
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();copyReading();}
+    });
+    reading.dataset.dwssCopyBound='1';
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+  new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>"""
+if 'id="dwss-simple-result-ui"' not in html:
+    if '</body>' not in html:
+        raise SystemExit("Cannot insert compact result UI: body end tag missing")
+    html = html.replace("</body>", result_ui_script + "\n</body>", 1)
+if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
+    raise SystemExit("Compact result UI did not apply")
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.15 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -327,13 +384,13 @@ write("shared-lexicon.js", shared)
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.14';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.15';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.14", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.15", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.14 navigation, source variants and owner signature applied.")
+print("DWSS 0.9.15 compact result UI, navigation, source variants and owner signature applied.")
