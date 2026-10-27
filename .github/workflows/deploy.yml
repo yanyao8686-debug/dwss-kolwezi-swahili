@@ -13,6 +13,7 @@ on:
       - 'scripts/finalize_shared_release.py'
       - 'scripts/upgrade_context_0_9_0.py'
       - 'scripts/refine_release_0_9_13.py'
+      - 'supabase/migrations/20261027160434_harden_shared_terms_constraints_and_grants.sql'
       - 'data/dwss_new_local_source_terms.csv'
   workflow_dispatch:
 
@@ -1005,6 +1006,217 @@ jobs:
           grep -Fq 'Version: 0.9.35' public/VERSION.txt
           grep -Fq "const APP_VERSION = '0.9.35';" public/sw.js
           test -s public/cover.webp
+      - name: Apply DWSS 0.9.36 storage, UX and cache hardening
+        id: harden_0_9_36
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("public")
+          def read(name):
+              path = root / name
+              if not path.is_file():
+                  raise SystemExit(f"Missing release file: {name}")
+              return path.read_text(encoding="utf-8")
+          def write(name, data):
+              (root / name).write_text(data, encoding="utf-8")
+          def once(data, old, new, label):
+              count = data.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected 1 occurrence, found {count}")
+              return data.replace(old, new, 1)
+
+          # Durable, defensive local persistence and bounded custom dictionary.
+          app = read("app.js")
+          app = once(app,
+              "const CUSTOM_KEY = 'sw_custom_dictionary_v1';\nconst PRODUCT_META = Object.freeze({id:'com.dwss.kolwezi.swahili',name:'DWSS 科卢韦齐斯瓦西里语助手',owner:'DWSS / 陈谍',version:'0.9.0'});",
+              "const CUSTOM_KEY = 'sw_custom_dictionary_v1';\nconst MAX_CUSTOM_ENTRIES = 5000;\nconst PRODUCT_META = Object.freeze({id:'com.dwss.kolwezi.swahili',name:'DWSS 科卢韦齐斯瓦西里语助手',owner:'DWSS / 陈谍',version:'0.9.36'});",
+              "product version and custom-entry limit")
+          old_store = """function loadCustom(){
+           try { const x=JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]'); return Array.isArray(x)?x.filter(v=>v&&typeof v.zh==='string'):[]; }
+           catch(e){ return []; }
+          }
+          let custom = loadCustom();
+          // Shared cloud terms are merged into the read-only search index, never into the user's editable custom list.
+          let sharedCustom = [];
+          let all = [], map = new Map(), keys = [];
+          function saveCustom(){ localStorage.setItem(CUSTOM_KEY,JSON.stringify(custom)); }
+          """
+          new_store = """function readStoredArray(key, limit=5000){
+           try {
+            const raw=localStorage.getItem(key);
+            if(!raw)return [];
+            const value=JSON.parse(raw);
+            return Array.isArray(value)?value.filter(v=>typeof v==='string'&&v.trim()).slice(0,limit):[];
+           } catch(error){console.warn('[DWSS] Ignored unreadable local data:',key,error);return [];}
+          }
+          function safeStore(key,value){
+           try{localStorage.setItem(key,JSON.stringify(value));return true;}
+           catch(error){console.error('[DWSS] Local storage write failed:',key,error);return false;}
+          }
+          function safeRemove(key){
+           try{localStorage.removeItem(key);return true;}
+           catch(error){console.error('[DWSS] Local storage removal failed:',key,error);return false;}
+          }
+          function loadCustom(){
+           try {
+            const x=JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]');
+            return Array.isArray(x)?x.filter(v=>v&&typeof v.zh==='string').slice(-MAX_CUSTOM_ENTRIES):[];
+           } catch(error){console.warn('[DWSS] Custom dictionary could not be read:',error);return [];}
+          }
+          let custom = loadCustom();
+          // Shared cloud terms are merged into the read-only search index, never into the user's editable custom list.
+          let sharedCustom = [];
+          let all = [], map = new Map(), keys = [];
+          function saveCustom(){return safeStore(CUSTOM_KEY,custom);}
+          """
+          app = once(app, old_store, new_store, "local-storage helper block")
+          app = once(app,
+              "function validateEntry(data){\n const zh=String(data.zh||'').trim(),",
+              "function validateEntry(data){\n if(!data||typeof data!=='object'||Array.isArray(data))return '词条格式不正确。';\n const zh=String(data.zh||'').trim(),",
+              "null-safe entry validation")
+          app = once(app,
+              " const entry={...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),shareSyncStatus:'pending'};\n custom.push(entry); saveCustom(); rebuild();",
+              " if(custom.length>=MAX_CUSTOM_ENTRIES)return {ok:false,error:'自定义词条已达到 5000 条上限，请先导出备份并整理旧词条。'};\n const entry={...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),shareSyncStatus:'pending'};\n custom.push(entry); if(!saveCustom()){custom.pop();return {ok:false,error:'设备存储空间不足或浏览器限制了保存。请先导出备份、释放空间后重试。'};} rebuild();",
+              "atomic personal-entry add")
+          app = once(app,
+              " const retryShare=custom[i].shareSyncStatus!=='synced';\n custom[i]={...custom[i],...v,updatedAt:new Date().toISOString(),...(retryShare?{shareSyncStatus:'pending'}:{})};\n saveCustom();rebuild();",
+              " const retryShare=custom[i].shareSyncStatus!=='synced';\n const previous=custom[i];\n custom[i]={...custom[i],...v,updatedAt:new Date().toISOString(),...(retryShare?{shareSyncStatus:'pending'}:{})};\n if(!saveCustom()){custom[i]=previous;return {ok:false,error:'设备存储空间不足或浏览器限制了保存，原词条已保留未修改。'};} rebuild();",
+              "atomic personal-entry update")
+          app = once(app,
+              "function deleteCustomEntry(id){const n=custom.length;custom=custom.filter(c=>c.id!==id);if(custom.length===n)return false;saveCustom();rebuild();return true;}",
+              "function deleteCustomEntry(id){const previous=custom;const next=custom.filter(c=>c.id!==id);if(next.length===previous.length)return false;custom=next;if(!saveCustom()){custom=previous;return false;}rebuild();return true;}",
+              "atomic personal-entry delete")
+          app = once(app,
+              " const entries=Array.isArray(data)?data:data&&Array.isArray(data.entries)?data.entries:null;if(!entries)return {ok:false,error:'没有找到 entries 词条数组。'};\n let added=0,updated=0,skipped=0,legacy=0;",
+              " const entries=Array.isArray(data)?data:data&&Array.isArray(data.entries)?data.entries:null;if(!entries)return {ok:false,error:'没有找到 entries 词条数组。'};\n if(entries.length>MAX_CUSTOM_ENTRIES)return {ok:false,error:'备份超过 5000 条上限，请拆分后导入。'};\n const before=custom.map(item=>({...item}));\n let added=0,updated=0,skipped=0,legacy=0;",
+              "bounded import preflight")
+          app = once(app,
+              " for(const e of entries){\n  // Old English-only backup fields are not silently reinterpreted as French.\n  const sourceEntry={...e}; if(!sourceEntry.french&&sourceEntry.english){legacy++;}",
+              " for(const e of entries){\n  if(!e||typeof e!=='object'||Array.isArray(e)){skipped++;continue;}\n  // Old English-only backup fields are not silently reinterpreted as French.\n  const sourceEntry={...e}; if(!sourceEntry.french&&sourceEntry.english){legacy++;}",
+              "malformed backup-row guard")
+          app = once(app,
+              " }\n saveCustom();rebuild();return {ok:true,added,updated,skipped,legacy};\n}",
+              " }\n if(custom.length>MAX_CUSTOM_ENTRIES){custom=before;return {ok:false,error:'导入后词条将超过 5000 条上限，未修改现有数据。'};}\n if(!saveCustom()){custom=before;return {ok:false,error:'设备存储空间不足或浏览器限制了保存，导入已回滚，原词条未改变。'};}\n rebuild();return {ok:true,added,updated,skipped,legacy};\n}",
+              "transactional backup import")
+          app = once(app,
+              "$('resultFrenchReading').textContent='如有法语补位，这里同步显示中文近似读法。';$('segmentList').innerHTML=",
+              "$('resultFrenchReading').textContent='如有法语补位，这里同步显示中文近似读法。';$('coverageChip').textContent='词库覆盖：—';$('matchedChip').textContent='匹配片段：—';$('segmentList').innerHTML=",
+              "clear statistics reset")
+          app = once(app,
+              "function saveRecent(raw){let h=JSON.parse(localStorage.getItem('sw_history')||'[]');h=[raw,...h.filter(x=>x!==raw)].slice(0,30);localStorage.setItem('sw_history',JSON.stringify(h));renderSaved();}\nfunction favs(){return JSON.parse(localStorage.getItem('sw_favs')||'[]');}\nfunction toggleFav(zh){let f=favs();f=f.includes(zh)?f.filter(x=>x!==zh):[zh,...f];localStorage.setItem('sw_favs',JSON.stringify(f));renderDictionary();renderSaved();}",
+              "function saveRecent(raw){const h=readStoredArray('sw_history',30);const next=[String(raw),...h.filter(x=>x!==raw)].slice(0,30);const saved=safeStore('sw_history',next);renderSaved();return saved;}\nfunction favs(){return readStoredArray('sw_favs',5000);}\nfunction toggleFav(zh){let f=favs();f=f.includes(zh)?f.filter(x=>x!==zh):[zh,...f];if(!safeStore('sw_favs',f))return false;renderDictionary();renderSaved();return true;}",
+              "safe history and favorites")
+          app = once(app,
+              "$('dictResults').innerHTML=filtered.slice(0,dictVisibleLimit).map(x=>{const f=favs().includes(x.zh),vs=uniqueLocalVariants(x),fr=frenchFor(x);",
+              "const favoriteSet=new Set(favs());\n $('dictResults').innerHTML=filtered.slice(0,dictVisibleLimit).map(x=>{const f=favoriteSet.has(x.zh),vs=uniqueLocalVariants(x),fr=frenchFor(x);",
+              "favorite rendering optimization")
+          app = once(app,
+              " const h=JSON.parse(localStorage.getItem('sw_history')||'[]');$('history').innerHTML=h.map(phrase=>",
+              " const h=readStoredArray('sw_history',30);$('history').innerHTML=h.map(phrase=>",
+              "safe history display")
+          app = once(app,
+              "$('clearHistory').addEventListener('click',()=>{localStorage.removeItem('sw_history');renderSaved();});",
+              "$('clearHistory').addEventListener('click',()=>{if(!safeRemove('sw_history'))return;renderSaved();});",
+              "safe history clear")
+          app = once(app,
+              "setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;custom[i]={...custom[i],shareSyncStatus:status,sharedSubmitId:submitId||custom[i].sharedSubmitId||''};saveCustom();return true;}",
+              "setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;const previous=custom[i];custom[i]={...previous,shareSyncStatus:status,sharedSubmitId:submitId||previous.sharedSubmitId||''};if(!saveCustom()){custom[i]=previous;return false;}return true;}",
+              "safe cloud share-status persistence")
+          write("app.js", app)
+
+          html = read("index.html")
+          html = once(html, '<meta name="description" content="DWSS 科卢韦齐当地斯瓦西里语中文谐音词库，缺词时提供法语辅助补位。">\n', '', "duplicate meta description")
+          html = once(html, '<img class="cover-image" src="cover.webp" alt="DWSS 斯语 陈谍 品牌封面">', '<img class="cover-image" src="cover.webp" alt="DWSS 斯语 陈谍 品牌封面" width="1536" height="1536" decoding="async">', "cover dimensions")
+          html = once(html, '<textarea id="inputText" class="textarea" placeholder=', '<textarea id="inputText" class="textarea" maxlength="2000" aria-label="输入中文短句或工作指令" placeholder=', "translation input label/limit")
+          html = once(html, '<input id="dictSearch" class="search" placeholder=', '<input id="dictSearch" class="search" type="search" aria-label="搜索中文、法语或当地词条" placeholder=', "dictionary search label")
+          if "DWSS 0.9.35" not in html:
+              raise SystemExit("Missing HTML app version marker")
+          html = html.replace("DWSS 0.9.35", "DWSS 0.9.36")
+          write("index.html", html)
+
+          boot = once(read("boot.js"),
+              "。首次打开请联网后刷新；如果刚更新版本，请清除旧缓存后重新打开。",
+              "。首次打开请联网后刷新。更新版本请点击“检查更新”后重新打开；清除网站数据会删除本机自定义词条，请先导出备份。",
+              "non-destructive recovery instructions")
+          write("boot.js", boot)
+
+          headers = read("_headers").replace("Cache-Control: public, max-age=3600", "Cache-Control: no-cache, must-revalidate")
+          if not headers.startswith("/\n  Cache-Control: no-cache, must-revalidate\n"):
+              headers = "/\n  Cache-Control: no-cache, must-revalidate\n/index.html\n  Cache-Control: no-cache, must-revalidate\n" + headers
+          for asset in ("/dictionary.js.gz", "/app.js", "/boot.js", "/pwa.js", "/french-fallback.js"):
+              if asset not in headers:
+                  raise SystemExit("Missing cache revalidation rule: " + asset)
+          write("_headers", headers)
+
+          version = read("VERSION.txt")
+          if "Version: 0.9.35" not in version:
+              raise SystemExit("Unexpected base release; expected 0.9.35")
+          version = version.replace("Version: 0.9.35", "Version: 0.9.36", 1)
+          version = version.replace("Release date: 2026-10-26", "Release date: 2026-10-27", 1)
+          version += "\nHardening: atomic local-storage updates/imports; corrupt history/favorites recovery; bounded custom dictionary; accessibility and input limits; revalidated PWA assets.\n"
+          write("VERSION.txt", version)
+
+          sw = once(read("sw.js"), "const APP_VERSION = '0.9.35';", "const APP_VERSION = '0.9.36';", "Service Worker cache namespace")
+          write("sw.js", sw)
+
+          assert app.count("name:'DWSS 科卢韦齐斯瓦西里语助手'") == 1
+          assert "MAX_CUSTOM_ENTRIES = 5000" in app
+          assert "function readStoredArray(key" in app and "function safeStore(key,value)" in app
+          assert "导入已回滚" in app and "原词条已保留未修改" in app
+          assert "coverageChip').textContent='词库覆盖：—'" in app
+          assert html.count('name="description"') == 1
+          assert 'maxlength="2000" aria-label="输入中文短句或工作指令"' in html
+          assert 'aria-label="搜索中文、法语或当地词条"' in html
+          assert 'width="1536" height="1536"' in html
+          assert "清除网站数据会删除本机自定义词条" in boot
+          assert "Cache-Control: no-cache, must-revalidate" in headers
+          assert "Version: 0.9.36" in version
+          assert "const APP_VERSION = '0.9.36';" in sw
+          print("PASS: DWSS 0.9.36 code patch, storage guards, accessibility, and cache policy.")
+          PY
+          node --check public/app.js
+          node --check public/boot.js
+          node --check public/sw.js
+          node --check public/shared-lexicon.js
+          node --check public/french-fallback.js
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),zlib=require('node:zlib');
+          const root='public',read=n=>fs.readFileSync(path.join(root,n),'utf8');
+          class CL{add(){} remove(){} toggle(){} contains(){return false;}}
+          class El{constructor(id=''){this.id=id;this.value='';this.textContent='';this.innerHTML='';this.hidden=false;this.dataset={};this.style={};this.classList=new CL();this.handlers={};}
+            addEventListener(t,f){(this.handlers[t]||=[]).push(f);} querySelectorAll(){return[];} appendChild(){return{};} prepend(){} reset(){this.value='';} focus(){} select(){} remove(){} insertAdjacentHTML(){}}
+          const ids=[...read('index.html').matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]),els=new Map(ids.map(id=>[id,new El(id)]));
+          const get=id=>{if(!els.has(id))els.set(id,new El(id));return els.get(id);};
+          const data=new Map([['sw_history','{bad-json'],['sw_favs','{bad-json']]);let fail=false;
+          const localStorage={getItem:k=>data.has(k)?data.get(k):null,setItem(k,v){if(fail)throw Error('quota');data.set(k,String(v));},removeItem(k){if(fail)throw Error('storage');data.delete(k);}};
+          const eventMap={};const win={SW_DB:[],SW_FRENCH:{},SW_FRENCH_READINGS:{},DWSSSharedLexicon:null,addEventListener(t,f){(eventMap[t]||=[]).push(f);},dispatchEvent(e){for(const f of eventMap[e.type]||[])f(e);return true;},confirm(){return false;},scrollTo(){}};
+          class Ev{constructor(type,o={}){this.type=type;Object.assign(this,o);}}
+          const doc={body:new El('body'),getElementById:get,querySelectorAll(){return[];},createElement(t){return new El(t);},execCommand(){return true;}};
+          const ctx={window:win,document:doc,localStorage,navigator:{clipboard:{writeText:async()=>{}}},location:{hash:''},CustomEvent:Ev,Event:Ev,console:{log(){},warn(){},error(){}},setTimeout(){return 1;},clearTimeout(){},Date,Math,JSON,Map,Set,Array,Object,String,Number,RegExp,Error,Promise,Intl,parseInt,parseFloat};
+          vm.createContext(ctx);vm.runInContext(zlib.gunzipSync(fs.readFileSync(path.join(root,'dictionary.js.gz'))).toString('utf8'),ctx);
+          vm.runInContext(read('french-fallback.js'),ctx);vm.runInContext(read('app.js'),ctx);
+          const api=win.KolweziSwahili;assert(api&&api.dictCount>1000,'dictionary boot');
+          assert(api.translate('请稍等').segments.length>0,'phrase matching');
+          assert(get('history').innerHTML.includes('还没有查询历史'),'corrupt history recovery');
+          assert(get('favorites').innerHTML.includes('还没有收藏词条'),'corrupt favorites recovery');
+          const initial=api.customCount,added=api.addCustom({zh:'DWSS自动化测试词',reading:'测试读音'});assert.equal(added.ok,true);
+          const entry=api.getCustom().find(x=>x.zh==='DWSS自动化测试词');assert(entry&&api.exact(entry.zh));
+          assert.equal(api.updateCustom(entry.id,{zh:entry.zh,reading:'更新读音'}).ok,true);
+          assert.equal(api.deleteCustom(entry.id),true);assert.equal(api.customCount,initial);
+          fail=true;assert.equal(api.addCustom({zh:'存储失败测试词',reading:'测试读音'}).ok,false);assert.equal(api.customCount,initial);
+          assert.equal(api.importCustom({entries:[{zh:'导入失败词',reading:'测试读音'}]}).ok,false);assert.equal(api.customCount,initial);
+          fail=false;assert.equal(api.importCustom({entries:Array.from({length:5001},(_,i)=>({zh:'超量'+i,reading:'读音'}))}).ok,false);
+          get('inputText').value='请稍等';get('translateBtn').handlers.click[0]();get('inputText').value='';get('clearBtn').handlers.click[0]();
+          assert.equal(get('coverageChip').textContent,'词库覆盖：—','clear resets translation stats');
+          assert.equal(api.customCount,initial);
+          assert(read('sw.js').includes("const APP_VERSION = '0.9.36';"));
+          assert(read('VERSION.txt').includes('Version: 0.9.36'));
+          assert.equal((read('index.html').match(/name="description"/g)||[]).length,1);
+          console.log('PASS: DWSS runtime regression suite; built-in entries='+api.dictCount);
+          NODE
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -1026,6 +1238,7 @@ jobs:
           COMPACT_UI_OUTCOME: ${{ steps.compact_ui.outcome }}
           APPLY_RELEASE_OUTCOME: ${{ steps.apply_release.outcome }}
           APPLY_RELEASE_ERROR: ${{ steps.apply_release.outputs.error_summary }}
+          HARDEN_OUTCOME: ${{ steps.harden_0_9_36.outcome }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
           UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
@@ -1033,7 +1246,7 @@ jobs:
           set -uo pipefail
           STATE=failure
           FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
-          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
+          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
             STEP_NAME="${entry%%:*}"
             STEP_RESULT="${entry#*:}"
             if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
@@ -1054,15 +1267,17 @@ jobs:
               if curl -fsSL --max-time 20 "${BASE_URL}/VERSION.txt?verify=${GITHUB_SHA}" -o "$TMP/VERSION.txt" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/index.html?verify=${GITHUB_SHA}" -o "$TMP/index.html" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
+                && curl -fsSL --max-time 20 "${BASE_URL}/sw.js?verify=${GITHUB_SHA}" -o "$TMP/sw.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
+                && curl -fsSL --max-time 20 "${BASE_URL}/boot.js?verify=${GITHUB_SHA}" -o "$TMP/boot.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.webp?verify=${GITHUB_SHA}" -o "$TMP/cover.webp"; then
                 LIVE_COVER_VALID=0
                 if python3 -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes(); w=(int.from_bytes(b[26:28],"little") & 0x3fff) if len(b)>=30 else 0; h=(int.from_bytes(b[28:30],"little") & 0x3fff) if len(b)>=30 else 0; sys.exit(0 if len(b)>=150000 and b[:4]==b"RIFF" and b[8:12]==b"WEBP" and b[12:16]==b"VP8 " and b[23:26]==bytes((0x9d,0x01,0x2a)) and w==1536 and h==1536 else 1)' "$TMP/cover.webp"; then
                   LIVE_COVER_VALID=1
                 fi
-                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.35" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.35" "$TMP/index.html" \
+                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.36" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.36" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
@@ -1071,6 +1286,9 @@ jobs:
                   && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
                   && grep -Fq "font-size:16px!important" "$TMP/index.html" \
                   && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
+                  && grep -Fq "version:'0.9.36'" "$TMP/app.js" \
+                  && grep -Fq "const APP_VERSION = '0.9.36';" "$TMP/sw.js" \
+                  && grep -Fq "清除网站数据会删除本机自定义词条" "$TMP/boot.js" \
                   && ! grep -Fq '等待输入' "$TMP/app.js" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
               && grep -Fq 'id="dwss-autogrow-input"' "$TMP/index.html" \
@@ -1088,7 +1306,7 @@ jobs:
                   && [ "$(stat -c%s "$TMP/cover.webp")" -ge 150000 ] \
                   && [ "$(sha256sum "$TMP/cover.webp" | cut -d' ' -f1)" = "$(sha256sum custom-cover.webp | cut -d' ' -f1)" ]; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.35"
+                  FAILURE_REASON="all live assets match 0.9.36"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -1102,7 +1320,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.35 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.36 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
