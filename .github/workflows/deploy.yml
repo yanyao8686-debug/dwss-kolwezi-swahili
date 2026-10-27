@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy.yml'
+      - 'custom-cover.webp'
       - 'DWSS_PWA_0.6.4_GitHubPages*.zip'
       - 'shared-lexicon.js'
       - 'scripts/integrate_shared_search.py'
@@ -896,6 +897,109 @@ jobs:
           node --check public/sw.js
           node --check public/shared-lexicon.js
           node --check public/french-fallback.js
+      - name: Apply requested DWSS cover and fire-orange headings (0.9.33)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s custom-cover.webp
+          cp custom-cover.webp public/cover.webp
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          public = Path("public")
+          html_path = public / "index.html"
+          app_path = public / "app.js"
+          sw_path = public / "sw.js"
+          version_path = public / "VERSION.txt"
+
+          html = html_path.read_text(encoding="utf-8")
+          if 'src="cover.jpg"' not in html:
+              raise SystemExit("Expected the original cover image reference exactly once.")
+          html = html.replace('src="cover.jpg"', 'src="cover.webp"', 1)
+          if 'src="cover.webp"' not in html:
+              raise SystemExit("New DWSS cover was not connected to index.html.")
+
+          # The supplied square cover already contains the DWSS emblem, 陈谍 and both mottos.
+          # Hide the old HTML overlay so the wording is not duplicated.
+          css = r"""
+          /* DWSS 0.9.33 — requested cover and fire-orange translation headings */
+          .cover-frame .owner-signature{display:none!important}
+          .translation-input-section>h2,#resultCard .sectionTitle h2{
+            color:#ff4b12!important;
+            text-decoration-line:underline!important;
+            text-decoration-color:#ff4b12!important;
+            text-decoration-thickness:2px!important;
+            text-underline-offset:4px!important;
+            white-space:nowrap!important;
+            word-break:keep-all!important;
+            overflow-wrap:normal!important;
+          }
+          #resultCard .sectionTitle{
+            display:flex!important;
+            flex-wrap:nowrap!important;
+            align-items:center!important;
+            min-width:0!important;
+          }
+          #resultCard .sectionTitle h2{
+            display:inline-block!important;
+            flex:0 0 auto!important;
+            max-width:100%!important;
+            min-width:0!important;
+            font-size:clamp(12px,3.8vw,16px)!important;
+            line-height:1.2!important;
+            letter-spacing:0!important;
+          }
+          """
+          if "</style>" not in html:
+              raise SystemExit("Main stylesheet end marker missing.")
+          html = html.replace("</style>", css + "\n</style>", 1)
+          html = html.replace("DWSS 0.9.32", "DWSS 0.9.33")
+          html = html.replace("等待输入", "")
+          if "等待输入" in html or "color:#ff4b12!important" not in html:
+              raise SystemExit("Orange heading or waiting-text replacement failed.")
+          if "white-space:nowrap!important" not in html or "text-decoration-line:underline!important" not in html:
+              raise SystemExit("One-line underline styles are missing.")
+          if ".cover-frame .owner-signature{display:none!important}" not in html:
+              raise SystemExit("Duplicate cover-overlay suppression is missing.")
+          html_path.write_text(html, encoding="utf-8")
+
+          app = app_path.read_text(encoding="utf-8").replace("等待输入", "")
+          if "等待输入" in app:
+              raise SystemExit("Obsolete waiting text remains in app.js.")
+          app_path.write_text(app, encoding="utf-8")
+
+          version = version_path.read_text(encoding="utf-8")
+          if "Version: 0.9.32" not in version:
+              raise SystemExit("Unexpected base VERSION.txt; expected 0.9.32.")
+          version_path.write_text(version.replace("Version: 0.9.32", "Version: 0.9.33", 1), encoding="utf-8")
+
+          sw = sw_path.read_text(encoding="utf-8")
+          if "const APP_VERSION = '0.9.32';" not in sw:
+              raise SystemExit("Unexpected base service-worker version; expected 0.9.32.")
+          sw = sw.replace("const APP_VERSION = '0.9.32';", "const APP_VERSION = '0.9.33';", 1)
+          if "cover.jpg" not in sw:
+              raise SystemExit("Service worker does not cache the old cover asset as expected.")
+          sw = sw.replace("cover.jpg", "cover.webp")
+          if "const APP_VERSION = '0.9.33';" not in sw or "cover.webp" not in sw:
+              raise SystemExit("Service worker cache version or cover path was not updated.")
+          if "const APP_VERSION = '0.9.33';" not in sw or "./cover.webp" not in sw:
+              raise SystemExit("Service worker cache version or cover path was not updated.")
+          sw_path.write_text(sw, encoding="utf-8")
+
+          cover = public / "cover.webp"
+          if not cover.is_file() or cover.stat().st_size < 10000:
+              raise SystemExit("The replacement cover.webp is missing or unexpectedly small.")
+          print("PASS: cover, orange underlined single-line headings, no waiting text, and PWA cache version 0.9.33.")
+          PY
+          node --check public/app.js
+          node --check public/sw.js
+          grep -Fq 'src="cover.webp"' public/index.html
+          grep -Fq 'color:#ff4b12!important' public/index.html
+          grep -Fq 'white-space:nowrap!important' public/index.html
+          grep -Fq 'Version: 0.9.33' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.33';" public/sw.js
+          test -s public/cover.webp
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -946,15 +1050,22 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/index.html?verify=${GITHUB_SHA}" -o "$TMP/index.html" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
-                && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg"; then
-                if grep -Fq "Version: 0.9.32" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.32" "$TMP/index.html" \
+                && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg" \
+                && curl -fsSL --max-time 20 "${BASE_URL}/cover.webp?verify=${GITHUB_SHA}" -o "$TMP/cover.webp"; then
+                if grep -Fq "Version: 0.9.33" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.33" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
+                  && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
+                  && grep -Fq 'color:#ff4b12!important' "$TMP/index.html" \
+                  && grep -Fq 'white-space:nowrap!important' "$TMP/index.html" \
+                  && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
+                  && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
+                  && ! grep -Fq '等待输入' "$TMP/app.js" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
               && grep -Fq 'id="dwss-autogrow-input"' "$TMP/index.html" \
               && grep -Fq 'class="nav-clear-slot"' "$TMP/index.html" \
-              && grep -Fq 'color:#d3a94d!important' "$TMP/index.html" \
+              && grep -Fq 'color:#ff4b12!important' "$TMP/index.html" \
               && grep -Fq '#resultCard>.copyline{display:none!important}' "$TMP/index.html" \
               && grep -Fq 'overflow-y:hidden;resize:none' "$TMP/index.html" \
               && grep -Fq 'min-height:88px' "$TMP/index.html" \
@@ -962,9 +1073,10 @@ jobs:
                   && grep -Fq "'compositionstart'" "$TMP/app.js" \
                   && grep -Fq "'compositionend'" "$TMP/app.js" \
                   && test -s "$TMP/dictionary.js.gz" \
-                  && test -s "$TMP/cover.jpg"; then
+                  && test -s "$TMP/cover.jpg" \
+                  && test -s "$TMP/cover.webp"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.32"
+                  FAILURE_REASON="all live assets match 0.9.33"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -978,7 +1090,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.32 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.33 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
