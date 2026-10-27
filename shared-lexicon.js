@@ -229,11 +229,11 @@ function buildPersonalPayload(entry, submitId) {
 
   // Local Katanga Swahili pronunciation must come from the user's verified entry.
   // A French fallback is shared as French and is never relabelled as local Swahili.
-  if (reading) {
+  if (reading && latin) {
     return { payload: {
       client_submit_id: submitId,
       chinese_text: chinese,
-      local_text: latin || null,
+      local_text: latin,
       local_pronunciation_cn: reading,
       source_language: "sw",
       french_text: null,
@@ -241,8 +241,11 @@ function buildPersonalPayload(entry, submitId) {
       notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
     }};
   }
+  if (reading && !latin) {
+    return { error: "本地词条已保存；共享还缺少“当地斯语拼写”。请补上经核对的当地词形，系统不会猜写。" };
+  }
   if (latin) {
-    return { error: "本地词条已保存，但共享还缺少“当地斯语中文谐音”。补齐真实读音后会自动同步，系统不会猜读音。" };
+    return { error: "本地词条已保存；共享还缺少“当地斯语中文谐音”。补齐真实读音后会自动同步，系统不会猜读音。" };
   }
   if (french) {
     const app = window.KolweziSwahili;
