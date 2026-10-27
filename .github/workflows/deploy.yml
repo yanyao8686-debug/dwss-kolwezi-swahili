@@ -8,6 +8,8 @@ on:
       - '.github/workflows/deploy.yml'
       - 'scripts/fix_add_entry_minimal_cloud_verification_0_9_43.py'
       - 'scripts/test_shared_cloud_to_second_user_0_9_43.cjs'
+      - 'scripts/enable_auto_update_0_9_44.py'
+      - 'scripts/test_auto_update_0_9_44.cjs'
       - 'custom-cover.webp'
       - 'DWSS_PWA_0.6.4_GitHubPages*.zip'
       - 'shared-lexicon.js'
@@ -1394,6 +1396,16 @@ jobs:
           node --check public/shared-lexicon.js
           node --check public/sw.js
           node scripts/test_shared_cloud_to_second_user_0_9_43.cjs
+      - name: DWSS 0.9.44 enable automatic PWA updates on every app open
+        id: auto_update_fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/enable_auto_update_0_9_44.py
+          node --check public/pwa.js
+          node --check public/sw.js
+          node --check public/app.js
+          node scripts/test_auto_update_0_9_44.cjs
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -1423,6 +1435,7 @@ jobs:
           SWAHILI_ENTRY_GUARD_OUTCOME: ${{ steps.swahili_entry_guard.outcome }}
           AUTO_SHARED_FIX_OUTCOME: ${{ steps.auto_shared_fix.outcome }}
           CLOUD_CROSS_USER_OUTCOME: ${{ steps.cloud_cross_user_fix.outcome }}
+          AUTO_UPDATE_OUTCOME: ${{ steps.auto_update_fix.outcome }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
           UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
@@ -1430,7 +1443,7 @@ jobs:
           set -uo pipefail
           STATE=failure
           FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
-          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "hardening-0.9.37:${HARDEN_037_OUTCOME}" "swahili-priority:${SWAHILI_PRIORITY_OUTCOME}" "shared-auto-publish:${SHARED_AUTO_PUBLISH_OUTCOME}" "share-sync-fix:${SHARE_SYNC_FIX_OUTCOME}" "swahili-entry-guard:${SWAHILI_ENTRY_GUARD_OUTCOME}" "auto-shared-fix:${AUTO_SHARED_FIX_OUTCOME}" "cloud-cross-user-fix:${CLOUD_CROSS_USER_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
+          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "hardening-0.9.37:${HARDEN_037_OUTCOME}" "swahili-priority:${SWAHILI_PRIORITY_OUTCOME}" "shared-auto-publish:${SHARED_AUTO_PUBLISH_OUTCOME}" "share-sync-fix:${SHARE_SYNC_FIX_OUTCOME}" "swahili-entry-guard:${SWAHILI_ENTRY_GUARD_OUTCOME}" "auto-shared-fix:${AUTO_SHARED_FIX_OUTCOME}" "cloud-cross-user-fix:${CLOUD_CROSS_USER_OUTCOME}" "auto-update-fix:${AUTO_UPDATE_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
             STEP_NAME="${entry%%:*}"
             STEP_RESULT="${entry#*:}"
             if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
@@ -1452,6 +1465,7 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/index.html?verify=${GITHUB_SHA}" -o "$TMP/index.html" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/sw.js?verify=${GITHUB_SHA}" -o "$TMP/sw.js" \
+                && curl -fsSL --max-time 20 "${BASE_URL}/pwa.js?verify=${GITHUB_SHA}" -o "$TMP/pwa.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/boot.js?verify=${GITHUB_SHA}" -o "$TMP/boot.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg" \
@@ -1472,8 +1486,8 @@ jobs:
                 echo "SHARED_NOTES_NULL=$(grep -Fc 'notes: null' "$TMP/shared-lexicon.js" || true)"
                 echo "DETAIL_LABEL=$(grep -Fc '单个斯语读法释义（点击加号展开）：' "$TMP/index.html" || true)"
                 echo "DETAIL_STYLE=$(grep -Fc 'text-decoration-color:#ff4b12!important' "$TMP/index.html" || true)"
-                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.43" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.43" "$TMP/index.html" \
+                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.44" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.44" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
@@ -1482,8 +1496,11 @@ jobs:
                   && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
                   && grep -Fq "font-size:16px!important" "$TMP/index.html" \
                   && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
-                  && grep -Fq "version:'0.9.43'" "$TMP/app.js" \
-                  && grep -Fq "const APP_VERSION = '0.9.43';" "$TMP/sw.js" \
+                  && grep -Fq "version:'0.9.44'" "$TMP/app.js" \
+                  && grep -Fq "const APP_VERSION = '0.9.44';" "$TMP/sw.js" \
+                  && grep -Fq "await registration.update();" "$TMP/pwa.js" \
+                  && grep -Fq "preserveDraftBeforeReload" "$TMP/pwa.js" \
+                  && grep -Fq "restoreDraftAfterReload" "$TMP/pwa.js" \
                   && curl -fsSL --max-time 20 "${BASE_URL}/shared-lexicon.js?verify=${GITHUB_SHA}" -o "$TMP/shared-lexicon.js" \
                   && grep -Fq "function needsAutomaticShare(entry)" "$TMP/shared-lexicon.js" \
                   && grep -Fq "return hasLocalSwahiliReading || [\"pending\", \"queued\"].includes(status);" "$TMP/shared-lexicon.js" \
@@ -1523,7 +1540,7 @@ jobs:
                   && [ "$(stat -c%s "$TMP/cover.webp")" -ge 150000 ] \
                   && [ "$(sha256sum "$TMP/cover.webp" | cut -d' ' -f1)" = "$(sha256sum custom-cover.webp | cut -d' ' -f1)" ]; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.43"
+                  FAILURE_REASON="all live assets match 0.9.44"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
