@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,9 +49,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s downloaded-pages/artifact.tar
-          mkdir -p public
-          tar -xf downloaded-pages/artifact.tar -C public
           python3 scripts/fix_remove_add_helper_0_9_49.py
           node --check public/app.js
           node --check public/pwa.js
@@ -97,7 +94,7 @@ jobs:
       - name: Verify live DWSS 0.9.49
         shell: bash
         env:
-          PAGE_URL: \${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
           BASE_URL="\${PAGE_URL%/}"
