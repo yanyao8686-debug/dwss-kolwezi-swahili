@@ -685,7 +685,7 @@ jobs:
               if marker not in summary:
                   raise SystemExit("Audit summary missing dynamic statistic: " + marker)
           import re
-          group_count = re.search(r"按应用匹配规则归并后的中文词组：(\\d+)", summary)
+          group_count = re.search(r"按应用匹配规则归并后的中文词组：(\d+)", summary)
           if not group_count or int(group_count.group(1)) < 1800:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
