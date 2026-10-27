@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,11 +92,11 @@ jobs:
       - name: Verify live DWSS 0.9.50
         shell: bash
         env:
-          PAGE_URL: \${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
-          BASE_URL="\${PAGE_URL%/}"
-          TMP="\${RUNNER_TEMP}/dwss-live-0.9.50"
+          BASE_URL="${PAGE_URL%/}"
+          TMP="${RUNNER_TEMP}/dwss-live-0.9.50"
           mkdir -p "$TMP"
           VERIFIED=0
           for attempt in $(seq 1 24); do
