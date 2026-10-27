@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.28 matched input and result surfaces for the translation workspace."""
+"""DWSS 0.9.29 matched input and result surfaces for the translation workspace."""
 from pathlib import Path
 import csv
 import gzip
@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.28 — four-item navigation, collapsed details and gold headings",
+    "DWSS 0.9.29 — four-item navigation, collapsed details and gold headings",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.28 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.29 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -279,7 +279,7 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.28 — compact four-item navigation and collapsed secondary details */
+/* DWSS 0.9.29 — compact four-item navigation and collapsed secondary details */
 #translate.panel.active{display:block!important}
 nav.tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;align-items:stretch}
 nav.tabs .tab,nav.tabs #clearBtn{min-width:0!important;width:100%!important;min-height:54px!important;padding:9px 3px!important;display:flex!important;align-items:center!important;justify-content:center!important;white-space:nowrap!important;font-size:clamp(13px,3.2vw,16px)!important;line-height:1.15!important}
@@ -363,10 +363,17 @@ autogrow_script = r"""<script id="dwss-autogrow-input">
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>"""
-if 'id="dwss-autogrow-input"' not in html:
-    if "</body>" not in html:
-        raise SystemExit("Cannot add auto-growing input control: body end tag missing")
+existing_autogrow, autogrow_count = re.subn(
+    r'<script id="dwss-autogrow-input">.*?</script>',
+    lambda _: autogrow_script,
+    html, count=1, flags=re.S
+)
+if autogrow_count == 1:
+    html = existing_autogrow
+elif "</body>" in html:
     html = html.replace("</body>", autogrow_script + "\n</body>", 1)
+else:
+    raise SystemExit("Cannot add auto-growing input control: body end tag missing")
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -811,10 +818,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.28';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.29';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.28", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.29", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -822,4 +829,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.28 four-item navigation, collapsed secondary details and gold headings applied.")
+print("DWSS 0.9.29 four-item navigation, collapsed secondary details and gold headings applied.")
