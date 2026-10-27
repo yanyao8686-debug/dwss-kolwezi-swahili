@@ -580,7 +580,7 @@ jobs:
           app = app_swap(
               app,
               "renderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
-              "window.dispatchEvent(new Event('dwss:app-ready'));\\nrenderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+              "window.dispatchEvent(new Event('dwss:app-ready'));\nrenderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
               "app ready event"
           )
           write("app.js", app)
