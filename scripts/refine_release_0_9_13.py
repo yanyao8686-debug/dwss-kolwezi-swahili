@@ -72,7 +72,7 @@ nav_css = """
 .tabs .tab[data-tab="maintenance"],.tabs .tab[data-tab="saved"]{font-size:12px}
 @media(max-width:420px){.tabs .tab{min-height:54px;font-size:11px}.tabs .tab[data-tab="translate"]{font-size:14px}}
 """
-html = html.replace("</style>", nav_css + "\\n</style>", 1)
+html = html.replace("</style>", nav_css + "\n</style>", 1)
 owner_markup = (
     '<section class="owner-signature" aria-label="品牌寄语">'
     '<div class="owner-name">陈谍</div>'
@@ -90,8 +90,8 @@ owner_css = """
 .owner-sides{display:flex;justify-content:space-between;align-items:center;margin:7px auto 0;max-width:390px;font-size:12px;font-weight:700;letter-spacing:.16em;color:#e8edf5;text-shadow:0 0 7px rgba(230,238,250,.24)}
 @media(min-width:700px){.owner-signature{margin-top:-2px;padding:13px 18px 11px}.owner-sides{font-size:13px}}
 """
-html = html.replace("</style>", owner_css + "\\n</style>", 1)
-html = re.sub(r"版本 0\\.9\\.11[^<]*", "版本 0.9.14 · DWSS 智能翻译 PWA", html, count=1)
+html = html.replace("</style>", owner_css + "\n</style>", 1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.14 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
