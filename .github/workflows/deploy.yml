@@ -662,9 +662,9 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.14" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.14';" public/sw.js
-          grep -Fq "DWSS 0.9.14 — centered navigation, source variants and owner signature" public/index.html
+          grep -Fq "Version: 0.9.15" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.15';" public/sw.js
+          grep -Fq "DWSS 0.9.15 — centered navigation, source variants and owner signature" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
@@ -672,6 +672,9 @@ jobs:
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
               "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
+              "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
+              "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
+              "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
               "silver side mottos": "德行四海" in html and "威震八方" in html,
               "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
               "personal sharing privacy notice is visible": 'id="personalShareNotice"' in html and "不会上传" in html,
