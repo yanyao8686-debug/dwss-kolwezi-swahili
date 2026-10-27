@@ -877,7 +877,7 @@ jobs:
         run: |
           set -uo pipefail
           STATE=failure
-          DESCRIPTION="DWSS Pages verification failed"
+          FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
           BASE_URL="${PAGE_URL:-https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/}"
           BASE_URL="${BASE_URL%/}"
           TMP="${RUNNER_TEMP}/dwss-pages-check"
@@ -900,23 +900,30 @@ jobs:
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg"; then
                   STATE=success
-                  DESCRIPTION="DWSS 0.9.21 live Pages assets verified"
+                  FAILURE_REASON="all live assets match 0.9.21"
                   break
+                else
+                  FAILURE_REASON="live asset content or version mismatch"
                 fi
+              else
+                FAILURE_REASON="one or more live Pages assets returned HTTP error"
               fi
-              echo "Pages assets not ready or version mismatch (attempt ${attempt}/24); retrying."
+              echo "Pages verification: ${FAILURE_REASON} (attempt ${attempt}/24); retrying."
               sleep 5
             done
-          else
-            DESCRIPTION="GitHub Pages deployment step did not succeed"
           fi
 
-          export STATUS_STATE="$STATE" STATUS_DESCRIPTION="$DESCRIPTION" STATUS_TARGET="$BASE_URL"
+          if [ "$STATE" = "success" ]; then
+            DESCRIPTION="DWSS 0.9.21 live Pages assets verified"
+          else
+            DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
+          fi
+          export STATUS_STATE="$STATE" STATUS_DESCRIPTION="$DESCRIPTION" STATUS_TARGET="$BASE_URL" STATUS_REASON="$FAILURE_REASON"
           python3 - <<'PY' > "$TMP/status.json"
           import json, os
           print(json.dumps({
               "state": os.environ["STATUS_STATE"],
-              "context": "DWSS Pages deployment verification",
+              "context": "DWSS Pages verify: " + os.environ["STATUS_REASON"],
               "description": os.environ["STATUS_DESCRIPTION"],
               "target_url": os.environ["STATUS_TARGET"]
           }))
