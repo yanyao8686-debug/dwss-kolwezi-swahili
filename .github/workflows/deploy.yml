@@ -661,7 +661,7 @@ jobs:
           grep -Fq 'grid-template-columns:repeat(4,minmax(0,1fr))' public/index.html
           grep -Fq '.status-strip #installAppBtn:not([hidden])' public/index.html
           grep -Fq 'id="personalShareNotice"' public/index.html
-          grep -Fq '来源”和“个人备注”只保存在本机' public/index.html
+          grep -Fq '个人“备注”只保存在本机，不会上传' public/index.html
           python3 - <<'PY'
           from pathlib import Path
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
