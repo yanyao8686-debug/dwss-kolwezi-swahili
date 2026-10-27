@@ -49,6 +49,8 @@ html=once(html,
  'content:"＋";display:inline-block;margin-right:7px;color:#c49b43;font-weight:800',
  'content:"＋";display:inline-block;margin-right:7px;color:#ff4b12;font-weight:800',
  "plus icon color")
+html=html.replace("DWSS 0.9.37","DWSS 0.9.38")
+if "DWSS 0.9.38" not in html: raise SystemExit("HTML release marker missing")
 write("index.html",html)
 
 sw=once(read("sw.js"),"const APP_VERSION = '0.9.37';","const APP_VERSION = '0.9.38';","Service Worker cache version")
