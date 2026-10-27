@@ -664,8 +664,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.18" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.18';" public/sw.js
+          grep -Fq "Version: 0.9.19" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.19';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -703,8 +703,8 @@ jobs:
           checks = {
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
-              "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
-              "side mottos match owner name color": "--owner-text-color:#f7f8fc" in html.split(".owner-signature{",1)[1].split("}",1)[0] and "color:var(--owner-text-color)" in html.split(".owner-name{",1)[1].split("}",1)[0] and "color:var(--owner-text-color)" in html.split(".owner-sides{",1)[1].split("}",1)[0],
+              "owner signature stays on cover without duplicate white lettering": 'class="owner-signature"' in html and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
+              "side mottos match embedded cover gold": "--owner-text-color:#debe79" in html.split(".owner-signature{",1)[1].split("}",1)[0] and "color:var(--owner-text-color)" in html.split(".owner-sides{",1)[1].split("}",1)[0],
               "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
