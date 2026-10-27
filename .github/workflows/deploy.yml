@@ -622,12 +622,26 @@ jobs:
         id: apply_release
         shell: bash
         run: |
-          set -euo pipefail
-          python3 -m py_compile scripts/refine_release_0_9_13.py
-          python3 scripts/refine_release_0_9_13.py public
-          node --check public/app.js
-          node --check public/shared-lexicon.js
-          node --check public/sw.js
+          set +e
+          run_stage() {
+            label="$1"
+            shift
+            log="${RUNNER_TEMP}/dwss-${label}.log"
+            "$@" > "$log" 2>&1
+            result=$?
+            cat "$log"
+            if [ "$result" -ne 0 ]; then
+              summary=$(tail -n 1 "$log" | tr '\n' ' ' | cut -c1-120)
+              echo "error_summary=${label}: ${summary}" >> "$GITHUB_OUTPUT"
+              return "$result"
+            fi
+            return 0
+          }
+          run_stage python-compile python3 -m py_compile scripts/refine_release_0_9_13.py || exit $?
+          run_stage release-build python3 scripts/refine_release_0_9_13.py public || exit $?
+          run_stage app-js-check node --check public/app.js || exit $?
+          run_stage shared-js-check node --check public/shared-lexicon.js || exit $?
+          run_stage service-worker-check node --check public/sw.js || exit $?
       - name: Validate DWSS 0.9.14 navigation, source variants, owner signature and sync
         id: validate_release
         shell: bash
@@ -887,6 +901,7 @@ jobs:
           UNPACK_OUTCOME: ${{ steps.verify_unpack.outcome }}
           COMPACT_UI_OUTCOME: ${{ steps.compact_ui.outcome }}
           APPLY_RELEASE_OUTCOME: ${{ steps.apply_release.outcome }}
+          APPLY_RELEASE_ERROR: ${{ steps.apply_release.outputs.error_summary }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
           UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
@@ -899,6 +914,9 @@ jobs:
             STEP_RESULT="${entry#*:}"
             if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
               FAILURE_REASON="${STEP_NAME}-${STEP_RESULT}"
+              if [ "$STEP_NAME" = "apply-release" ] && [ -n "${APPLY_RELEASE_ERROR}" ]; then
+                FAILURE_REASON="apply-release: ${APPLY_RELEASE_ERROR}"
+              fi
               break
             fi
           done
