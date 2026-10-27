@@ -620,7 +620,7 @@ jobs:
           node --check public/app.js
           node --check public/shared-lexicon.js
           node --check public/sw.js
-      - name: Validate DWSS 0.9.13 navigation, privacy, install, candidates and sync
+      - name: Validate DWSS 0.9.14 navigation, source variants, owner signature and sync
         shell: bash
         run: |
           set -euo pipefail
@@ -633,7 +633,12 @@ jobs:
           grep -Fq 'id="pwaToast"' public/index.html
           grep -Fq 'class="pwa-toast"' public/index.html
           ! grep -Fq 'id="saveHistoryBtn"' public/index.html
-          grep -Fq 'data-tab="maintenance">添加新词' public/index.html
+          grep -Fq 'data-tab="maintenance"' public/index.html
+          grep -Fq '<span>添加</span><span>新词</span>' public/index.html
+          grep -Fq '<span>历史</span><span>记录</span>' public/index.html
+          grep -Fq 'class="owner-signature"' public/index.html
+          grep -Fq '德行四海' public/index.html
+          grep -Fq '威震八方' public/index.html
           grep -Fq 'linear-gradient(125deg,#861326 0%,#bd2436 52%,#e34a3d 100%)' public/index.html
           grep -Fq 'if(saveHistoryBtn)' public/app.js
           grep -Fq 'id="history"' public/index.html
@@ -645,8 +650,10 @@ jobs:
           if not nav:
               raise SystemExit("Primary navigation missing")
           tabs = re.findall(r'data-tab="([^"]+)"', nav.group(1))
-          if tabs != ["translate", "dictionary", "saved", "maintenance"]:
+          if tabs != ["maintenance", "translate", "saved"]:
               raise SystemExit("Unexpected primary navigation: " + repr(tabs))
+          if 'data-tab="dictionary"' in nav.group(1):
+              raise SystemExit("Dictionary must not appear in primary navigation")
           if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
               raise SystemExit("Dictionary panel/data was removed unexpectedly")
           if "linear-gradient(135deg,#103966,#1d5a8e)" not in html:
@@ -654,15 +661,17 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.13" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.13';" public/sw.js
-          grep -Fq "DWSS 0.9.13 — restored dictionary, safer sharing and manual candidates" public/index.html
+          grep -Fq "Version: 0.9.14" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.14';" public/sw.js
+          grep -Fq "DWSS 0.9.14 — centered navigation, source variants and owner signature" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
           checks = {
-              "dictionary nav is visible": 'data-tab="dictionary"' in html,
-              "four navigation columns": "grid-template-columns:repeat(4,minmax(0,1fr))" in html,
+              "dictionary nav is absent": 'data-tab="dictionary"' not in html,
+              "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
+              "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
+              "silver side mottos": "德行四海" in html and "威震八方" in html,
               "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
               "personal sharing privacy notice is visible": 'id="personalShareNotice"' in html and "不会上传" in html,
               "dictionary panel remains present": 'id="dictionary"' in html and 'id="dictSearch"' in html,
@@ -682,6 +691,10 @@ jobs:
               raise SystemExit("Automatic synonym replacement remains in tokenizer")
           if "french:String(t.french_text||'').trim()" not in app:
               raise SystemExit("Shared French fallback is still dropped")
+          if 'reading:"比各"' not in app or 'reading:"刀呢莫挖"' not in app:
+              raise SystemExit("Missing File 2 source readings for 笔 or 给我")
+          if "uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.reading).join(' / ')" not in app:
+              raise SystemExit("Multiple source readings are not promoted to the main translation result")
           if shared.count("notes: null") < 2:
               raise SystemExit("Personal source/note data may still be published")
           if "scheduleRetry()" not in shared or "visibleLimit += 300" not in shared:
