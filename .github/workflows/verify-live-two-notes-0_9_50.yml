@@ -1,0 +1,38 @@
+name: Verify live DWSS 0.9.50 two-note removal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-two-notes-0_9_50.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the two requested notes are absent from live Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.50"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js sw.js; do
+            curl -fsSL --retry 5 --retry-delay 3 --max-time 30 "$BASE_URL/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.50' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.50 · DWSS' "$TMP/index.html"
+          ! grep -Fq '保存后立即用于本机翻译，并自动同步给所有用户。' "$TMP/index.html"
+          ! grep -Fq '优先使用当地斯语中文谐音；当地斯语没有对应词条时' "$TMP/index.html"
+          grep -Fq 'id="newZh"' "$TMP/index.html"
+          grep -Fq 'id="newReading"' "$TMP/index.html"
+          grep -Fq 'id="newFrenchReadingZh"' "$TMP/index.html"
+          grep -Fq 'id="entrySubmit"' "$TMP/index.html"
+          grep -Fq 'id="shareSyncSummary"' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.50';" "$TMP/sw.js"
+          grep -Fq "function setMessage(s,type)" "$TMP/app.js"
+          echo "PASS: LIVE DWSS 0.9.50 - both notes removed; form fields, save, cloud sync, and translation status retained."
