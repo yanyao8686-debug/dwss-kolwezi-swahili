@@ -77,20 +77,6 @@ jobs:
           grep -Fq "origin:'shared'" public/app.js
           grep -Fq "dwss:shared-terms-updated" public/shared-lexicon.js
           node --check public/app.js
-          python3 - <<'PY'
-          from pathlib import Path
-          app = (Path("public") / "app.js").read_text(encoding="utf-8")
-          required = [
-              "let dictVisibleLimit=250;",
-              "filtered.slice(0,dictVisibleLimit).map",
-              "dictVisibleLimit+=250",
-              "dictVisibleLimit=250;renderDictionary();",
-              "加载更多（已显示 ",
-          ]
-          missing = [item for item in required if item not in app]
-          if missing:
-              raise SystemExit("Dictionary pagination check failed: " + ", ".join(missing))
-          PY
           node --check public/french-fallback.js
           node --check public/sw.js
           node --check public/pwa.js
@@ -732,6 +718,21 @@ jobs:
               raise SystemExit("Missing sync integration: " + ", ".join(missing))
           PY
           node --check public/shared-lexicon.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          app = (Path("public") / "app.js").read_text(encoding="utf-8")
+          required = [
+              "let dictVisibleLimit=250;",
+              "filtered.slice(0,dictVisibleLimit).map",
+              "dictVisibleLimit+=250",
+              "dictVisibleLimit=250;renderDictionary();",
+              "加载更多（已显示 ",
+          ]
+          missing = [item for item in required if item not in app]
+          if missing:
+              raise SystemExit("Dictionary pagination check failed: " + ", ".join(missing))
+          PY
 
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
