@@ -182,58 +182,89 @@ def find_div_bounds(source, start):
                 return start, open_end, open_end + token.start(), open_end + token.end()
     raise SystemExit("Translation workspace: unbalanced div structure")
 
-input_match = re.search(
-    r'<div\\b(?=[^>]*\\bclass=["\\'][^"\\']*\\bcard\\b[^"\\']*["\\'])[^>]*>\\s*<h2\\b[^>]*>\\s*输入中文\\s*</h2>',
-    html, flags=re.S
-)
-result_match = re.search(
-    r'<div\\b(?=[^>]*\\bid=["\\']resultCard["\\'])[^>]*>',
-    html, flags=re.S
-)
-samples_match = re.search(
-    r'<div\\b(?=[^>]*\\bclass=["\\'][^"\\']*\\bcard\\b[^"\\']*["\\'])[^>]*>\\s*<h2\\b[^>]*>\\s*常用表达\\s*</h2>',
-    html, flags=re.S
-)
-if not input_match or not result_match or not samples_match:
-    headings = [re.sub(r'<[^>]+>', '', value).strip() for value in re.findall(r'<h2\\b[^>]*>(.*?)</h2>', html, flags=re.S)]
-    raise SystemExit(
-        "Translation workspace anchors missing: "
-        f"input={bool(input_match)}, result={bool(result_match)}, samples={bool(samples_match)}; "
-        f"visible headings={headings[:20]}"
+def ensure_hidden_samples_node(source):
+    samples = re.search(r'<(?:div|span)\b[^>]*\bid=["\']samples["\'][^>]*>', source, re.I)
+    if samples:
+        tag = samples.group(0)
+        if re.search(r'\bhidden(?:\s|=|>)', tag, re.I):
+            return source
+        updated = re.sub(r'>$', ' hidden aria-hidden="true">', tag)
+        return source[:samples.start()] + updated + source[samples.end():]
+    if "</body>" not in source:
+        raise SystemExit("Cannot add hidden samples compatibility node: body end tag missing")
+    return source.replace("</body>", '<div id="samples" hidden aria-hidden="true"></div>\n</body>', 1)
+
+# The post-upgrade release can already contain this layout. Accept that form
+# and make the transformation idempotent instead of searching for legacy cards.
+if 'id="translationWorkspace"' in html:
+    if 'id="inputText"' not in html or 'id="resultReading"' not in html or 'id="resultCard"' not in html:
+        raise SystemExit("Existing translation workspace is incomplete")
+    visible_samples = re.search(
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*常用表达\s*</h2>',
+        html, flags=re.S
     )
-if not (input_match.start() < result_match.start() < samples_match.start()):
-    raise SystemExit("Translation cards are not in the expected input/result/samples order")
-input_bounds = find_div_bounds(html, input_match.start())
-result_bounds = find_div_bounds(html, result_match.start())
-samples_bounds = find_div_bounds(html, samples_match.start())
-input_inner = html[input_bounds[1]:input_bounds[2]]
-result_inner = html[result_bounds[1]:result_bounds[2]]
+    if visible_samples:
+        samples_bounds = find_div_bounds(html, visible_samples.start())
+        html = html[:samples_bounds[0]] + html[samples_bounds[3]:]
+    html = ensure_hidden_samples_node(html)
+else:
+    input_match = re.search(
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*输入中文\s*</h2>',
+        html, flags=re.S
+    )
+    result_match = re.search(
+        r'<div\b(?=[^>]*\bid="resultCard")[^>]*>',
+        html, flags=re.S
+    )
+    samples_match = re.search(
+        r'<div\b(?=[^>]*\bclass="[^"]*\bcard\b[^"]*")[^>]*>\s*<h2\b[^>]*>\s*常用表达\s*</h2>',
+        html, flags=re.S
+    )
+    if not input_match or not result_match or not samples_match:
+        headings = [re.sub(r'<[^>]+>', '', value).strip() for value in re.findall(r'<h2\b[^>]*>(.*?)</h2>', html, flags=re.S)]
+        raise SystemExit(
+            "Translation workspace anchors missing: "
+            f"input={bool(input_match)}, result={bool(result_match)}, samples={bool(samples_match)}; "
+            f"visible headings={headings[:20]}"
+        )
+    if not (input_match.start() < result_match.start() < samples_match.start()):
+        raise SystemExit("Translation cards are not in the expected input/result/samples order")
+    input_bounds = find_div_bounds(html, input_match.start())
+    result_bounds = find_div_bounds(html, result_match.start())
+    samples_bounds = find_div_bounds(html, samples_match.start())
+    input_inner = html[input_bounds[1]:input_bounds[2]]
+    result_inner = html[result_bounds[1]:result_bounds[2]]
 
-result_inner, source_count = re.subn(
-    r'<div class="resultlabel">原文</div>\s*(<div id="resultOriginal"[^>]*>.*?</div>)\s*<hr[^>]*>',
-    r'<div class="source-echo" hidden><div class="resultlabel">输入原文</div>\1</div>',
-    result_inner, count=1, flags=re.S
-)
-if source_count != 1:
-    raise SystemExit("Could not preserve the source text in its hidden compatibility node")
-result_inner = result_inner.replace('<h2>翻译结果</h2>', '<h2>当地斯语中文谐音</h2>', 1)
-result_inner = result_inner.replace(
-    '当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）',
-    '当地读音 · 中文谐音（法语备用会单独标注）', 1
-)
-result_inner = result_inner.replace('翻译后显示', '输入中文后，结果会自动显示在这里', 1)
+    result_inner, source_count = re.subn(
+        r'<div class="resultlabel">原文</div>\s*(<div id="resultOriginal"[^>]*>.*?</div>)\s*<hr[^>]*>',
+        r'<div class="source-echo" hidden><div class="resultlabel">输入原文</div>\1</div>',
+        result_inner, count=1, flags=re.S
+    )
+    if source_count != 1:
+        raise SystemExit("Could not preserve the source text in its hidden compatibility node")
+    result_inner = result_inner.replace('<h2>翻译结果</h2>', '<h2>当地斯语中文谐音</h2>', 1)
+    result_inner = result_inner.replace(
+        '当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）',
+        '当地读音 · 中文谐音（法语备用会单独标注）', 1
+    )
+    result_inner = result_inner.replace('翻译后显示', '输入中文后，结果会自动显示在这里', 1)
 
-workspace = (
-    '<div class="card translation-workspace" id="translationWorkspace" role="region" aria-label="中文输入与斯语翻译结果">'
-    '<section class="translation-input-section" aria-label="中文输入">' + input_inner + '</section>'
-    '<div class="workspace-divider" role="separator" aria-hidden="true"></div>'
-    '<section class="translation-output-section" id="resultCard" aria-live="polite">' + result_inner + '</section>'
-    '</div><div id="samples" hidden aria-hidden="true"></div>'
-)
-# Replace source fragments from right to left so the saved offsets remain valid.
-html = html[:samples_bounds[0]] + html[samples_bounds[3]:]
-html = html[:result_bounds[0]] + html[result_bounds[3]:]
-html = html[:input_bounds[0]] + workspace + html[input_bounds[3]:]
+    workspace = (
+        '<div class="card translation-workspace" id="translationWorkspace" role="region" aria-label="中文输入与斯语翻译结果">'
+        '<section class="translation-input-section" aria-label="中文输入">' + input_inner + '</section>'
+        '<div class="workspace-divider" role="separator" aria-hidden="true"></div>'
+        '<section class="translation-output-section" id="resultCard" aria-live="polite">' + result_inner + '</section>'
+        '</div><div id="samples" hidden aria-hidden="true"></div>'
+    )
+    html = html[:samples_bounds[0]] + html[samples_bounds[3]:]
+    html = html[:result_bounds[0]] + html[result_bounds[3]:]
+    html = html[:input_bounds[0]] + workspace + html[input_bounds[3]:]
+
+html = ensure_hidden_samples_node(html)
+if html.count('id="translationWorkspace"') != 1 or html.count('id="samples"') != 1:
+    raise SystemExit("Translation workspace or hidden compatibility node was not created exactly once")
+if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
+    raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
 /* DWSS 0.9.21 — unified Google-Translate-style input and result surface */
