@@ -1,0 +1,146 @@
+name: Deploy DWSS 0.9.47 independent French Chinese homophone
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-french-chinese-homophone-0_9_47.yml'
+      - 'scripts/dwss_0_9_47_pkg_01.b64'
+      - 'scripts/dwss_0_9_47_pkg_02.b64'
+      - 'scripts/dwss_0_9_47_pkg_03.b64'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download verified DWSS 0.9.46 Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: downloaded-pages
+          repository: ${{ github.repository }}
+          run-id: 40588576069
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore 0.9.47 source package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/dwss_0_9_47_pkg_01.b64 scripts/dwss_0_9_47_pkg_02.b64 scripts/dwss_0_9_47_pkg_03.b64 > "${RUNNER_TEMP}/dwss-0.9.47-package.b64"
+          base64 --decode "${RUNNER_TEMP}/dwss-0.9.47-package.b64" > "${RUNNER_TEMP}/dwss-0.9.47-package.tar.gz"
+          tar -tzf "${RUNNER_TEMP}/dwss-0.9.47-package.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/dwss-0.9.47-package.tar.gz" -C .
+
+      - name: Build, syntax-check and integration-test DWSS 0.9.47
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s downloaded-pages/artifact.tar
+          mkdir -p public
+          tar -xf downloaded-pages/artifact.tar -C public
+          python3 scripts/fix_french_chinese_homophone_0_9_47.py
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/boot.js
+          node --check public/pwa.js
+          node --check public/sw.js
+          node scripts/test_french_chinese_homophone_0_9_47.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          app=(p/"app.js").read_text(encoding="utf-8")
+          shared=(p/"shared-lexicon.js").read_text(encoding="utf-8")
+          pwa=(p/"pwa.js").read_text(encoding="utf-8")
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          boot=(p/"boot.js").read_text(encoding="utf-8")
+          checks={
+            "release version": "Version: 0.9.47" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "service worker cache version": "const APP_VERSION = '0.9.47';" in sw,
+            "visible page version": "版本 0.9.47 · DWSS" in html,
+            "Swahili input": 'id="newReading" maxlength="200"' in html,
+            "French homophone input": 'id="newFrenchReadingZh" maxlength="200"' in html,
+            "separate Swahili result": 'id="resultReading"' in html and "翻译的斯语中文谐音：" in html,
+            "separate French result": 'id="resultFrenchReading"' in html and "翻译的法语中文谐音：" in html,
+            "no visible French fallback phrase": "法语备用表达" not in html,
+            "no generated French pronunciation": "function approximateFrenchToChinese" not in app,
+            "cloud column is distinct": "french_pronunciation_cn: frenchReading || null" in shared,
+            "update preserves French homophone draft": "'newFrenchReadingZh'" in pwa,
+            "legacy phrase script is not loaded": "french-fallback.js" not in boot,
+            "legacy phrase script is not precached": "french-fallback.js" not in sw,
+            "cover exists": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
+            "dictionary exists": (p/"dictionary.js.gz").is_file(),
+            "updated usage guide": "DWSS 0.9.47" in (p/"README_部署与使用.md").read_text(encoding="utf-8"),
+          }
+          for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("DWSS 0.9.47 release checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.47 assets
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${PAGE_URL%/}"
+          TMP="${RUNNER_TEMP}/dwss-live-0.9.47"
+          mkdir -p "$TMP"
+          VERIFIED=0
+          for attempt in $(seq 1 24); do
+            if curl -fsSL --max-time 20 "$BASE_URL/VERSION.txt?verify=$GITHUB_SHA" -o "$TMP/VERSION.txt" &&
+               curl -fsSL --max-time 20 "$BASE_URL/index.html?verify=$GITHUB_SHA" -o "$TMP/index.html" &&
+               curl -fsSL --max-time 20 "$BASE_URL/app.js?verify=$GITHUB_SHA" -o "$TMP/app.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/shared-lexicon.js?verify=$GITHUB_SHA" -o "$TMP/shared-lexicon.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/pwa.js?verify=$GITHUB_SHA" -o "$TMP/pwa.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/sw.js?verify=$GITHUB_SHA" -o "$TMP/sw.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/boot.js?verify=$GITHUB_SHA" -o "$TMP/boot.js"; then
+              if grep -Fq 'Version: 0.9.47' "$TMP/VERSION.txt" &&
+                 grep -Fq '版本 0.9.47 · DWSS' "$TMP/index.html" &&
+                 grep -Fq 'id="newReading" maxlength="200"' "$TMP/index.html" &&
+                 grep -Fq 'id="newFrenchReadingZh" maxlength="200"' "$TMP/index.html" &&
+                 grep -Fq '翻译的斯语中文谐音：' "$TMP/index.html" &&
+                 grep -Fq '翻译的法语中文谐音：' "$TMP/index.html" &&
+                 grep -Fq 'french_pronunciation_cn: frenchReading || null' "$TMP/shared-lexicon.js" &&
+                 grep -Fq "'newFrenchReadingZh'" "$TMP/pwa.js" &&
+                 grep -Fq "const APP_VERSION = '0.9.47';" "$TMP/sw.js" &&
+                 ! grep -Fq 'french-fallback.js' "$TMP/boot.js"; then
+                VERIFIED=1
+                break
+              fi
+            fi
+            echo "Live Pages verification attempt $attempt did not match 0.9.47; retrying."
+            sleep 5
+          done
+          test "$VERIFIED" = "1"
+          echo "PASS: live DWSS 0.9.47 version, two result fields, two form fields, cloud payload, auto-update preservation, and service worker verified."
