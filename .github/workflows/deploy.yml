@@ -757,6 +757,7 @@ jobs:
               print(("PASS " if ok else "FAIL ") + name)
           missing = [name for name, ok in checks.items() if not ok]
           if missing:
+              print("FAILED_CHECKS=" + repr(missing), flush=True)
               raise SystemExit("Static quality checks failed: " + ", ".join(missing))
           PY
           python3 - <<'PY'
