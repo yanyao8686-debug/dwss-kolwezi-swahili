@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.20 — centered navigation, full source additions and gold cover mottos",
+    "DWSS 0.9.21 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -82,7 +82,9 @@ html = html.replace("</style>", nav_css + "\n</style>", 1)
 # side mottos on the cover image itself.
 html, _ = re.subn(r'<section class="owner-signature"[^>]*>.*?</section>\s*', '', html, flags=re.S)
 owner_markup = (
-    '<section class="owner-signature" aria-label="品牌署名">'
+    '<section class="owner-signature" aria-label="封面题字">'
+    '<span class="owner-cover-author-backdrop" aria-hidden="true"></span>'
+    '<span class="owner-cover-author">陈谍</span>'
     '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
     '</section>'
 )
@@ -90,13 +92,17 @@ html, owner_count = re.subn(r'(<section class="cover-frame"[^>]*>)(.*?)(</sectio
 if owner_count != 1:
     raise SystemExit("Could not place owner signature inside cover artwork")
 owner_css = """
-/* Gold cover mottos use the same metallic finish as the embedded 斯语 / 陈谍 lettering. */
-.cover-frame{position:relative}
-.owner-signature{--owner-gold:#e9c978;position:absolute;left:0;right:0;bottom:9%;z-index:5;margin:0;padding:0 8%;box-sizing:border-box;text-align:center;border:0;border-radius:0;background:transparent!important;color:var(--owner-gold);box-shadow:none!important;pointer-events:none}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;width:100%;margin:0 auto;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(18px,5.4vw,25px);font-weight:800;line-height:1.08;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.55);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28)}
-.owner-sides span{white-space:nowrap}
-@media(min-width:700px){.owner-signature{bottom:9%;padding:0 8%}.owner-sides{font-size:25px}}
-@media(max-width:380px){.owner-signature{padding:0 7%}.owner-sides{font-size:clamp(18px,5.2vw,21px);letter-spacing:.06em}}
+/* Cover typography: one metallic-gold type system for 陈谍 and both side mottos. */
+.cover-frame{position:relative!important;width:min(100%,690px)!important;aspect-ratio:1/1;height:auto!important;min-height:0!important;max-height:none!important;margin:0 auto 14px!important;border-radius:0 0 20px 20px;overflow:hidden;container-type:inline-size}
+.cover-image{display:block;width:100%!important;max-width:none!important;height:100%!important;max-height:none!important;object-fit:contain}
+.owner-signature{--owner-gold:#e9c978;position:absolute;inset:0;z-index:5;margin:0;padding:0;pointer-events:none}
+.owner-cover-author-backdrop{position:absolute;left:50%;top:81.2%;width:34%;height:10.5%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse at center,rgba(3,20,64,.98) 0%,rgba(3,20,64,.94) 52%,rgba(3,20,64,.60) 72%,rgba(3,20,64,0) 100%);filter:blur(2px)}
+.owner-cover-author,.owner-sides span{position:relative;display:inline-block;margin:0;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(18px,6.0vw,44px);font-weight:700;line-height:1.02;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.58);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28);white-space:nowrap}
+@supports (font-size:1cqw){.owner-cover-author,.owner-sides span{font-size:6.0cqw}}
+.owner-cover-author{position:absolute;left:50%;top:81.2%;transform:translate(-50%,-50%);letter-spacing:.12em}
+.owner-sides{position:absolute;left:6.5%;right:6.5%;bottom:7.2%;display:flex;justify-content:space-between;align-items:center;gap:10px;width:auto;margin:0;padding:0}
+.owner-sides span{letter-spacing:.055em}
+@media(max-width:360px){.owner-cover-author,.owner-sides span{font-size:5.8cqw}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
 # Simplify the translation result: keep the local reading prominent and remove auxiliary panels.
@@ -156,7 +162,98 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.20 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.21 · DWSS 智能翻译 PWA", html, count=1)
+
+# 1b. Use one Google-Translate-style card with the Chinese input above and
+#     the local-reading result directly below. Keep a hidden samples node
+#     because the legacy app initializer still populates it at startup.
+def find_div_bounds(source, start):
+    opening = re.match(r'<div\b[^>]*>', source[start:])
+    if not opening:
+        raise SystemExit("Translation workspace: opening div not found")
+    open_end = start + opening.end()
+    depth = 1
+    for token in re.finditer(r'<div\b[^>]*>|</div\s*>', source[open_end:], re.I):
+        if token.group(0).lower().startswith('<div'):
+            depth += 1
+        else:
+            depth -= 1
+            if depth == 0:
+                return start, open_end, open_end + token.start(), open_end + token.end()
+    raise SystemExit("Translation workspace: unbalanced div structure")
+
+input_match = re.search(r'<div class="card"><h2>输入中文</h2>', html)
+result_match = re.search(r'<div class="card" id="resultCard">', html)
+samples_match = re.search(r'<div class="card"><h2>常用表达</h2>', html)
+if not input_match or not result_match or not samples_match:
+    raise SystemExit("Translation input/result/samples card anchors were not found")
+if not (input_match.start() < result_match.start() < samples_match.start()):
+    raise SystemExit("Translation cards are not in the expected input/result/samples order")
+input_bounds = find_div_bounds(html, input_match.start())
+result_bounds = find_div_bounds(html, result_match.start())
+samples_bounds = find_div_bounds(html, samples_match.start())
+input_inner = html[input_bounds[1]:input_bounds[2]]
+result_inner = html[result_bounds[1]:result_bounds[2]]
+
+result_inner, source_count = re.subn(
+    r'<div class="resultlabel">原文</div>\s*(<div id="resultOriginal"[^>]*>.*?</div>)\s*<hr[^>]*>',
+    r'<div class="source-echo" hidden><div class="resultlabel">输入原文</div>\1</div>',
+    result_inner, count=1, flags=re.S
+)
+if source_count != 1:
+    raise SystemExit("Could not preserve the source text in its hidden compatibility node")
+result_inner = result_inner.replace('<h2>翻译结果</h2>', '<h2>当地斯语中文谐音</h2>', 1)
+result_inner = result_inner.replace(
+    '当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）',
+    '当地读音 · 中文谐音（法语备用会单独标注）', 1
+)
+result_inner = result_inner.replace('翻译后显示', '输入中文后，结果会自动显示在这里', 1)
+
+workspace = (
+    '<div class="card translation-workspace" id="translationWorkspace" role="region" aria-label="中文输入与斯语翻译结果">'
+    '<section class="translation-input-section" aria-label="中文输入">' + input_inner + '</section>'
+    '<div class="workspace-divider" role="separator" aria-hidden="true"></div>'
+    '<section class="translation-output-section" id="resultCard" aria-live="polite">' + result_inner + '</section>'
+    '</div><div id="samples" hidden aria-hidden="true"></div>'
+)
+# Replace source fragments from right to left so the saved offsets remain valid.
+html = html[:samples_bounds[0]] + html[samples_bounds[3]:]
+html = html[:result_bounds[0]] + html[result_bounds[3]:]
+html = html[:input_bounds[0]] + workspace + html[input_bounds[3]:]
+
+workspace_css = r"""
+/* DWSS 0.9.21 — unified Google-Translate-style input and result surface */
+#translate.panel.active{display:block!important}
+#translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:22px;background:#fff;box-shadow:0 12px 34px rgba(17,44,82,.075);margin:0 0 16px}
+.translation-input-section,.translation-output-section{min-width:0;padding:clamp(16px,3.2vw,25px)}
+.translation-input-section>h2{font-size:clamp(16px,2.4vw,19px);margin:0 0 12px;color:#172b49;font-weight:750;letter-spacing:-.02em}
+#inputText{width:100%;min-height:clamp(126px,20vw,176px);resize:vertical;border:1px solid #dfc477;border-radius:16px;padding:15px 16px;background:#F7E3A0!important;color:#28344a!important;font-size:17px;line-height:1.7;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)}
+#inputText::placeholder{color:#8a7440;opacity:.8}
+#inputText:focus{outline:none;border-color:#b88d2e;box-shadow:0 0 0 3px rgba(217,184,91,.19)}
+.translation-input-section .actions{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(82px,.65fr);gap:9px;margin-top:13px}
+.translation-input-section .actions #translateBtn{grid-column:1;min-height:46px;flex:none}
+.translation-input-section .actions #clearBtn{grid-column:2;min-height:46px}
+.translation-input-section .hint{margin-top:10px!important;font-size:11px;color:#7b8798}
+.workspace-divider{height:1px;margin:0 clamp(16px,3.2vw,25px);background:linear-gradient(90deg,transparent,#dfe6ef 10%,#dfe6ef 90%,transparent)}
+.translation-output-section{background:linear-gradient(180deg,#f9fbff 0%,#fff 100%);min-height:210px;scroll-margin-top:78px}
+#resultCard .sectionTitle{align-items:center;margin-bottom:14px}
+#resultCard .sectionTitle h2{font-size:clamp(16px,2.4vw,19px);font-weight:750;letter-spacing:-.02em;color:#172b49}
+#resultCard .resultlabel{font-size:11px;color:#78869c;letter-spacing:.02em}
+#resultCard #resultReading{min-height:72px;padding:10px 0 12px;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#152b4b;font-size:clamp(24px,4.8vw,34px);font-weight:800;line-height:1.55;letter-spacing:.025em;overflow-wrap:anywhere}
+#resultCard #resultReading.empty{font-size:16px;font-weight:500;color:#93a0b2}
+#resultCard .stats{margin-top:8px}
+#resultCard .quality-note,#resultCard .hint{margin-top:12px!important}
+#resultCard .segmentlist{margin-top:10px}
+#samples[hidden]{display:none!important}
+@media(min-width:760px){.panel#translate.active{display:block!important}.panel#translate>.translation-workspace{width:100%;max-width:880px;margin:0 auto 18px}}
+@media(max-width:520px){#translationWorkspace.card{border-radius:18px}.translation-input-section,.translation-output-section{padding:16px}.translation-input-section .actions{grid-template-columns:minmax(0,1.2fr) minmax(80px,.8fr)}#resultCard #resultReading{font-size:25px}}
+"""
+html = html.replace("</style>", workspace_css + "\n</style>", 1)
+if html.count('id="translationWorkspace"') != 1 or html.count('id="samples" hidden') != 1:
+    raise SystemExit("Translation workspace or hidden compatibility node was not created exactly once")
+if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
+    raise SystemExit("The visible samples card remains or the result node is missing")
+
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -270,6 +367,21 @@ app = replace_once(app, old_dictionary_end, new_dictionary_end, "dictionary load
 old_filter_events = "$('dictSearch').addEventListener('input',renderDictionary);$('category').addEventListener('change',renderDictionary);"
 new_filter_events = "$('dictSearch').addEventListener('input',()=>{dictVisibleLimit=250;renderDictionary();});$('category').addEventListener('change',()=>{dictVisibleLimit=250;renderDictionary();});"
 app = replace_once(app, old_filter_events, new_filter_events, "dictionary filters reset paging")
+
+# Live translation while typing: do not add every keystroke to query history.
+app = replace_once(
+    app,
+    "$('translateBtn').addEventListener('click',renderTranslation);$('clearBtn')",
+    "let dwssInputTimer=null;$('inputText').addEventListener('input',()=>{clearTimeout(dwssInputTimer);dwssInputTimer=setTimeout(()=>renderTranslation({recordHistory:false}),420);});$('translateBtn').addEventListener('click',renderTranslation);$('clearBtn')",
+    "Google-style live translation input binding",
+)
+app = replace_once(
+    app,
+    "$('resultReading').textContent='翻译后显示';",
+    "$('resultReading').textContent='输入中文后，结果会自动显示在这里';",
+    "Google-style empty reading prompt",
+)
+
 write("app.js", app)
 
 # 3. Public shared vocabulary must never receive private source/contact notes
@@ -586,15 +698,15 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.20';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.21';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.20", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.21", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
-if '--owner-gold:#e9c978' not in html or '.owner-sides' not in html or 'font-size:clamp(18px,5.4vw,25px)' not in html or '.owner-name' in html or '.owner-motto' in html:
+if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.owner-sides span' not in html or 'font-size:6.0cqw' not in html or '.owner-name' in html or '.owner-motto' in html:
     raise SystemExit("Owner signature placement/color regression detected")
-if 'src="cover.jpg"' not in html:
+if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.20 gold cover mottos, source additions, navigation and compact result UI applied.")
+print("DWSS 0.9.21 matched-gold cover typography, unified live translation workspace and release updates applied.")
