@@ -659,8 +659,8 @@ jobs:
           grep -Fq 'class="pwa-toast"' public/index.html
           ! grep -Fq 'id="saveHistoryBtn"' public/index.html
           grep -Fq 'data-tab="maintenance"' public/index.html
-          grep -Fq '<span>添加</span><span>新词</span>' public/index.html
-          grep -Fq '<span>历史</span><span>记录</span>' public/index.html
+          grep -Fq '<span>添加新词</span>' public/index.html
+          grep -Fq '<span>历史记录</span>' public/index.html
           grep -Fq 'class="owner-signature"' public/index.html
           grep -Fq '德行四海' public/index.html
           grep -Fq '威震八方' public/index.html
