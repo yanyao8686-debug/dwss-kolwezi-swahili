@@ -28,7 +28,7 @@ app=once(app,"function renderCustomList(){","""function customShareStatusLabel(e
 function renderCustomList(){""","share status helper")
 # Add a visible state line to every local custom entry.
 old = '<div class="dictmeta">' + "\x24{esc(c.category||'其他')} · \x24{esc(c.source||'用户手动添加')}"
- new = '<div class="dictmeta">共享状态：' + "\x24{esc(customShareStatusLabel(c))}</div><div class=\\\"dictmeta\\\">" + "\x24{esc(c.category||'其他')} · \x24{esc(c.source||'用户手动添加')}"
+ new = '<div class="dictmeta">共享状态：' + "\x24{esc(customShareStatusLabel(c))}</div><div class=dictmeta>" + "\x24{esc(c.category||'其他')} · \x24{esc(c.source||'用户手动添加')}"
 app=once(app,old,new,"custom item share state")
 app=once(app,
 """window.addEventListener('dwss:personal-share-status',e=>{
