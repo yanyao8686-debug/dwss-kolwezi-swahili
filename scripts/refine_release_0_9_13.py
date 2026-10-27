@@ -81,15 +81,16 @@ owner_markup = (
     '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
     '</section>'
 )
-html, owner_count = re.subn(r'(<section class="cover-frame"[^>]*>.*?</section>)', lambda m: m.group(1) + owner_markup, html, count=1, flags=re.S)
+html, owner_count = re.subn(r'(<section class="cover-frame"[^>]*>)(.*?)(</section>)', lambda m: m.group(1) + m.group(2) + owner_markup + m.group(3), html, count=1, flags=re.S)
 if owner_count != 1:
-    raise SystemExit("Could not place owner signature below cover artwork")
+    raise SystemExit("Could not place owner signature inside cover artwork")
 owner_css = """
-.owner-signature{margin:0 0 13px;padding:11px 14px 10px;text-align:center;border:1px solid rgba(214,224,239,.2);border-radius:0 0 16px 16px;background:linear-gradient(135deg,#071b49,#102e62 55%,#071b49);color:#f2f5fb;box-shadow:0 8px 22px rgba(4,20,54,.12)}
-.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:#f7f8fc;text-shadow:0 1px 2px rgba(255,255,255,.28),0 0 10px rgba(222,232,250,.22)}
-.owner-motto{margin-top:3px;font-size:11px;letter-spacing:.12em;color:#dce3ef;text-shadow:0 0 7px rgba(230,238,250,.22)}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:7px auto 0;max-width:390px;font-size:12px;font-weight:700;letter-spacing:.16em;color:#e8edf5;text-shadow:0 0 7px rgba(230,238,250,.24)}
-@media(min-width:700px){.owner-signature{margin-top:-2px;padding:13px 18px 11px}.owner-sides{font-size:13px}}
+.cover-frame{position:relative}
+.owner-signature{position:absolute;left:0;right:0;bottom:3.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:#f2f5fb;box-shadow:none;pointer-events:none}
+.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:#f7f8fc;text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(222,232,250,.35)}
+.owner-motto{margin-top:2px;font-size:11px;letter-spacing:.12em;color:#e7edf8;text-shadow:0 1px 4px rgba(0,0,0,.65)}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:#f1f5fb;text-shadow:0 1px 4px rgba(0,0,0,.75)}
+@media(min-width:700px){.owner-signature{bottom:4%;padding:0 9%}.owner-name{font-size:28px}.owner-sides{font-size:15px}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
 html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.14 · DWSS 智能翻译 PWA", html, count=1)
