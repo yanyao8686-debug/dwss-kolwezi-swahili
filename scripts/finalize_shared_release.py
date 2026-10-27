@@ -764,6 +764,73 @@ new_unknown="""   if(lookupLocalAt(input,j))exists=true;
 if old_unknown not in app:
     raise SystemExit("unknown-segment boundary anchor missing")
 app=app.replace(old_unknown,new_unknown,1)
+# Link one local dictionary save to one cloud-share submission.
+def app_replace_once(old, new, label):
+    global app
+    if new in app:
+        return
+    n = app.count(old)
+    if n != 1:
+        raise SystemExit(f"Personal-share integration anchor {label}: expected one match, found {n}")
+    app = app.replace(old, new, 1)
+
+app_replace_once(
+"""function addCustomEntry(data){
+ const v=validateEntry(data); if(typeof v==='string')return {ok:false,error:v};
+ const duplicate=custom.find(c=>norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+ if(duplicate)return {ok:false,error:'这条自定义词条已经存在。你可以在下方列表中编辑它。'};
+ custom.push({...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); saveCustom(); rebuild(); return {ok:true};
+}""",
+"""function addCustomEntry(data){
+ const v=validateEntry(data); if(typeof v==='string')return {ok:false,error:v};
+ const duplicate=custom.find(c=>norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+ if(duplicate)return {ok:false,error:'这条自定义词条已经存在。你可以在下方列表中编辑它。'};
+ const entry={...v,id:makeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),shareSyncStatus:'pending'};
+ custom.push(entry); saveCustom(); rebuild();
+ window.dispatchEvent(new CustomEvent('dwss:personal-term-added',{detail:{entry:{...entry}}}));
+ return {ok:true};
+}""",
+"addCustomEntry"
+)
+
+app_replace_once(
+"""function updateCustomEntry(id,data){
+ const i=custom.findIndex(c=>c.id===id);if(i<0)return {ok:false,error:'没有找到要修改的自定义词条。'};
+ const v=validateEntry(data);if(typeof v==='string')return {ok:false,error:v};
+ const dup=custom.find((c,j)=>j!==i&&norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+ if(dup)return {ok:false,error:'相同的自定义词条已存在。'};
+ custom[i]={...custom[i],...v,updatedAt:new Date().toISOString()};saveCustom();rebuild();return {ok:true};
+}""",
+"""function updateCustomEntry(id,data){
+ const i=custom.findIndex(c=>c.id===id);if(i<0)return {ok:false,error:'没有找到要修改的自定义词条。'};
+ const v=validateEntry(data);if(typeof v==='string')return {ok:false,error:v};
+ const dup=custom.find((c,j)=>j!==i&&norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
+ if(dup)return {ok:false,error:'相同的自定义词条已存在。'};
+ const retryShare=custom[i].shareSyncStatus==='needs-info';
+ custom[i]={...custom[i],...v,updatedAt:new Date().toISOString(),...(retryShare?{shareSyncStatus:'pending'}:{})};
+ saveCustom();rebuild();
+ if(retryShare)window.dispatchEvent(new CustomEvent('dwss:personal-term-added',{detail:{entry:{...custom[i]}}}));
+ return {ok:true};
+}""",
+"updateCustomEntry"
+)
+
+app_replace_once(
+"function setMessage(s,type){$('maintenanceMessage').textContent=s;$('maintenanceMessage').className='form-message '+(type||'');}",
+"""function setMessage(s,type){$('maintenanceMessage').textContent=s;$('maintenanceMessage').className='form-message '+(type||'');}
+window.addEventListener('dwss:personal-share-status',e=>{
+ const d=e&&e.detail||{};
+ if(d.message)setMessage(d.message,d.type||'ok');
+});""",
+"maintenance sync feedback"
+)
+
+app_replace_once(
+"window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},get sharedCount(){return sharedCustom.length;},get frenchFallbackCount(){return FRENCH_MAP.size;},translate:(text)=>tokenize(text),exact:(text)=>map.get(norm(text))||null,addCustom:addCustomEntry,updateCustom:updateCustomEntry,deleteCustom:deleteCustomEntry,exportCustom,importCustom,getCustom:()=>custom.map(x=>({...x})),french:(text)=>FRENCH_MAP.get(norm(text))||'',frenchReading:frenchReadingFor,recommend:recommendAlternativesForUnknown,detectContext};",
+"window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},get sharedCount(){return sharedCustom.length;},get frenchFallbackCount(){return FRENCH_MAP.size;},translate:(text)=>tokenize(text),exact:(text)=>map.get(norm(text))||null,addCustom:addCustomEntry,updateCustom:updateCustomEntry,deleteCustom:deleteCustomEntry,exportCustom,importCustom,getCustom:()=>custom.map(x=>({...x})),setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;custom[i]={...custom[i],shareSyncStatus:status,sharedSubmitId:submitId||custom[i].sharedSubmitId||''};saveCustom();return true;},french:(text)=>FRENCH_MAP.get(norm(text))||'',frenchReading:frenchReadingFor,recommend:recommendAlternativesForUnknown,detectContext};
+window.dispatchEvent(new Event('dwss:app-ready'));",
+"public share status API and app ready event"
+)
 write("app.js",app)
 
 version = read("VERSION.txt")
