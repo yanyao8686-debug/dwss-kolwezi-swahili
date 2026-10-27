@@ -12,6 +12,7 @@ def once(text,old,new,label):
 
 app=read("app.js")
 app=once(app,"version:'0.9.38'","version:'0.9.39'","application metadata version")
+write("app.js",app)
 html=read("index.html")
 marker_count=html.count("DWSS 0.9.38")
 if marker_count < 1: raise SystemExit("No DWSS 0.9.38 HTML release markers found")

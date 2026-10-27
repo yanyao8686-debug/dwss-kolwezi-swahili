@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const shared = fs.readFileSync('public/shared-lexicon.js', 'utf8');
+const app = fs.readFileSync('public/app.js', 'utf8');
+assert(app.includes("version:'0.9.39'"), 'core application metadata version is 0.9.39');
 const helperMatch = shared.match(/function needsAutomaticShare\(entry\)\s*\{[\s\S]*?\n\}/);
 assert(helperMatch, 'automatic-share eligibility helper exists');
 const context = vm.createContext({});
