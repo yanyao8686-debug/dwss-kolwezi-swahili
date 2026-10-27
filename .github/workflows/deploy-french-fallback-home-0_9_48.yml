@@ -1,0 +1,137 @@
+name: Deploy DWSS 0.9.48 single result with French fallback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-french-fallback-home-0_9_48.yml'
+      - 'scripts/dwss_0_9_48_pkg_01.b64'
+      - 'scripts/dwss_0_9_48_pkg_02.b64'
+      - 'scripts/dwss_0_9_48_pkg_03.b64'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download verified DWSS 0.9.47 Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: downloaded-pages
+          repository: ${{ github.repository }}
+          run-id: 40591278020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore 0.9.48 patch and test package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/dwss_0_9_48_pkg_01.b64 scripts/dwss_0_9_48_pkg_02.b64 scripts/dwss_0_9_48_pkg_03.b64 > "${RUNNER_TEMP}/dwss-0.9.48-package.b64"
+          base64 --decode "${RUNNER_TEMP}/dwss-0.9.48-package.b64" > "${RUNNER_TEMP}/dwss-0.9.48-package.tar.gz"
+          echo "e6ceaf27b5704a5bebf9d558381dba446073520928a83c8462d839f3977877ed  ${RUNNER_TEMP}/dwss-0.9.48-package.tar.gz" | sha256sum -c -
+          tar -tzf "${RUNNER_TEMP}/dwss-0.9.48-package.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/dwss-0.9.48-package.tar.gz" -C .
+
+      - name: Build, syntax-check and test DWSS 0.9.48
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s downloaded-pages/artifact.tar
+          mkdir -p public
+          tar -xf downloaded-pages/artifact.tar -C public
+          python3 scripts/fix_french_fallback_home_0_9_48.py
+          node --check public/app.js
+          node --check public/pwa.js
+          node --check public/sw.js
+          node scripts/test_french_fallback_home_0_9_48.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          app=(p/"app.js").read_text(encoding="utf-8")
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          pwa=(p/"pwa.js").read_text(encoding="utf-8")
+          checks={
+            "release version": "Version: 0.9.48" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "service worker cache version": "const APP_VERSION = '0.9.48';" in sw,
+            "visible page version": "版本 0.9.48 · DWSS" in html,
+            "Add New Word French homophone field retained": 'id="newFrenchReadingZh" maxlength="200"' in html,
+            "only one homepage pronunciation result": 'id="resultReading"' in html and 'id="resultFrenchReading"' not in html,
+            "no homepage French result heading": "翻译的法语中文谐音：" not in html,
+            "no homepage French copy control": 'id="copyFrenchReading"' not in html,
+            "French fallback logic": "type:'frenchFallback'" in app and "lookupFrenchPronunciationAt(input,i)" in app,
+            "local Swahili phrase priority": "localMatch.length>=frenchMatch.length" in app,
+            "French fallback visibly marked in match details": "法语替代" in app,
+            "French homophone draft preserved by auto-update": "'newFrenchReadingZh'" in pwa,
+            "cover exists": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
+            "dictionary exists": (p/"dictionary.js.gz").is_file(),
+          }
+          for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("DWSS 0.9.48 release checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.48 assets
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${PAGE_URL%/}"
+          TMP="${RUNNER_TEMP}/dwss-live-0.9.48"
+          mkdir -p "$TMP"
+          VERIFIED=0
+          for attempt in $(seq 1 24); do
+            if curl -fsSL --max-time 20 "$BASE_URL/VERSION.txt?verify=$GITHUB_SHA" -o "$TMP/VERSION.txt" &&
+               curl -fsSL --max-time 20 "$BASE_URL/index.html?verify=$GITHUB_SHA" -o "$TMP/index.html" &&
+               curl -fsSL --max-time 20 "$BASE_URL/app.js?verify=$GITHUB_SHA" -o "$TMP/app.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/pwa.js?verify=$GITHUB_SHA" -o "$TMP/pwa.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/sw.js?verify=$GITHUB_SHA" -o "$TMP/sw.js"; then
+              if grep -Fq 'Version: 0.9.48' "$TMP/VERSION.txt" &&
+                 grep -Fq '版本 0.9.48 · DWSS' "$TMP/index.html" &&
+                 grep -Fq 'id="newFrenchReadingZh" maxlength="200"' "$TMP/index.html" &&
+                 grep -Fq 'id="resultReading"' "$TMP/index.html" &&
+                 ! grep -Fq 'id="resultFrenchReading"' "$TMP/index.html" &&
+                 ! grep -Fq '翻译的法语中文谐音：' "$TMP/index.html" &&
+                 grep -Fq "type:'frenchFallback'" "$TMP/app.js" &&
+                 grep -Fq "const APP_VERSION = '0.9.48';" "$TMP/sw.js" &&
+                 grep -Fq "'newFrenchReadingZh'" "$TMP/pwa.js"; then
+                VERIFIED=1
+                break
+              fi
+            fi
+            echo "Live Pages verification attempt $attempt did not match 0.9.48; retrying."
+            sleep 5
+          done
+          test "$VERIFIED" = "1"
+          echo "PASS: live DWSS 0.9.48 has a single home result and retains French homophone only in Add New Word."
