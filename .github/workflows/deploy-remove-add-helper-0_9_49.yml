@@ -97,8 +97,8 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
-          BASE_URL="\${PAGE_URL%/}"
-          TMP="\${RUNNER_TEMP}/dwss-live-0.9.49"
+          BASE_URL="${PAGE_URL%/}"
+          TMP="${RUNNER_TEMP}/dwss-live-0.9.49"
           mkdir -p "$TMP"
           VERIFIED=0
           for attempt in $(seq 1 24); do
