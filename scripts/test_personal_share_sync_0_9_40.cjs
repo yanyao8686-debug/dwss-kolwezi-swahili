@@ -21,13 +21,12 @@ function extractFunction(source,name){
  const brace=clean.indexOf('{');let depth=0,quote=null,escaped=false;
  for(let i=brace;i<clean.length;i++){const ch=clean[i];if(quote){if(escaped){escaped=false;continue;}if(ch==='\\'){escaped=true;continue;}if(ch===quote)quote=null;continue;}if(ch==='"'||ch==="'"){quote=ch;continue;}if(ch==='{')depth++;if(ch==='}'&&--depth===0)return clean.slice(0,i+1);}
  throw new Error('function extraction failed');
- throw new Error('function extraction failed');
 }
 const fn=extractFunction(shared,'buildPersonalPayload');
 const sandbox={window:{KolweziSwahili:{frenchReading:()=> '法语读音'}}};vm.createContext(sandbox);
 vm.runInContext(fn+'\nglobalThis.buildPayload=buildPersonalPayload;',sandbox);
-const sw=sandbox.buildPayload({id:'s',zh:'检查车辆',reading:'揭给 摸多嘎',latin:'kagua gari',french:'',category:'安保与工作'},'11111111-1111-4111-8111-111111111111');
-assert.equal(sw.payload.source_language,'sw');assert.equal(sw.payload.local_text,'kagua gari');assert.equal(sw.payload.local_pronunciation_cn,'揭给 摸多嘎');assert.equal(sw.payload.notes,null);
+const swResult=sandbox.buildPayload({id:'s',zh:'检查车辆',reading:'揭给 摸多嘎',latin:'kagua gari',french:'',category:'安保与工作'},'11111111-1111-4111-8111-111111111111');
+assert.equal(swResult.payload.source_language,'sw');assert.equal(swResult.payload.local_text,'kagua gari');assert.equal(sw.payload.local_pronunciation_cn,'揭给 摸多嘎');assert.equal(sw.payload.notes,null);
 const latin=sandbox.buildPayload({id:'l',zh:'检查车辆',reading:'',latin:'kagua gari',french:''},'22222222-2222-4222-8222-222222222222');
 assert.equal(latin.payload,undefined);assert.match(latin.error,/当地斯语中文谐音/);
 const fr=sandbox.buildPayload({id:'f',zh:'集合',reading:'',latin:'',french:'rassembler',frenchReadingZh:'法语读音'},'33333333-3333-4333-8333-333333333333');
