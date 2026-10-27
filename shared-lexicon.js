@@ -388,7 +388,7 @@ async function submitTerm(event) {
   }
   const payload = {
     client_submit_id: uid(), chinese_text: chinese,
-    local_text: src === "sw" ? local : null, local_pronunciation_cn: pron,
+    local_text: src === "sw" ? (local || null) : null, local_pronunciation_cn: pron,
     source_language: src, french_text: src === "fr" ? french : null,
     category: String(data.get("category") || "").trim() || "未分类",
     notes: String(data.get("notes") || "").trim() || null
