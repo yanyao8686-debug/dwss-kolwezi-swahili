@@ -190,6 +190,9 @@ shared=once(shared,
  "direct shared form precise errors")
 write("shared-lexicon.js",shared)
 
+sw=once(read("sw.js"),"const APP_VERSION = '0.9.39';","const APP_VERSION = '0.9.40';","Service Worker cache version")
+write("sw.js",sw)
+
 version=once(read("VERSION.txt"),"Version: 0.9.39","Version: 0.9.40","version marker")
 version += "\nShared-sync reliability: per-term status is visible; Latin-only local terms are distinguished from terms with a verified Chinese Swahili pronunciation; users can manually retry cloud sync; database rejection codes and details are shown instead of generic success wording.\n"
 write("VERSION.txt",version)

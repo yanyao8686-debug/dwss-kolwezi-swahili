@@ -3,7 +3,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const app=fs.readFileSync('public/app.js','utf8');
 const shared=fs.readFileSync('public/shared-lexicon.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
+const sw=fs.readFileSync('public/sw.js','utf8');
 assert(app.includes("version:'0.9.40'"),'app version');
+assert(sw.includes("const APP_VERSION = '0.9.40';"),'service worker cache version');
 assert(app.includes('function customShareStatusLabel(entry)'), 'visible status helper');
 assert(app.includes('共享状态：'),'status rendered in local list');
 assert(app.includes('retrySharedSync'),'retry button wired');
