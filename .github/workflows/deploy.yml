@@ -1,4 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
+# 0.9.21 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
 
 on:
   push:
@@ -726,14 +727,14 @@ jobs:
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
               "only one gold motto block is overlaid inside the cover": html.count('class="owner-signature"') == 1 and re.search(r'<section class="cover-frame"[^>]*>.*?class="owner-signature".*?</section>',html,re.S) and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
-              "side mottos and 陈谍 use one metallic-gold type rule": "--owner-gold:#e9c978" in html.split(".owner-signature{",1)[1].split("}",1)[0] and ".owner-cover-author,.owner-sides span{" in html and "font-size:7.5cqw" in html and "font-weight:700" in html and "color:var(--owner-gold)" in html and "background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%)" in html.split(".owner-cover-author,.owner-sides span{",1)[1].split("}",1)[0],
+              "side mottos and 陈谍 use one metallic-gold type rule": "--owner-gold:#e9c978" in html.split(".owner-signature{",1)[1].split("}",1)[0] and ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "font-weight:700" in html and "color:var(--owner-gold)" in html and "background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%)" in html.split(".owner-cover-author,.owner-sides span{",1)[1].split("}",1)[0],
               "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
               "source and user-proposed 给我 forms are both preserved and clearly marked": "刀呢摸挖" in app and "刀呢莫挖" in app and "原始PDF记录为" in app,
-              "side mottos and center author match title scale": ".owner-cover-author,.owner-sides span{" in html and "font-size:7.5cqw" in html and "font-family:" in html and "white-space:nowrap" in html,
+              "side mottos and center author match title scale": ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "font-family:" in html and "white-space:nowrap" in html,
               "input and result are in one stacked workspace card": 'id="translationWorkspace"' in html and html.index('id="inputText"') < html.index('id="resultReading"') and 'id="resultCard"' in html,
               "the visible common-phrases card is removed but startup compatibility remains": '<h2>常用表达</h2>' not in html and 'id="samples" hidden' in html,
               "typing updates translation without filling history with partial input": "scheduleDwssLiveTranslation" in app and "renderTranslation({recordHistory:false})" in app and "'compositionstart'" in app and "'compositionend'" in app and "event.isComposing" in app,
