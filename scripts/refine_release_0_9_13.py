@@ -159,13 +159,13 @@ write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
 #    File 2 separately records 笔—比各. File 1 records 给我…—木尼白…;
-#    File 2 separately records 给我—刀呢摸挖. The latter PDF rows had remained
-#    raw source lines and were not parsed into the structured dictionary.
+#    File 2's PDF preserves the original string “刀呢莫挖” (莫).
+#    The user's requested correction candidate “刀呢摸挖” (摸) is kept separately and never overwrites the source.
 app = read("app.js")
 db_anchor = "const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];"
 db_patch = """const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];
 DB.push(
- {zh:"给我",variants:[{reading:"刀呢摸挖",source:"用户提出的字形校正候选；文件2索引摘录为“刀呢摸挖”，两者待核对",kind:"用户校正候选（待科卢韦齐母语者核验）"}]}
+ {zh:"给我",variants:[{reading:"刀呢摸挖",source:"用户提出的字形校正候选；原始PDF记录为“刀呢莫挖”，待科卢韦齐母语者核验",kind:"用户校正候选（待核验，不覆盖原文）"}]}
 );"""
 app = replace_once(app, db_anchor, db_patch, "preserve the user-reported reading candidate without overwriting the source spelling")
 
@@ -466,7 +466,7 @@ for key, group in grouped_sources.items():
             "法语来源": "；".join("、".join(v["sources"]) for v in french),
             "不同当地读音数量": str(len(local)),
             "是否同时含法语标注": "是" if french else "否",
-            "用户待核对补充": "刀呢摸挖（用户提出的写法；原资料索引摘录为刀呢摸挖，待核对）" if key == audit_norm("给我") else "",
+            "用户待核对补充": "刀呢摸挖（用户提出的修订候选；PDF原文为刀呢莫挖，待核验）" if key == audit_norm("给我") else "",
             "核验状态": "保留所有来源读法；尚未完成科卢韦齐母语者逐条核音"
         })
 
@@ -483,7 +483,7 @@ if not pen or not {"比克", "比各"}.issubset({v["reading"] for v in pen["vari
     raise SystemExit("Regression: the two local readings for 笔 are not both present")
 if not pen or not any(is_french_marked(v) and "撕提" in v["reading"] for v in pen["variants"].values()):
     raise SystemExit("Regression: the French-marked pen entry was not retained separately")
-if not give or not {"木尼白...", "刀呢摸挖"}.issubset({v["reading"] for v in give["variants"].values()}):
+if not give or not {"木尼白...", "刀呢莫挖"}.issubset({v["reading"] for v in give["variants"].values()}):
     raise SystemExit("Regression: the two source readings for 给我 are not grouped together")
 if not any(row["中文词头"].find("给我") >= 0 and row["用户待核对补充"] for row in audit_rows):
     raise SystemExit("Regression: the user-reported 给我 spelling difference is not documented")
@@ -508,7 +508,7 @@ summary = [
     "",
     "处理规则：同一中文词组的不同当地读音在翻译主结果并列显示；完全相同的读音去重但来源留在审计CSV；（法）标注读音不作为当地斯语读音；不擅自拆分原资料中逗号/斜线连接的疑似复合读法。",
     "重要边界：该审计只证明原始词库记录与软件呈现逻辑，不能替代科卢韦齐母语者对发音、拼写、词义和语境的逐条确认。",
-    "给我：原始词库含“木尼白...”和“刀呢摸挖”；“刀呢摸挖”为用户提出的字形校正候选，单独标记待核验，不覆盖原文记录。"
+    "给我：文件1原文“木尼白...”；文件2 PDF原文“刀呢莫挖”；用户提出“刀呢摸挖”作为待核验校正候选，单独显示，不覆盖原文。"
 ]
 (public / "source_variant_audit_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
 
