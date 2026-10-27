@@ -85,7 +85,7 @@ function setLanguage(v) {
   const fri = document.getElementById("dwss-shared-french");
   if (sw) sw.hidden = language !== "sw";
   if (fr) fr.hidden = language !== "fr";
-  if (swi) swi.required = language === "sw";
+  if (swi) swi.required = false;
   if (fri) fri.required = language === "fr";
 }
 function buildUi() {
@@ -138,7 +138,7 @@ function buildUi() {
     '<div id="dwss-shared-form-wrap" hidden><form id="dwss-shared-form" class="dwss-shared-form">' +
     '<label>中文意思<input name="chinese_text" required maxlength="500" placeholder="例如：检查车辆"></label>' +
     '<label>词条来源<select name="source_language" id="dwss-shared-language"><option value="sw">科卢韦齐斯瓦西里语</option><option value="fr">法语补位</option></select></label>' +
-    '<label id="dwss-shared-local-field">当地斯瓦西里语拼写<input name="local_text" id="dwss-shared-local" maxlength="500" placeholder="当地实际说法"></label>' +
+    '<label id="dwss-shared-local-field">当地斯瓦西里语拼写（可选）<input name="local_text" id="dwss-shared-local" maxlength="500" placeholder="当地实际说法"></label>' +
     '<label id="dwss-shared-french-field" hidden>法语原文<input name="french_text" id="dwss-shared-french" maxlength="500" placeholder="法语表达"></label>' +
     '<label>中文近似读音<input name="local_pronunciation_cn" required maxlength="500" placeholder="按当地实际发音填写"></label>' +
     '<label>分类<input name="category" maxlength="80" placeholder="日常 / 安保 / 车辆 / 工作"></label>' +
@@ -376,7 +376,7 @@ async function submitTerm(event) {
   const pron = String(data.get("local_pronunciation_cn") || "").trim();
   const local = String(data.get("local_text") || "").trim();
   const french = String(data.get("french_text") || "").trim();
-  if (!chinese || !pron || (src === "sw" && !local) || (src === "fr" && !french)) {
+  if (!chinese || !pron || (src === "fr" && !french)) {
     alert("请填写中文意思、中文近似读音，以及对应的斯语或法语表达。"); return;
   }
   const payload = {
