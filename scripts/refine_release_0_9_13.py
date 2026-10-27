@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.17 — centered navigation, source variants and owner signature",
+    "DWSS 0.9.18 — centered navigation, full source additions and owner signature",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -154,7 +154,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.16 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.18 · DWSS 智能翻译 PWA", html, count=1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -402,6 +402,76 @@ def audit_norm(value):
     value = re.sub(r"[\s\u3000]+", "", value)
     return re.sub(r"[，。！？；：、,.!?;:（）()“”\"']", "", value)
 
+# Import local candidate records absent from the 0.6.4 base dictionary.
+# French-context and mixed-review rows are deliberately not inserted as local Swahili.
+source_csv = Path(__file__).resolve().parents[1] / "data" / "dwss_new_local_source_terms.csv"
+if not source_csv.is_file():
+    raise SystemExit("Missing audited source additions: data/dwss_new_local_source_terms.csv")
+pair_index = {}
+for entry in source_entries:
+    zh_key = audit_norm(entry.get("zh"))
+    for variant in entry.get("variants") or []:
+        pair_key = (zh_key, audit_norm(variant.get("reading")), audit_norm(variant.get("latin")))
+        pair_index.setdefault(pair_key, variant)
+
+source_rows_seen = 0
+source_new_variants = 0
+source_existing_provenance = 0
+source_skipped_nonlocal = 0
+with source_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+    for row in csv.DictReader(handle):
+        if row.get("language_class") != "local_candidate":
+            source_skipped_nonlocal += 1
+            continue
+        zh = str(row.get("chinese_meaning_original") or "").strip()
+        reading = str(row.get("chinese_phonetic_original") or "").strip()
+        latin = str(row.get("latin_original") or "").strip()
+        if not zh or (not reading and not latin):
+            raise SystemExit("Invalid local source row: " + str(row.get("source_record_id")))
+        source_rows_seen += 1
+        pair_key = (audit_norm(zh), audit_norm(reading), audit_norm(latin))
+        source_ref = str(row.get("source_title") or "原始资料")
+        if row.get("source_page"):
+            source_ref += " 第" + str(row["source_page"]) + "页"
+        source_ref += " [" + str(row.get("source_record_id") or "no-id") + "]"
+        existing_variant = pair_index.get(pair_key)
+        if existing_variant is not None:
+            refs = existing_variant.setdefault("sourceRefs", [])
+            if source_ref not in refs:
+                refs.append(source_ref)
+                source_existing_provenance += 1
+            existing_source = str(existing_variant.get("source") or "").strip()
+            if source_ref not in existing_source:
+                existing_variant["source"] = (existing_source + ("；" if existing_source else "") + source_ref)
+            continue
+        new_variant = {
+            "reading": reading,
+            "latin": latin,
+            "source": source_ref,
+            "sourceRefs": [source_ref],
+            "sourceRecordId": str(row.get("source_record_id") or ""),
+            "sourceRawText": str(row.get("raw_source_text") or ""),
+            "verificationStatus": str(row.get("verification_status") or "未由科卢韦齐母语者核验"),
+            "kind": str(row.get("source_record_type") or "原始资料词条")
+        }
+        source_entries.append({"zh": zh, "variants": [new_variant]})
+        pair_index[pair_key] = new_variant
+        source_new_variants += 1
+
+# Persist the augmented source dictionary before auditing or building the release app.
+dictionary_output = "window.SW_DB = " + json.dumps(source_entries, ensure_ascii=False, separators=(",", ":")) + ";"
+dictionary_gz.write_bytes(gzip.compress(dictionary_output.encode("utf-8"), compresslevel=9, mtime=0))
+source_import_summary = [
+    "DWSS 原始来源词库导入摘要",
+    f"来源新增文件中的当地候选记录：{source_rows_seen}",
+    f"新增独立表达：{source_new_variants}",
+    f"合并到既有表达的来源引用：{source_existing_provenance}",
+    f"排除的非当地候选记录：{source_skipped_nonlocal}",
+    "法语及混合待核验记录不作为当地斯瓦西里语主读音导入。",
+    "全部原始字形、来源记录ID及未核音状态保存在数据文件和词条来源元数据中。"
+]
+(public / "source_variant_import_summary.txt").write_text("\n".join(source_import_summary) + "\n", encoding="utf-8")
+
 def is_french_marked(variant):
     return bool(re.search(r"[（(]\s*法\s*[)）]", str(variant.get("reading") or "")))
 
@@ -514,10 +584,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.17';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.18';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.17", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.18", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -525,4 +595,4 @@ if 'color:#f7f8fc' not in html or '.owner-name' not in html or '.owner-sides' no
     raise SystemExit("Owner signature color rules are missing")
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.17 compact result UI, navigation, source variants and owner signature applied.")
+print("DWSS 0.9.18 compact result UI, source additions, navigation and matching signature colors applied.")
