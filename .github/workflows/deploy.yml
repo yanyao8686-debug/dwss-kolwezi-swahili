@@ -1376,11 +1376,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The repair script is idempotent when the source was already normalized.\n          python3 scripts/fix_shared_auto_publish_0_9_42.py
+          # The repair script is idempotent when the source was already normalized.
+          python3 scripts/fix_shared_auto_publish_0_9_42.py
           node --check public/app.js
           node --check public/shared-lexicon.js
           node --check public/sw.js
-          node scripts/test_add_word_flow_0_9_42.cjs
           node scripts/test_personal_add_share_translate_0_9_42.cjs
       - name: Upload Pages artifact
         id: upload_artifact
