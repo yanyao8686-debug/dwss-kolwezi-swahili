@@ -7,6 +7,7 @@ const html=fs.readFileSync(root+'/index.html','utf8');
 const app=fs.readFileSync(root+'/app.js','utf8');
 const version=fs.readFileSync(root+'/VERSION.txt','utf8');
 assert.match(pwa,/await registration\.update\(\)/,'opens with a forced update check');
+assert.match(pwa,/updateViaCache: 'none'/,'bypasses browser cache when checking the Service Worker script');
 assert.match(pwa,/visibilitychange/,'checks again when app returns to foreground');
 assert.match(pwa,/addEventListener\('focus'/,'checks when window regains focus');
 assert.match(pwa,/registration\.waiting\.postMessage/,'automatically activates a waiting worker');
