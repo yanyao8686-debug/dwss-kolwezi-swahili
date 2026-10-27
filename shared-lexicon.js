@@ -238,7 +238,7 @@ function buildPersonalPayload(entry, submitId) {
       source_language: "sw",
       french_text: french || null,
       category: String(entry.category || "").trim() || "未分类",
-      notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
+      notes: null
     }};
   }
   if (latin) {
@@ -257,7 +257,7 @@ function buildPersonalPayload(entry, submitId) {
       source_language: "fr",
       french_text: french,
       category: String(entry.category || "").trim() || "未分类",
-      notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
+      notes: null
     }};
   }
   return { error: "本地词条已保存；共享需要当地斯语中文谐音，或一条带中文近似读音的法语备用表达。" };
@@ -330,6 +330,15 @@ async function submitPersonalTerm(entry) {
     personalSyncing.delete(entry.id);
   }
 }
+function needsAutomaticShare(entry) {
+  const status = String(entry && entry.shareSyncStatus || "");
+  if (status === "synced") return false;
+  const hasLocalSwahiliReading = !!String(entry && entry.reading || "").trim();
+  // A local Katanga Swahili reading is the sharing criterion, including legacy entries
+  // created before automatic sharing was introduced. French-only entries require an
+  // explicit pending/queued marker and remain labelled as French.
+  return hasLocalSwahiliReading || ["pending", "queued"].includes(status);
+}
 async function syncPendingPersonalTerms() {
   const app = window.KolweziSwahili;
   if (!app || typeof app.getCustom !== "function") return;
@@ -337,9 +346,7 @@ async function syncPendingPersonalTerms() {
   for (const entry of entries) {
     const alreadyQueued = queue.some(q => q.__personal_entry_id === entry.id);
     if (alreadyQueued) continue;
-    // Only entries explicitly marked pending/queued are eligible for automatic publication.
-    // Older personal-only words are never bulk-shared just because the app was upgraded.
-    if (!["pending", "queued"].includes(entry.shareSyncStatus)) continue;
+    if (!needsAutomaticShare(entry)) continue;
     await submitPersonalTerm(entry);
   }
 }

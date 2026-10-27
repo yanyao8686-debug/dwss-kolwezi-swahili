@@ -15,6 +15,8 @@ on:
       - 'scripts/refine_release_0_9_13.py'
       - 'scripts/harden_translation_priority_0_9_38.py'
       - 'scripts/test_translation_priority_0_9_38.cjs'
+      - 'scripts/harden_shared_auto_publish_0_9_39.py'
+      - 'scripts/test_shared_auto_publish_0_9_39.cjs'
       - 'supabase/migrations/20261027160434_harden_shared_terms_constraints_and_grants.sql'
       - 'data/dwss_new_local_source_terms.csv'
   workflow_dispatch:
@@ -1337,6 +1339,16 @@ jobs:
           node --check public/app.js
           node --check public/sw.js
           node scripts/test_translation_priority_0_9_38.cjs
+      - name: Apply DWSS 0.9.39 all-user shared vocabulary policy
+        id: shared_auto_publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/harden_shared_auto_publish_0_9_39.py
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/sw.js
+          node scripts/test_shared_auto_publish_0_9_39.cjs
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
@@ -1361,6 +1373,7 @@ jobs:
           HARDEN_OUTCOME: ${{ steps.harden_0_9_36.outcome }}
           HARDEN_037_OUTCOME: ${{ steps.harden_0_9_37.outcome }}
           SWAHILI_PRIORITY_OUTCOME: ${{ steps.swahili_priority.outcome }}
+          SHARED_AUTO_PUBLISH_OUTCOME: ${{ steps.shared_auto_publish.outcome }}
           VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
           AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
           UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
@@ -1368,7 +1381,7 @@ jobs:
           set -uo pipefail
           STATE=failure
           FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
-          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "hardening-0.9.37:${HARDEN_037_OUTCOME}" "swahili-priority:${SWAHILI_PRIORITY_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
+          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "hardening:${HARDEN_OUTCOME}" "hardening-0.9.37:${HARDEN_037_OUTCOME}" "swahili-priority:${SWAHILI_PRIORITY_OUTCOME}" "shared-auto-publish:${SHARED_AUTO_PUBLISH_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
             STEP_NAME="${entry%%:*}"
             STEP_RESULT="${entry#*:}"
             if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
@@ -1398,8 +1411,8 @@ jobs:
                 if python3 -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes(); w=(int.from_bytes(b[26:28],"little") & 0x3fff) if len(b)>=30 else 0; h=(int.from_bytes(b[28:30],"little") & 0x3fff) if len(b)>=30 else 0; sys.exit(0 if len(b)>=150000 and b[:4]==b"RIFF" and b[8:12]==b"WEBP" and b[12:16]==b"VP8 " and b[23:26]==bytes((0x9d,0x01,0x2a)) and w==1536 and h==1536 else 1)' "$TMP/cover.webp"; then
                   LIVE_COVER_VALID=1
                 fi
-                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.38" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.38" "$TMP/index.html" \
+                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.39" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.39" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
@@ -1408,8 +1421,12 @@ jobs:
                   && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
                   && grep -Fq "font-size:16px!important" "$TMP/index.html" \
                   && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
-                  && grep -Fq "version:'0.9.38'" "$TMP/app.js" \
-                  && grep -Fq "const APP_VERSION = '0.9.38';" "$TMP/sw.js" \
+                  && grep -Fq "version:'0.9.39'" "$TMP/app.js" \
+                  && grep -Fq "const APP_VERSION = '0.9.39';" "$TMP/sw.js" \
+                  && curl -fsSL --max-time 20 "${BASE_URL}/shared-lexicon.js?verify=${GITHUB_SHA}" -o "$TMP/shared-lexicon.js" \
+                  && grep -Fq "function needsAutomaticShare(entry)" "$TMP/shared-lexicon.js" \
+                  && grep -Fq "return hasLocalSwahiliReading || [\"pending\", \"queued\"].includes(status);" "$TMP/shared-lexicon.js" \
+                  && [ "$(grep -Fc \"notes: null\" "$TMP/shared-lexicon.js")" -ge 2 ] \
                   && grep -Fq "const rankOf={personal:0,shared:1,builtin:2};" "$TMP/app.js" \
                   && grep -Fq "if(lookupLocalAt(input,index))return null;" "$TMP/app.js" \
                   && grep -Fq "单个斯语读法释义（点击加号展开）：" "$TMP/index.html" \
@@ -1432,7 +1449,7 @@ jobs:
                   && [ "$(stat -c%s "$TMP/cover.webp")" -ge 150000 ] \
                   && [ "$(sha256sum "$TMP/cover.webp" | cut -d' ' -f1)" = "$(sha256sum custom-cover.webp | cut -d' ' -f1)" ]; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.38"
+                  FAILURE_REASON="all live assets match 0.9.39"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -1446,7 +1463,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.38 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.39 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
