@@ -309,10 +309,39 @@ if html.count('id="translationWorkspace"') != 1 or html.count('id="samples" hidd
 if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
-if (!html.includes('id="dwss-autogrow-input"')) {
-    if (!html.includes("</body>")) throw new SystemExit("Cannot add auto-growing input control: body end tag missing")
-    html = html.replace("</body>", "<script id=\"dwss-autogrow-input\">\n(function(){\n  function fit(input){\n    if(!input)return;\n    input.style.height='auto';\n    input.style.height=Math.max(88,input.scrollHeight)+'px';\n    input.style.overflowY='hidden';\n  }\n  function init(){\n    const input=document.getElementById('inputText');\n    const inputSection=document.querySelector('.translation-input-section');\n    const outputSection=document.querySelector('.translation-output-section');\n    if(!input||!inputSection||!outputSection)return;\n    const actions=inputSection.querySelector('.actions');\n    const helper=inputSection.querySelector('.hint');\n    const stats=outputSection.querySelector('.stats');\n    if(actions&&actions.parentElement!==outputSection)outputSection.insertBefore(actions,stats||null);\n    if(helper&&helper.parentElement!==outputSection)outputSection.insertBefore(helper,stats||null);\n    if(input.dataset.dwssAutoGrowBound!=='1'){\n      input.addEventListener('input',function(){fit(input);});\n      input.addEventListener('change',function(){fit(input);});\n      window.addEventListener('resize',function(){fit(input);},{passive:true});\n      input.dataset.dwssAutoGrowBound='1';\n    }\n    fit(input);\n  }\n  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();\n})();\n</script>" + "\n</body>")
-}
+autogrow_script = r"""<script id="dwss-autogrow-input">
+(function(){
+  function fit(input){
+    if(!input)return;
+    input.style.height='auto';
+    input.style.height=Math.max(88,input.scrollHeight)+'px';
+    input.style.overflowY='hidden';
+  }
+  function init(){
+    const input=document.getElementById('inputText');
+    const inputSection=document.querySelector('.translation-input-section');
+    const outputSection=document.querySelector('.translation-output-section');
+    if(!input||!inputSection||!outputSection)return;
+    const actions=inputSection.querySelector('.actions');
+    const helper=inputSection.querySelector('.hint');
+    const stats=outputSection.querySelector('.stats');
+    if(actions&&actions.parentElement!==outputSection)outputSection.insertBefore(actions,stats||null);
+    if(helper&&helper.parentElement!==outputSection)outputSection.insertBefore(helper,stats||null);
+    if(input.dataset.dwssAutoGrowBound!=='1'){
+      input.addEventListener('input',function(){fit(input);});
+      input.addEventListener('change',function(){fit(input);});
+      window.addEventListener('resize',function(){fit(input);},{passive:true});
+      input.dataset.dwssAutoGrowBound='1';
+    }
+    fit(input);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>"""
+if 'id="dwss-autogrow-input"' not in html:
+    if "</body>" not in html:
+        raise SystemExit("Cannot add auto-growing input control: body end tag missing")
+    html = html.replace("</body>", autogrow_script + "\n</body>", 1)
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
