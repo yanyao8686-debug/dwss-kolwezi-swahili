@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.23 matched input and result surfaces for the translation workspace."""
+"""DWSS 0.9.24 matched input and result surfaces for the translation workspace."""
 from pathlib import Path
 import csv
 import gzip
@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.23 — centered navigation, full source additions and gold cover mottos",
+    "DWSS 0.9.24 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.23 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.24 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -275,31 +275,33 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.23 — matched-color, matched-height Google-Translate-style input and result surface */
+/* DWSS 0.9.24 — compact, adjacent translation surfaces with a non-scrolling auto-grow input */
 #translate.panel.active{display:block!important}
-#translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:22px;background:#fff;box-shadow:0 12px 34px rgba(17,44,82,.075);margin:0 0 16px}
-.translation-input-section,.translation-output-section{min-width:0;padding:clamp(16px,3.2vw,25px)}
-.translation-input-section>h2{font-size:clamp(16px,2.4vw,19px);margin:0 0 12px;color:#172b49;font-weight:750;letter-spacing:-.02em}
-#inputText{width:100%;min-height:clamp(126px,20vw,176px);resize:vertical;border:1px solid #dfc477;border-radius:16px;padding:15px 16px;background:#F7E3A0!important;color:#28344a!important;font-size:17px;line-height:1.7;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)}
+#translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(17,44,82,.06);margin:0 0 10px}
+.translation-input-section,.translation-output-section{min-width:0}
+.translation-input-section{padding:10px 12px 5px}
+.translation-output-section{padding:5px 12px 12px;background:#fff;min-height:0;scroll-margin-top:70px}
+.translation-input-section>h2{font-size:16px;margin:0 0 6px;color:#172b49;font-weight:750;letter-spacing:-.02em}
+#inputText{display:block;width:100%;box-sizing:border-box;min-height:88px;height:auto;max-height:none;overflow-x:hidden;overflow-y:hidden;resize:none;border:1px solid #dfc477;border-radius:14px;padding:10px 12px;background:#F7E3A0!important;color:#28344a!important;font-size:16px;line-height:1.55;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)}
 #inputText::placeholder{color:#8a7440;opacity:.8}
-#inputText:focus{outline:none;border-color:#b88d2e;box-shadow:0 0 0 3px rgba(217,184,91,.19)}
-.translation-input-section .actions{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(82px,.65fr);gap:9px;margin-top:13px}
-.translation-input-section .actions #translateBtn{grid-column:1;min-height:46px;flex:none}
-.translation-input-section .actions #clearBtn{grid-column:2;min-height:46px}
-.translation-input-section .hint{margin-top:10px!important;font-size:11px;color:#7b8798}
-.workspace-divider{height:1px;margin:0 clamp(16px,3.2vw,25px);background:linear-gradient(90deg,transparent,#dfe6ef 10%,#dfe6ef 90%,transparent)}
-.translation-output-section{background:linear-gradient(180deg,#f9fbff 0%,#fff 100%);min-height:210px;scroll-margin-top:78px}
-#resultCard .sectionTitle{align-items:center;margin-bottom:14px}
-#resultCard .sectionTitle h2{font-size:clamp(16px,2.4vw,19px);font-weight:750;letter-spacing:-.02em;color:#172b49}
-#resultCard .resultlabel{font-size:11px;color:#78869c;letter-spacing:.02em}
-#resultCard #resultReading{width:100%;box-sizing:border-box;min-height:clamp(126px,20vw,176px);padding:15px 16px;border:1px solid #dfc477!important;border-radius:16px!important;background:#F7E3A0!important;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)!important;color:#28344a;font-size:clamp(24px,4.8vw,34px);font-weight:800;line-height:1.55;letter-spacing:.025em;overflow-wrap:anywhere;display:flex;align-items:center}
-#resultCard #resultReading.empty{font-size:16px;font-weight:500;color:#93a0b2}
-#resultCard .stats{margin-top:8px}
-#resultCard .quality-note,#resultCard .hint{margin-top:12px!important}
-#resultCard .segmentlist{margin-top:10px}
+#inputText:focus{outline:none;border-color:#b88d2e;box-shadow:0 0 0 3px rgba(217,184,91,.16)}
+.workspace-divider{height:1px;margin:0 12px;background:#e7edf4}
+#resultCard .sectionTitle{align-items:center;margin-bottom:5px}
+#resultCard .sectionTitle h2{font-size:16px;font-weight:750;letter-spacing:-.02em;color:#172b49}
+#resultCard .resultlabel{font-size:10px;color:#78869c;letter-spacing:.02em}
+#resultCard .copyline{margin-bottom:4px}
+#resultCard #resultReading{width:100%;box-sizing:border-box;min-height:88px;padding:10px 12px;border:1px solid #dfc477!important;border-radius:14px!important;background:#F7E3A0!important;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)!important;color:#28344a;font-size:clamp(22px,4.4vw,30px);font-weight:800;line-height:1.45;letter-spacing:.02em;overflow-wrap:anywhere;display:flex;align-items:center}
+#resultCard #resultReading.empty{font-size:15px;font-weight:500;color:#93a0b2}
+.translation-output-section .actions{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(82px,.65fr);gap:8px;margin-top:8px}
+.translation-output-section .actions #translateBtn{grid-column:1;min-height:40px;flex:none}
+.translation-output-section .actions #clearBtn{grid-column:2;min-height:40px}
+.translation-output-section>.hint{margin-top:5px!important;font-size:10px;color:#7b8798}
+#resultCard .stats{margin-top:6px}
+#resultCard .quality-note,#resultCard .hint{margin-top:8px!important}
+#resultCard .segmentlist{margin-top:7px}
 #samples[hidden]{display:none!important}
-@media(min-width:760px){.panel#translate.active{display:block!important}.panel#translate>.translation-workspace{width:100%;max-width:880px;margin:0 auto 18px}}
-@media(max-width:520px){#translationWorkspace.card{border-radius:18px}.translation-input-section,.translation-output-section{padding:16px}.translation-input-section .actions{grid-template-columns:minmax(0,1.2fr) minmax(80px,.8fr)}#resultCard #resultReading{font-size:25px}}
+@media(min-width:760px){.panel#translate.active{display:block!important}.panel#translate>.translation-workspace{width:100%;max-width:880px;margin:0 auto 10px}}
+@media(max-width:520px){#translationWorkspace.card{border-radius:16px}.translation-input-section{padding:8px 10px 4px}.translation-output-section{padding:4px 10px 10px}#resultCard #resultReading{font-size:23px}}
 """
 html = html.replace("</style>", workspace_css + "\n</style>", 1)
 if html.count('id="translationWorkspace"') != 1 or html.count('id="samples" hidden') != 1:
@@ -307,6 +309,10 @@ if html.count('id="translationWorkspace"') != 1 or html.count('id="samples" hidd
 if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
+if (!html.includes('id="dwss-autogrow-input"')) {
+    if (!html.includes("</body>")) throw new SystemExit("Cannot add auto-growing input control: body end tag missing")
+    html = html.replace("</body>", "<script id=\"dwss-autogrow-input\">\n(function(){\n  function fit(input){\n    if(!input)return;\n    input.style.height='auto';\n    input.style.height=Math.max(88,input.scrollHeight)+'px';\n    input.style.overflowY='hidden';\n  }\n  function init(){\n    const input=document.getElementById('inputText');\n    const inputSection=document.querySelector('.translation-input-section');\n    const outputSection=document.querySelector('.translation-output-section');\n    if(!input||!inputSection||!outputSection)return;\n    const actions=inputSection.querySelector('.actions');\n    const helper=inputSection.querySelector('.hint');\n    const stats=outputSection.querySelector('.stats');\n    if(actions&&actions.parentElement!==outputSection)outputSection.insertBefore(actions,stats||null);\n    if(helper&&helper.parentElement!==outputSection)outputSection.insertBefore(helper,stats||null);\n    if(input.dataset.dwssAutoGrowBound!=='1'){\n      input.addEventListener('input',function(){fit(input);});\n      input.addEventListener('change',function(){fit(input);});\n      window.addEventListener('resize',function(){fit(input);},{passive:true});\n      input.dataset.dwssAutoGrowBound='1';\n    }\n    fit(input);\n  }\n  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();\n})();\n</script>" + "\n</body>")
+}
 write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
@@ -751,10 +757,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.23';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.24';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.23", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.24", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -762,4 +768,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.23 matched-gold cover typography, matched-color translation result box and release updates applied.")
+print("DWSS 0.9.24 matched-gold cover typography, matched-color translation result box and release updates applied.")
