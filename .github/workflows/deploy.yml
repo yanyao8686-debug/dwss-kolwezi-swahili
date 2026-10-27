@@ -897,7 +897,7 @@ jobs:
           node --check public/sw.js
           node --check public/shared-lexicon.js
           node --check public/french-fallback.js
-      - name: Apply requested DWSS cover and fire-orange headings (0.9.33)
+      - name: Apply requested DWSS cover and fire-orange headings (0.9.34)
         shell: bash
         run: |
           set -euo pipefail
@@ -923,7 +923,7 @@ jobs:
           # The supplied square cover already contains the DWSS emblem, 陈谍 and both mottos.
           # Hide the old HTML overlay so the wording is not duplicated.
           css = r"""
-          /* DWSS 0.9.33 — requested cover and fire-orange translation headings */
+          /* DWSS 0.9.34 — requested cover and fire-orange translation headings */
           .cover-frame .owner-signature{display:none!important}
           .translation-input-section>h2,#resultCard .sectionTitle h2{
             color:#ff4b12!important;
@@ -946,7 +946,7 @@ jobs:
             flex:0 0 auto!important;
             max-width:100%!important;
             min-width:0!important;
-            font-size:clamp(12px,3.8vw,16px)!important;
+            font-size:16px!important;
             line-height:1.2!important;
             letter-spacing:0!important;
           }
@@ -954,7 +954,7 @@ jobs:
           if "</style>" not in html:
               raise SystemExit("Main stylesheet end marker missing.")
           html = html.replace("</style>", css + "\n</style>", 1)
-          html = html.replace("DWSS 0.9.32", "DWSS 0.9.33")
+          html = html.replace("DWSS 0.9.32", "DWSS 0.9.34")
           html = html.replace("等待输入", "")
           if "等待输入" in html or "color:#ff4b12!important" not in html:
               raise SystemExit("Orange heading or waiting-text replacement failed.")
@@ -972,31 +972,31 @@ jobs:
           version = version_path.read_text(encoding="utf-8")
           if "Version: 0.9.32" not in version:
               raise SystemExit("Unexpected base VERSION.txt; expected 0.9.32.")
-          version_path.write_text(version.replace("Version: 0.9.32", "Version: 0.9.33", 1), encoding="utf-8")
+          version_path.write_text(version.replace("Version: 0.9.32", "Version: 0.9.34", 1), encoding="utf-8")
 
           sw = sw_path.read_text(encoding="utf-8")
           if "const APP_VERSION = '0.9.32';" not in sw:
               raise SystemExit("Unexpected base service-worker version; expected 0.9.32.")
-          sw = sw.replace("const APP_VERSION = '0.9.32';", "const APP_VERSION = '0.9.33';", 1)
+          sw = sw.replace("const APP_VERSION = '0.9.32';", "const APP_VERSION = '0.9.34';", 1)
           if "cover.jpg" not in sw:
               raise SystemExit("Service worker does not cache the old cover asset as expected.")
           sw = sw.replace("cover.jpg", "cover.webp")
-          if "const APP_VERSION = '0.9.33';" not in sw or "cover.webp" not in sw:
+          if "const APP_VERSION = '0.9.34';" not in sw or "cover.webp" not in sw:
               raise SystemExit("Service worker cache version or cover path was not updated.")
           sw_path.write_text(sw, encoding="utf-8")
 
           cover = public / "cover.webp"
           if not cover.is_file() or cover.stat().st_size < 8000:
               raise SystemExit("The replacement cover.webp is missing or unexpectedly small.")
-          print("PASS: cover, orange underlined single-line headings, no waiting text, and PWA cache version 0.9.33.")
+          print("PASS: cover, orange underlined single-line headings, no waiting text, and PWA cache version 0.9.34.")
           PY
           node --check public/app.js
           node --check public/sw.js
           grep -Fq 'src="cover.webp"' public/index.html
           grep -Fq 'color:#ff4b12!important' public/index.html
           grep -Fq 'white-space:nowrap!important' public/index.html
-          grep -Fq 'Version: 0.9.33' public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.33';" public/sw.js
+          grep -Fq 'Version: 0.9.34' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.34';" public/sw.js
           test -s public/cover.webp
       - name: Upload Pages artifact
         id: upload_artifact
@@ -1050,14 +1050,15 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.webp?verify=${GITHUB_SHA}" -o "$TMP/cover.webp"; then
-                if grep -Fq "Version: 0.9.33" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.33" "$TMP/index.html" \
+                if grep -Fq "Version: 0.9.34" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.34" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
                   && grep -Fq 'src="cover.webp"' "$TMP/index.html" \
                   && grep -Fq 'color:#ff4b12!important' "$TMP/index.html" \
                   && grep -Fq 'white-space:nowrap!important' "$TMP/index.html" \
                   && grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html" \
+                  && grep -Fq "font-size:16px!important" "$TMP/index.html" \
                   && grep -Fq '.cover-frame .owner-signature{display:none!important}' "$TMP/index.html" \
                   && ! grep -Fq '等待输入' "$TMP/app.js" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
@@ -1074,7 +1075,7 @@ jobs:
                   && test -s "$TMP/cover.jpg" \
                   && test -s "$TMP/cover.webp"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.33"
+                  FAILURE_REASON="all live assets match 0.9.34"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -1088,7 +1089,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.33 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.34 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
