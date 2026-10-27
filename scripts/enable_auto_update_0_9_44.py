@@ -202,7 +202,7 @@ pwa = r'''/* DWSS PWA update manager — automatic update check and safe reload.
   } else if ('serviceWorker' in navigator) {
     const initializeUpdateService = async () => {
       try {
-        registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        registration = await navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' });
         await navigator.serviceWorker.ready;
         updateServiceReady = true;
         if (updateButton) {
