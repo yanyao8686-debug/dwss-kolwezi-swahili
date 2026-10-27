@@ -65,7 +65,7 @@ function render() {
     const fr = t.source_language === "fr";
     return '<article class="dwss-shared-item"><div class="dwss-shared-item-top"><b>' +
       esc(t.chinese_text) + '</b><span>' + (t.__pending ? "待联网同步" : (fr ? "法语补位" : "科卢韦齐斯瓦西里语")) +
-      '</span></div><div class="dwss-shared-local">' + esc(fr ? t.french_text : t.local_text) +
+      '</span></div><div class="dwss-shared-local">' + esc(fr ? t.french_text : (t.local_text || "当地拼写待补（中文谐音已收录）")) +
       '</div><div class="dwss-shared-pron">中文近似读音：' + esc(t.local_pronunciation_cn) +
       '</div><div class="dwss-shared-meta">' + esc(t.category || "未分类") +
       (t.notes ? " · " + esc(t.notes) : "") + '</div></article>';
@@ -229,23 +229,20 @@ function buildPersonalPayload(entry, submitId) {
 
   // Local Katanga Swahili pronunciation must come from the user's verified entry.
   // A French fallback is shared as French and is never relabelled as local Swahili.
-  if (reading && latin) {
+  if (reading) {
     return { payload: {
       client_submit_id: submitId,
       chinese_text: chinese,
-      local_text: latin,
+      local_text: latin || null,
       local_pronunciation_cn: reading,
       source_language: "sw",
-      french_text: null,
+      french_text: french || null,
       category: String(entry.category || "").trim() || "未分类",
       notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
     }};
   }
-  if (reading && !latin) {
-    return { error: "本地词条已保存；共享还缺少“当地斯语拼写”。请补上经核对的当地词形，系统不会猜写。" };
-  }
   if (latin) {
-    return { error: "本地词条已保存；共享还缺少“当地斯语中文谐音”。补齐真实读音后会自动同步，系统不会猜读音。" };
+    return { error: "本地词条已保存；共享还缺少“当地斯语中文谐音”。补齐当地真实读音后会自动同步，系统不会猜读音。" };
   }
   if (french) {
     const app = window.KolweziSwahili;
@@ -340,7 +337,9 @@ async function syncPendingPersonalTerms() {
   for (const entry of entries) {
     const alreadyQueued = queue.some(q => q.__personal_entry_id === entry.id);
     if (alreadyQueued) continue;
-    if (entry.shareSyncStatus === "synced" || entry.shareSyncStatus === "needs-info") continue;
+    // Only entries explicitly marked pending/queued are eligible for automatic publication.
+    // Older personal-only words are never bulk-shared just because the app was upgraded.
+    if (!["pending", "queued"].includes(entry.shareSyncStatus)) continue;
     await submitPersonalTerm(entry);
   }
 }
