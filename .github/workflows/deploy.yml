@@ -725,7 +725,7 @@ jobs:
           required = [
               "let dictVisibleLimit=250;",
               "filtered.slice(0,dictVisibleLimit).map",
-              "dictVisibleLimit+=250",
+              "dictVisibleLimit+250",
               "dictVisibleLimit=250;renderDictionary();",
               "加载更多（已显示 ",
           ]
