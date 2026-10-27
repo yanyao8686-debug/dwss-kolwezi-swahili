@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.13 focused product-quality fixes applied after the compact UI build."""
+"""DWSS 0.9.21 responsive translation workspace and quality refinements."""
 from pathlib import Path
 import csv
 import gzip
