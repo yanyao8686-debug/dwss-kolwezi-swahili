@@ -31,7 +31,7 @@ nav_new = """<nav class="tabs"><button class="tab active" data-tab="translate">�
 html = replace_once(html, nav_old, nav_new, "restore dictionary navigation")
 html = replace_once(
     html,
-    "DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge",
+    "DWSS 0.9.12 — one-step shared vocabulary sync and legacy edit bridge",
     "DWSS 0.9.12 — restored dictionary, safer sharing and manual candidates",
     "release CSS marker",
 )
