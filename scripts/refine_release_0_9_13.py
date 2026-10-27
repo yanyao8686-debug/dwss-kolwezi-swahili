@@ -97,12 +97,12 @@ owner_css = """
 .cover-image{display:block;width:100%!important;max-width:none!important;height:100%!important;max-height:none!important;object-fit:contain}
 .owner-signature{--owner-gold:#e9c978;position:absolute;inset:0;z-index:5;margin:0;padding:0;pointer-events:none}
 .owner-cover-author-backdrop{position:absolute;left:50%;top:81.2%;width:34%;height:10.5%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse at center,rgba(3,20,64,.98) 0%,rgba(3,20,64,.94) 52%,rgba(3,20,64,.60) 72%,rgba(3,20,64,0) 100%);filter:blur(2px)}
-.owner-cover-author,.owner-sides span{position:relative;display:inline-block;margin:0;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(18px,6.0vw,44px);font-weight:700;line-height:1.02;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.58);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28);white-space:nowrap}
-@supports (font-size:1cqw){.owner-cover-author,.owner-sides span{font-size:7.5cqw}}
+.owner-cover-author,.owner-sides span{position:relative;display:inline-block;margin:0;font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;font-size:clamp(14px,5.0vw,34px);font-weight:700;line-height:1.02;letter-spacing:.08em;color:var(--owner-gold);background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.25px rgba(255,245,211,.58);text-shadow:0 1px 0 rgba(96,62,17,.9),0 2px 2px rgba(0,0,0,.72),0 0 6px rgba(241,205,119,.28);white-space:nowrap}
+@supports (font-size:1cqw){.owner-cover-author,.owner-sides span{font-size:5.0cqw}}
 .owner-cover-author{position:absolute;left:50%;top:81.2%;transform:translate(-50%,-50%);letter-spacing:.12em}
 .owner-sides{position:absolute;left:6.5%;right:6.5%;bottom:7.2%;display:flex;justify-content:space-between;align-items:center;gap:10px;width:auto;margin:0;padding:0}
 .owner-sides span{letter-spacing:.055em}
-@media(max-width:360px){.owner-cover-author,.owner-sides span{font-size:7.0cqw}}
+@media(max-width:360px){.owner-cover-author,.owner-sides span{font-size:5.0cqw}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
 # Simplify the translation result: keep the local reading prominent and remove auxiliary panels.
@@ -750,7 +750,7 @@ version = replace_once(version, "Version: 0.9.13", "Version: 0.9.21", "release v
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
-if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.owner-sides span' not in html or 'font-size:7.5cqw' not in html or '.owner-name' in html or '.owner-motto' in html:
+if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.owner-sides span' not in html or 'font-size:5.0cqw' not in html or '.owner-name' in html or '.owner-motto' in html:
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
