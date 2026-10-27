@@ -269,17 +269,24 @@ async function submitPersonalTerm(entry) {
   if (!entry || !entry.id || personalSyncing.has(entry.id)) return;
   personalSyncing.add(entry.id);
   try {
-    const existingQueue = queue.find(q => q.__personal_entry_id === entry.id);
-    if (existingQueue) return;
+    let existingQueue = queue.find(q => q.__personal_entry_id === entry.id);
+    const submitId = String(entry.sharedSubmitId || (existingQueue && existingQueue.client_submit_id) || uid());
     const existingCloud = terms.find(t => entry.sharedSubmitId && t.client_submit_id === entry.sharedSubmitId);
     if (existingCloud) {
+      if (existingQueue) {
+        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
+        save(QUEUE_KEY, queue); render(); count(); notifyApp();
+      }
       setPersonalStatus(entry.id, "synced", existingCloud.client_submit_id,
         "这条新词已经在共享词库中，无需重复提交。", "ok");
       return;
     }
-    const submitId = String(entry.sharedSubmitId || uid());
     const built = buildPersonalPayload(entry, submitId);
     if (!built.payload) {
+      if (existingQueue) {
+        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
+        save(QUEUE_KEY, queue); render(); count(); notifyApp();
+      }
       setPersonalStatus(entry.id, "needs-info", submitId, built.error, "offline");
       return;
     }
@@ -292,17 +299,24 @@ async function submitPersonalTerm(entry) {
       normalizeSharedText(t.french_text) === normalizeSharedText(payload.french_text)
     );
     if (duplicate) {
+      if (existingQueue) {
+        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
+        save(QUEUE_KEY, queue); render(); count(); notifyApp();
+      }
       setPersonalStatus(entry.id, "synced", duplicate.client_submit_id || submitId,
         "共享词库已有完全相同的词条，已自动关联，没有重复添加。", "ok");
       return;
     }
-    // Persist the idempotency key and outbox record before making a network request.
+
+    // Keep one queue record per local entry. Editing an offline pending word refreshes
+    // that record while preserving its client_submit_id, so the server never gets a duplicate.
+    if (existingQueue) Object.assign(existingQueue, payload);
+    else queue.push(payload);
+    save(QUEUE_KEY, queue);
+    render(); count(); notifyApp();
     setPersonalStatus(entry.id, "queued", submitId,
       navigator.onLine ? "新词已保存，正在自动同步共享词库…" : "新词已保存到本机；联网后自动同步共享词库。",
       navigator.onLine ? "connecting" : "offline");
-    queue.push(payload);
-    save(QUEUE_KEY, queue);
-    render(); count(); notifyApp();
     if (!navigator.onLine) {
       setStatus("有 " + queue.length + " 条待同步，联网后自动上传", "offline");
       return;
@@ -311,6 +325,8 @@ async function submitPersonalTerm(entry) {
       const client = await getClient();
       await flushQueue(client);
     } catch (error) {
+      setPersonalStatus(entry.id, "queued", submitId,
+        "新词已保存到本机；云端未连接，恢复网络后自动补传。", "offline");
       setStatus("新词已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
     }
   } finally {
