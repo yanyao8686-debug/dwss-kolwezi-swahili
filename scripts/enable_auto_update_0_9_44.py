@@ -130,6 +130,8 @@ pwa = r'''/* DWSS PWA update manager — automatic update check and safe reload.
       } else if (manual) {
         setState('当前已是最新版本', 'pwa-state-ok', '当前已是最新版本。');
         showFeedback(message && message.textContent);
+      } else if (reloading) {
+        // Keep the "update complete" state while the automatic reload is queued.
       } else if (!hadControllerAtBoot) {
         setState('首次缓存初始化', 'pwa-state-ok', '首次打开正在缓存应用；以后每次打开都会自动检查更新。');
       } else {
