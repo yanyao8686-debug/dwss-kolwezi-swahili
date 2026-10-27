@@ -26,7 +26,7 @@ const fn=extractFunction(shared,'buildPersonalPayload');
 const sandbox={window:{KolweziSwahili:{frenchReading:()=> '法语读音'}}};vm.createContext(sandbox);
 vm.runInContext(fn+'\nglobalThis.buildPayload=buildPersonalPayload;',sandbox);
 const swResult=sandbox.buildPayload({id:'s',zh:'检查车辆',reading:'揭给 摸多嘎',latin:'kagua gari',french:'',category:'安保与工作'},'11111111-1111-4111-8111-111111111111');
-assert.equal(swResult.payload.source_language,'sw');assert.equal(swResult.payload.local_text,'kagua gari');assert.equal(sw.payload.local_pronunciation_cn,'揭给 摸多嘎');assert.equal(sw.payload.notes,null);
+assert.equal(swResult.payload.source_language,'sw');assert.equal(swResult.payload.local_text,'kagua gari');assert.equal(swResult.payload.local_pronunciation_cn,'揭给 摸多嘎');assert.equal(swResult.payload.notes,null);
 const latin=sandbox.buildPayload({id:'l',zh:'检查车辆',reading:'',latin:'kagua gari',french:''},'22222222-2222-4222-8222-222222222222');
 assert.equal(latin.payload,undefined);assert.match(latin.error,/当地斯语中文谐音/);
 const fr=sandbox.buildPayload({id:'f',zh:'集合',reading:'',latin:'',french:'rassembler',frenchReadingZh:'法语读音'},'33333333-3333-4333-8333-333333333333');
