@@ -8,6 +8,8 @@ const CACHE_KEY = "dwss_shared_terms_cache_v1";
 const QUEUE_KEY = "dwss_shared_terms_queue_v1";
 let supabase = null, channel = null, panelOpen = false, language = "sw";
 let terms = readArray(CACHE_KEY), queue = readArray(QUEUE_KEY);
+let flushing = false;
+const personalSyncing = new Set();
 function readArray(key) {
   try { const x = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(x) ? x : []; }
   catch (_) { return []; }
@@ -166,19 +168,162 @@ async function getClient() {
   });
   return supabase;
 }
-async function flushQueue(client) {
-  if (!queue.length || !navigator.onLine) return;
-  for (const item of queue.slice()) {
-    const payload = Object.assign({}, item); delete payload.__pending; delete payload.id;
-    let result = await client.from("shared_terms").insert(payload).select("*").single();
-    if (result.error && result.error.code === "23505") {
-      result = await client.from("shared_terms").select("*").eq("client_submit_id", item.client_submit_id).single();
-    }
-    if (result.error) { setStatus("有 " + queue.length + " 条待同步，联网后自动重试", "offline"); return; }
-    queue = queue.filter(q => q.client_submit_id !== item.client_submit_id);
-    save(QUEUE_KEY, queue); mergeTerm(result.data);
+function setPersonalStatus(entryId, status, submitId, message, type) {
+  const app = window.KolweziSwahili;
+  if (app && typeof app.setCustomShareStatus === "function") {
+    app.setCustomShareStatus(entryId, status, submitId || "");
   }
-  count(); setStatus("待同步词条已全部上传 · 共 " + terms.length + " 条", "ok");
+  try {
+    window.dispatchEvent(new CustomEvent("dwss:personal-share-status", {
+      detail: { entryId, status, message: message || "", type: type || (status === "synced" ? "ok" : "offline") }
+    }));
+  } catch (_) {}
+}
+async function flushQueue(client) {
+  if (!queue.length || !navigator.onLine || flushing) return;
+  flushing = true;
+  try {
+    while (queue.length && navigator.onLine) {
+      const item = queue[0];
+      const payload = Object.assign({}, item);
+      const personalEntryId = payload.__personal_entry_id || "";
+      delete payload.__pending;
+      delete payload.__personal_entry_id;
+      delete payload.id;
+      let result = await client.from("shared_terms").insert(payload).select("*").single();
+      if (result.error && result.error.code === "23505") {
+        result = await client.from("shared_terms").select("*").eq("client_submit_id", item.client_submit_id).single();
+      }
+      if (result.error) {
+        if (personalEntryId) {
+          setPersonalStatus(personalEntryId, "queued", item.client_submit_id,
+            "新词已保存在本机；云端暂时未响应，联网后会自动补传。", "offline");
+        }
+        setStatus("有 " + queue.length + " 条待同步，联网后自动重试", "offline");
+        return;
+      }
+      queue = queue.filter(q => q.client_submit_id !== item.client_submit_id);
+      save(QUEUE_KEY, queue);
+      mergeTerm(result.data);
+      if (personalEntryId) {
+        setPersonalStatus(personalEntryId, "synced", item.client_submit_id,
+          "新词已保存，并已自动同步到共享词库。", "ok");
+      }
+    }
+    count();
+    setStatus("云端共享词库已同步 · 共 " + terms.length + " 条", "ok");
+  } finally {
+    flushing = false;
+  }
+}
+function normalizeSharedText(value) {
+  return String(value == null ? "" : value).trim().toLocaleLowerCase();
+}
+function buildPersonalPayload(entry, submitId) {
+  const chinese = String(entry.zh || "").trim();
+  const reading = String(entry.reading || "").trim();
+  const latin = String(entry.latin || "").trim();
+  const french = String(entry.french || "").trim();
+  const frenchReading = String(entry.frenchReadingZh || "").trim();
+  if (!chinese) return { error: "缺少中文意思，暂不能同步。" };
+
+  // Local Katanga Swahili pronunciation must come from the user's verified entry.
+  // A French fallback is shared as French and is never relabelled as local Swahili.
+  if (reading) {
+    return { payload: {
+      client_submit_id: submitId,
+      chinese_text: chinese,
+      local_text: latin || null,
+      local_pronunciation_cn: reading,
+      source_language: "sw",
+      french_text: null,
+      category: String(entry.category || "").trim() || "未分类",
+      notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
+    }};
+  }
+  if (latin) {
+    return { error: "本地词条已保存，但共享还缺少“当地斯语中文谐音”。补齐真实读音后会自动同步，系统不会猜读音。" };
+  }
+  if (french) {
+    const app = window.KolweziSwahili;
+    const generated = app && typeof app.frenchReading === "function" ? app.frenchReading(french) : "";
+    const pron = frenchReading || String(generated || "").trim();
+    if (!pron) return { error: "法语备用词条缺少中文近似读音，暂不能同步。" };
+    return { payload: {
+      client_submit_id: submitId,
+      chinese_text: chinese,
+      local_text: null,
+      local_pronunciation_cn: pron,
+      source_language: "fr",
+      french_text: french,
+      category: String(entry.category || "").trim() || "未分类",
+      notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null
+    }};
+  }
+  return { error: "本地词条已保存；共享需要当地斯语中文谐音，或一条带中文近似读音的法语备用表达。" };
+}
+async function submitPersonalTerm(entry) {
+  if (!entry || !entry.id || personalSyncing.has(entry.id)) return;
+  personalSyncing.add(entry.id);
+  try {
+    const existingQueue = queue.find(q => q.__personal_entry_id === entry.id);
+    if (existingQueue) return;
+    const existingCloud = terms.find(t => entry.sharedSubmitId && t.client_submit_id === entry.sharedSubmitId);
+    if (existingCloud) {
+      setPersonalStatus(entry.id, "synced", existingCloud.client_submit_id,
+        "这条新词已经在共享词库中，无需重复提交。", "ok");
+      return;
+    }
+    const submitId = String(entry.sharedSubmitId || uid());
+    const built = buildPersonalPayload(entry, submitId);
+    if (!built.payload) {
+      setPersonalStatus(entry.id, "needs-info", submitId, built.error, "offline");
+      return;
+    }
+    const payload = Object.assign({}, built.payload, { __personal_entry_id: entry.id });
+    const duplicate = terms.find(t =>
+      normalizeSharedText(t.chinese_text) === normalizeSharedText(payload.chinese_text) &&
+      (t.source_language || "sw") === payload.source_language &&
+      normalizeSharedText(t.local_text) === normalizeSharedText(payload.local_text) &&
+      normalizeSharedText(t.local_pronunciation_cn) === normalizeSharedText(payload.local_pronunciation_cn) &&
+      normalizeSharedText(t.french_text) === normalizeSharedText(payload.french_text)
+    );
+    if (duplicate) {
+      setPersonalStatus(entry.id, "synced", duplicate.client_submit_id || submitId,
+        "共享词库已有完全相同的词条，已自动关联，没有重复添加。", "ok");
+      return;
+    }
+    // Persist the idempotency key and outbox record before making a network request.
+    setPersonalStatus(entry.id, "queued", submitId,
+      navigator.onLine ? "新词已保存，正在自动同步共享词库…" : "新词已保存到本机；联网后自动同步共享词库。",
+      navigator.onLine ? "connecting" : "offline");
+    queue.push(payload);
+    save(QUEUE_KEY, queue);
+    render(); count(); notifyApp();
+    if (!navigator.onLine) {
+      setStatus("有 " + queue.length + " 条待同步，联网后自动上传", "offline");
+      return;
+    }
+    try {
+      const client = await getClient();
+      await flushQueue(client);
+    } catch (error) {
+      setStatus("新词已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
+    }
+  } finally {
+    personalSyncing.delete(entry.id);
+  }
+}
+async function syncPendingPersonalTerms() {
+  const app = window.KolweziSwahili;
+  if (!app || typeof app.getCustom !== "function") return;
+  const entries = app.getCustom();
+  for (const entry of entries) {
+    const alreadyQueued = queue.some(q => q.__personal_entry_id === entry.id);
+    if (alreadyQueued) continue;
+    if (entry.shareSyncStatus === "synced" || entry.shareSyncStatus === "needs-info") continue;
+    await submitPersonalTerm(entry);
+  }
 }
 async function connectCloud() {
   if (!navigator.onLine) { setStatus("离线：显示缓存，新词会排队等待联网", "offline"); return; }
@@ -200,6 +345,7 @@ async function connectCloud() {
     }
     setStatus("云端已连接 · " + terms.length + " 条共享词", "ok");
     await flushQueue(client);
+    await syncPendingPersonalTerms();
   } catch (e) {
     setStatus("云端连接失败，保留本机缓存：" + (e && e.message ? e.message : "网络错误"), "error");
   }
@@ -244,12 +390,21 @@ async function submitTerm(event) {
 window.DWSSSharedLexicon = Object.freeze({
   getTerms: getPublicTerms,
   refresh: connectCloud,
+  submitPersonalTerm,
   get count() { return terms.length + queue.length; }
 });
 function start() {
-  buildUi(); notifyApp(); connectCloud();
+  buildUi(); notifyApp();
+  window.addEventListener("dwss:personal-term-added", event => {
+    const detail = event && event.detail || {};
+    const entry = detail.entry || detail;
+    window.setTimeout(() => submitPersonalTerm(entry), 0);
+  });
+  window.addEventListener("dwss:app-ready", syncPendingPersonalTerms);
   window.addEventListener("online", connectCloud);
   window.addEventListener("offline", () => setStatus("离线：显示缓存，新词会排队等待联网", "offline"));
+  connectCloud().catch(() => {});
+  if (window.KolweziSwahili) syncPendingPersonalTerms().catch(() => {});
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
 else start();
