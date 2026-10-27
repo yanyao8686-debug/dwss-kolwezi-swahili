@@ -1554,7 +1554,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.43 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.44 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
