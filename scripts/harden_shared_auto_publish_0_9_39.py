@@ -13,7 +13,9 @@ def once(text,old,new,label):
 app=read("app.js")
 app=once(app,"version:'0.9.38'","version:'0.9.39'","application metadata version")
 html=read("index.html")
-html=once(html,"DWSS 0.9.38","DWSS 0.9.39","visible release marker")
+marker_count=html.count("DWSS 0.9.38")
+if marker_count < 1: raise SystemExit("No DWSS 0.9.38 HTML release markers found")
+html=html.replace("DWSS 0.9.38","DWSS 0.9.39")
 write("index.html",html)
 
 sw=once(read("sw.js"),"const APP_VERSION = '0.9.38';","const APP_VERSION = '0.9.39';","Service Worker cache namespace")
