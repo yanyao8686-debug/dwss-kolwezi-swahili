@@ -1,0 +1,113 @@
+name: Deploy DWSS multi-pronunciation hotfix v5
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-multiread-hotfix-v5.yml'
+      - 'scripts/fix_multiple_pronunciations_0_9_45_v3.py'
+      - 'scripts/test_multiple_pronunciations_0_9_45.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download last verified DWSS Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: downloaded-pages
+          repository: ${{ github.repository }}
+          run-id: 40581673387
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build, verify and test multi-pronunciation release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s downloaded-pages/artifact.tar
+          mkdir -p public
+          tar -xf downloaded-pages/artifact.tar -C public
+          python3 scripts/fix_multiple_pronunciations_0_9_45_v3.py
+          node --check public/app.js
+          node --check public/sw.js
+          node scripts/test_multiple_pronunciations_0_9_45.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          checks={
+            "release version": "Version: 0.9.45" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "service worker version": "const APP_VERSION = '0.9.45';" in (p/"sw.js").read_text(encoding="utf-8"),
+            "visible page version": "版本 0.9.45 · DWSS" in (p/"index.html").read_text(encoding="utf-8"),
+            "automatic update page marker": "DWSS_AUTO_UPDATE_0_9_45" in (p/"index.html").read_text(encoding="utf-8"),
+            "multi-reading separator": "const VARIANT_SEPARATOR = '　｜　';" in (p/"app.js").read_text(encoding="utf-8"),
+            "combined-source selection": "return uniqueLocalVariants(item).filter(v=>v.reading);" in (p/"app.js").read_text(encoding="utf-8"),
+            "meaning note": "同一中文意思，不同当地读音（依次分隔）" in (p/"app.js").read_text(encoding="utf-8"),
+            "cover exists": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
+            "dictionary exists": (p/"dictionary.js.gz").is_file(),
+          }
+          for name,ok in checks.items():
+            print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("Release asset checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live 0.9.45 assets
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${PAGE_URL%/}"
+          TMP="${RUNNER_TEMP}/dwss-live-multiread"
+          mkdir -p "$TMP"
+          VERIFIED=0
+          for attempt in $(seq 1 24); do
+            if curl -fsSL --max-time 20 "$BASE_URL/VERSION.txt?verify=$GITHUB_SHA" -o "$TMP/VERSION.txt" &&
+               curl -fsSL --max-time 20 "$BASE_URL/index.html?verify=$GITHUB_SHA" -o "$TMP/index.html" &&
+               curl -fsSL --max-time 20 "$BASE_URL/app.js?verify=$GITHUB_SHA" -o "$TMP/app.js" &&
+               curl -fsSL --max-time 20 "$BASE_URL/sw.js?verify=$GITHUB_SHA" -o "$TMP/sw.js"; then
+              if grep -Fq 'Version: 0.9.45' "$TMP/VERSION.txt" &&
+                 grep -Fq '版本 0.9.45 · DWSS' "$TMP/index.html" &&
+                 grep -Fq "const APP_VERSION = '0.9.45';" "$TMP/sw.js" &&
+                 grep -Fq "const VARIANT_SEPARATOR = '　｜　';" "$TMP/app.js" &&
+                 grep -Fq "return uniqueLocalVariants(item).filter(v=>v.reading);" "$TMP/app.js"; then
+                VERIFIED=1
+                break
+              fi
+            fi
+            echo "Live Pages verification attempt $attempt did not match 0.9.45; retrying."
+            sleep 5
+          done
+          test "$VERIFIED" = "1"
+          echo "PASS: live DWSS 0.9.45 app.js, sw.js, index.html and VERSION.txt verified."
