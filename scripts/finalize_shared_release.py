@@ -826,10 +826,14 @@ window.addEventListener('dwss:personal-share-status',e=>{
 )
 
 app_replace_once(
-"window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},get sharedCount(){return sharedCustom.length;},get frenchFallbackCount(){return FRENCH_MAP.size;},translate:(text)=>tokenize(text),exact:(text)=>map.get(norm(text))||null,addCustom:addCustomEntry,updateCustom:updateCustomEntry,deleteCustom:deleteCustomEntry,exportCustom,importCustom,getCustom:()=>custom.map(x=>({...x})),french:(text)=>FRENCH_MAP.get(norm(text))||'',frenchReading:frenchReadingFor,recommend:recommendAlternativesForUnknown,detectContext};",
-"""window.KolweziSwahili={get dictCount(){return all.length;},get customCount(){return custom.length;},get sharedCount(){return sharedCustom.length;},get frenchFallbackCount(){return FRENCH_MAP.size;},translate:(text)=>tokenize(text),exact:(text)=>map.get(norm(text))||null,addCustom:addCustomEntry,updateCustom:updateCustomEntry,deleteCustom:deleteCustomEntry,exportCustom,importCustom,getCustom:()=>custom.map(x=>({...x})),setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;custom[i]={...custom[i],shareSyncStatus:status,sharedSubmitId:submitId||custom[i].sharedSubmitId||''};saveCustom();return true;},french:(text)=>FRENCH_MAP.get(norm(text))||'',frenchReading:frenchReadingFor,recommend:recommendAlternativesForUnknown,detectContext};
-window.dispatchEvent(new Event('dwss:app-ready'));""",
-"public share status API and app ready event"
+"getCustom:()=>custom.map(x=>({...x})),french:",
+"getCustom:()=>custom.map(x=>({...x})),setCustomShareStatus:(id,status,submitId)=>{const i=custom.findIndex(x=>x.id===id);if(i<0)return false;custom[i]={...custom[i],shareSyncStatus:status,sharedSubmitId:submitId||custom[i].sharedSubmitId||''};saveCustom();return true;},french:",
+"public share status API"
+)
+app_replace_once(
+"renderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+"window.dispatchEvent(new Event('dwss:app-ready'));\nrenderDictionary();renderSaved();renderCustomList();clearEntryForm();bindSharedLexicon();",
+"app ready event"
 )
 write("app.js",app)
 
