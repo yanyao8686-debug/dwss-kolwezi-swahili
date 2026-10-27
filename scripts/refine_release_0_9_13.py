@@ -25,13 +25,14 @@ def replace_once(source, old, new, label, expected=1):
 
 # 1. Keep the dictionary engine/data, but permanently remove its primary-navigation entry.
 html = read("index.html")
-nav_old = """<nav class="tabs"><button class="tab active" data-tab="translate">翻译</button><button class="tab" data-tab="saved">收藏 / 历史</button><button class="tab" data-tab="maintenance">添加新词</button></nav>"""
 nav_new = """<nav class="tabs"><button class="tab" data-tab="maintenance"><span>添加</span><span>新词</span></button><button class="tab active" data-tab="translate"><span>翻译</span></button><button class="tab" data-tab="saved"><span>历史</span><span>记录</span></button></nav>"""
-html = replace_once(html, nav_old, nav_new, "three-tab add/translate/history navigation")
+html, nav_count = re.subn(r'<nav class="tabs">.*?</nav>', lambda _: nav_new, html, count=1, flags=re.S)
+if nav_count != 1:
+    raise SystemExit("Primary navigation replacement failed")
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.13 — restored dictionary, safer sharing and manual candidates",
+    "DWSS 0.9.14 — centered navigation, source variants and owner signature",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
