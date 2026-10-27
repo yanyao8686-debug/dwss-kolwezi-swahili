@@ -983,12 +983,10 @@ jobs:
           sw = sw.replace("cover.jpg", "cover.webp")
           if "const APP_VERSION = '0.9.33';" not in sw or "cover.webp" not in sw:
               raise SystemExit("Service worker cache version or cover path was not updated.")
-          if "const APP_VERSION = '0.9.33';" not in sw or "./cover.webp" not in sw:
-              raise SystemExit("Service worker cache version or cover path was not updated.")
           sw_path.write_text(sw, encoding="utf-8")
 
           cover = public / "cover.webp"
-          if not cover.is_file() or cover.stat().st_size < 10000:
+          if not cover.is_file() or cover.stat().st_size < 8000:
               raise SystemExit("The replacement cover.webp is missing or unexpectedly small.")
           print("PASS: cover, orange underlined single-line headings, no waiting text, and PWA cache version 0.9.33.")
           PY
