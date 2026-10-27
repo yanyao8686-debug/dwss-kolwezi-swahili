@@ -18,18 +18,18 @@ def once(source, old, new, label):
     return source.replace(old, new, 1)
 
 shared = read("shared-lexicon.js")
-shared = once(
-    shared,
-    'local_text: src === "sw" ? local : null,',
-    'local_text: src === "sw" ? (local || null) : null,',
-    "normalize optional Swahili spelling to SQL NULL"
-)
-shared = once(
-    shared,
-    "function start() {\n  buildUi(); notifyApp();",
-    "function start() {\n  // Shared vocabulary is automatic; do not create a separate floating UI.\n  notifyApp();",
-    "remove separate shared-vocabulary entry point"
-)
+old_local = 'local_text: src === "sw" ? local : null,'
+new_local = 'local_text: src === "sw" ? (local || null) : null,'
+if old_local in shared:
+    shared = shared.replace(old_local, new_local, 1)
+elif new_local not in shared:
+    raise SystemExit("Optional local_text payload is neither old nor normalized")
+old_start = "function start() {\n  buildUi(); notifyApp();"
+new_start = "function start() {\n  // Shared vocabulary is automatic; do not create a separate floating UI.\n  notifyApp();"
+if old_start in shared:
+    shared = shared.replace(old_start, new_start, 1)
+elif new_start not in shared:
+    raise SystemExit("Shared UI start() is neither old nor already removed")
 if "dwss:personal-term-added" not in shared:
     raise SystemExit("Automatic personal-entry sharing listener is missing")
 write("shared-lexicon.js", shared)
