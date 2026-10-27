@@ -867,7 +867,7 @@ jobs:
             for(const m of txt.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)) refs.add(m[1]);
           }
           const missing = [...refs].filter(id=>!idSet.has(id));
-          if(missing.some(id=>id!=='saveHistoryBtn')) throw new Error('Missing JS DOM ids: '+missing.join(', '));
+          if(missing.some(id=>id!=='saveHistoryBtn')) { console.error('MISSING_JS_DOM_IDS='+missing.join(',')); throw new Error('Missing JS DOM ids: '+missing.join(', ')); }
           if(!app.includes('if(saveHistoryBtn)')) throw new Error('Removed history button listener is not guarded');
           if(!html.includes('id="pwaToast"')) throw new Error('Update feedback toast missing');
           if(!pwa.includes("document.readyState==='complete'")) throw new Error('Late-loaded PWA script does not initialize after load');
@@ -878,7 +878,10 @@ jobs:
           const nav=html.match(/<nav class="tabs">(.*?)<\/nav>/s);
           if(!nav) throw new Error('Primary navigation missing');
           const tabs=[...nav[1].matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]);
-          if(tabs.join(',')!=='maintenance,translate,saved') throw new Error('Unexpected navigation: '+tabs.join(','));
+          if(tabs.join(',')!=='maintenance,saved') throw new Error('Unexpected navigation: '+tabs.join(','));
+          if((nav[1].match(/<button/g)||[]).length!==3 || !nav[1].includes('class="nav-clear-slot"')) throw new Error('Expected exactly three navigation actions including clear information');
+          if(nav[1].includes('data-tab="translate"')) throw new Error('Translation must open by default rather than occupy a navigation slot');
+          if(!html.includes('class="panel active" id="translate"')) throw new Error('Translation is not the default home panel');
           for(const id of ['translate','saved','maintenance','dictionary','dictSearch','inputText','resultReading','segmentList','favorites','history','entryForm','exportCustom','importCustom','networkBadge','pwaState','pwaMessage','pwaToast','checkUpdateBtn']) {
             if(!idSet.has(id)) throw new Error('Required UI element missing: '+id);
           }
