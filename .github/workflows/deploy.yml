@@ -228,7 +228,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.9 — automatic one-step shared vocabulary sync */
+          /* DWSS 0.9.10 — one-step shared vocabulary sync */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -331,11 +331,11 @@ jobs:
           .pwa-toast.visible{opacity:1;transform:translateY(0)}
           .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.9 — automatic one-step shared vocabulary sync" not in html:
+          if "DWSS 0.9.10 — one-step shared vocabulary sync" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.9 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.10 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -587,12 +587,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.9';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.10';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.9", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.10", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -608,7 +608,7 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.9 adds one-step personal-to-shared vocabulary sync with durable queue and duplicate protection.")
+          print("DWSS 0.9.10 allows local pronunciation-only terms, protects legacy personal entries, and keeps an idempotent offline queue.")
           PY
       - name: Validate one-step shared sync, PWA initialization and interface regression 0.9.9
         shell: bash
@@ -644,9 +644,9 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.9" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.9';" public/sw.js
-          grep -Fq "DWSS 0.9.9 — automatic one-step shared vocabulary sync" public/index.html
+          grep -Fq "Version: 0.9.10" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.10';" public/sw.js
+          grep -Fq "DWSS 0.9.10 — one-step shared vocabulary sync" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
@@ -661,8 +661,10 @@ jobs:
               "offline personal queue owner": "__personal_entry_id" in shared,
               "stable idempotency key": "client_submit_id" in shared,
               "unique-conflict recovery": "23505" in shared,
-              "local Swahili requires both checked spelling and reading": "if (reading && latin)" in shared and "local_text: latin" in shared,
-              "no invented local pronunciation": "共享还缺少“当地斯语拼写”" in shared and "共享还缺少“当地斯语中文谐音”" in shared,
+              "local Swahili can share with verified pronunciation and optional spelling": "if (reading)" in shared and "local_text: latin || null" in shared,
+              "latin-only terms never invent pronunciation": "if (latin)" in shared and "补齐当地真实读音" in shared,
+              "legacy personal terms are not bulk-published": 'if (!["pending", "queued"].includes(entry.shareSyncStatus)) continue;' in shared,
+              "shared panel spelling is optional": 'if (swi) swi.required = false;' in shared and 'if (!chinese || !pron || (src === "fr" && !french))' in shared,
               "queued edit reuses same submit ID": "if (existingQueue) Object.assign(existingQueue, payload)" in shared,
           }
           missing = [name for name, ok in required.items() if not ok]
