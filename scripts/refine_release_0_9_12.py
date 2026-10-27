@@ -105,6 +105,36 @@ app = app[:alias_start] + app[alias_end:]
 # Keep the app's dictionary results and the French fallback attached to a shared row.
 if "lookupLocalSynonymAt(input,i)" in app[app.find("function tokenize(raw)"):app.find("function tokenize(raw)")+4000]:
     raise SystemExit("Automatic synonym lookup remains in the tokenizer")
+# 2b. The dictionary has more entries than should be rendered in one DOM update.
+#     Show the first 250, then let the user progressively reveal the rest.
+app = replace_once(
+    app,
+    "function renderDictionary(){",
+    "let dictVisibleLimit=250;\nfunction renderDictionary(){",
+    "dictionary pagination state",
+)
+app = replace_once(
+    app,
+    "filtered.slice(0,250).map(x=>",
+    "filtered.slice(0,dictVisibleLimit).map(x=>",
+    "dictionary progressive render limit",
+)
+old_dictionary_end = """ $('dictResults').querySelectorAll('[data-fav]').forEach(b=>b.addEventListener('click',()=>toggleFav(b.dataset.fav)));
+}"""
+new_dictionary_end = """ $('dictResults').querySelectorAll('[data-fav]').forEach(b=>b.addEventListener('click',()=>toggleFav(b.dataset.fav)));
+ if(filtered.length>dictVisibleLimit){
+  const more=document.createElement('button');
+  more.type='button';more.className='soft mini';
+  more.textContent='加载更多（已显示 '+Math.min(dictVisibleLimit,filtered.length)+' / '+filtered.length+' 条）';
+  more.style.cssText='width:100%;margin:10px 0 4px';
+  more.addEventListener('click',()=>{dictVisibleLimit=Math.min(filtered.length,dictVisibleLimit+250);renderDictionary();});
+  $('dictResults').appendChild(more);
+ }
+}"""
+app = replace_once(app, old_dictionary_end, new_dictionary_end, "dictionary load-more control")
+old_filter_events = "$('dictSearch').addEventListener('input',renderDictionary);$('category').addEventListener('change',renderDictionary);"
+new_filter_events = "$('dictSearch').addEventListener('input',()=>{dictVisibleLimit=250;renderDictionary();});$('category').addEventListener('change',()=>{dictVisibleLimit=250;renderDictionary();});"
+app = replace_once(app, old_filter_events, new_filter_events, "dictionary filters reset paging")
 write("app.js", app)
 
 # 3. Public shared vocabulary must never receive private source/contact notes
