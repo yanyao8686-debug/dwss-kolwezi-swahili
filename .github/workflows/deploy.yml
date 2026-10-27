@@ -10,6 +10,7 @@ on:
       - 'scripts/integrate_shared_search.py'
       - 'scripts/finalize_shared_release.py'
       - 'scripts/upgrade_context_0_9_0.py'
+      - 'scripts/refine_release_0_9_12.py'
   workflow_dispatch:
 
 permissions:
@@ -228,7 +229,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge */
+          /* DWSS 0.9.12 — one-step shared vocabulary sync and legacy edit bridge */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -331,11 +332,11 @@ jobs:
           .pwa-toast.visible{opacity:1;transform:translateY(0)}
           .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge" not in html:
+          if "DWSS 0.9.12 — one-step shared vocabulary sync and legacy edit bridge" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.11 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.12 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -587,12 +588,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.11';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.12';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.11", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.12", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -608,9 +609,18 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.11 enables one-step sync for new terms and on-edit sync for legacy terms.")
+          print("DWSS 0.9.12 enables one-step sync for new terms and on-edit sync for legacy terms.")
           PY
-      - name: Validate one-step shared sync and legacy edit bridge 0.9.11
+      - name: Apply DWSS 0.9.12 product-quality fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/refine_release_0_9_12.py
+          python3 scripts/refine_release_0_9_12.py public
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/sw.js
+      - name: Validate DWSS 0.9.12 navigation, privacy, install, candidates and sync
         shell: bash
         run: |
           set -euo pipefail
@@ -635,7 +645,7 @@ jobs:
           if not nav:
               raise SystemExit("Primary navigation missing")
           tabs = re.findall(r'data-tab="([^"]+)"', nav.group(1))
-          if tabs != ["translate", "saved", "maintenance"]:
+          if tabs != ["translate", "dictionary", "saved", "maintenance"]:
               raise SystemExit("Unexpected primary navigation: " + repr(tabs))
           if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
               raise SystemExit("Dictionary panel/data was removed unexpectedly")
@@ -644,9 +654,30 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.11" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.11';" public/sw.js
-          grep -Fq "DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge" public/index.html
+          grep -Fq "Version: 0.9.12" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.12';" public/sw.js
+          grep -Fq "DWSS 0.9.12 — restored dictionary, safer sharing and manual candidates" public/index.html
+          grep -Fq 'data-tab="dictionary"' public/index.html
+          grep -Fq 'grid-template-columns:repeat(4,minmax(0,1fr))' public/index.html
+          grep -Fq '.status-strip #installAppBtn:not([hidden])' public/index.html
+          grep -Fq 'id="personalShareNotice"' public/index.html
+          grep -Fq '来源”和“个人备注”只保存在本机' public/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          app = (Path("public") / "app.js").read_text(encoding="utf-8")
+          shared = (Path("public") / "shared-lexicon.js").read_text(encoding="utf-8")
+          tokenizer = app[app.find("function tokenize(raw)"):app.find("function renderTranslation")]
+          if "lookupLocalSynonymAt(input,i)" in tokenizer:
+              raise SystemExit("Automatic synonym replacement remains in tokenizer")
+          if "french:String(t.french_text||'').trim()" not in app:
+              raise SystemExit("Shared French fallback is still dropped")
+          if shared.count("notes: null") < 2:
+              raise SystemExit("Personal source/note data may still be published")
+          if "scheduleRetry()" not in shared or "visibleLimit += 300" not in shared:
+              raise SystemExit("Shared sync retry or load-more support missing")
+          if '.range(offset, offset + pageSize - 1)' not in shared:
+              raise SystemExit("Shared cloud pagination missing")
+          PY
           python3 - <<'PY'
           from pathlib import Path
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
@@ -723,7 +754,7 @@ jobs:
           const nav=html.match(/<nav class="tabs">(.*?)<\/nav>/s);
           if(!nav) throw new Error('Primary navigation missing');
           const tabs=[...nav[1].matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]);
-          if(tabs.join(',')!=='translate,saved,maintenance') throw new Error('Unexpected navigation: '+tabs.join(','));
+          if(tabs.join(',')!=='translate,dictionary,saved,maintenance') throw new Error('Unexpected navigation: '+tabs.join(','));
           for(const id of ['translate','saved','maintenance','dictionary','dictSearch','inputText','resultReading','segmentList','favorites','history','entryForm','exportCustom','importCustom','networkBadge','pwaState','pwaMessage','pwaToast','checkUpdateBtn']) {
             if(!idSet.has(id)) throw new Error('Required UI element missing: '+id);
           }
