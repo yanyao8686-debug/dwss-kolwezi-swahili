@@ -80,7 +80,7 @@ nav_css = """
 html = html.replace("</style>", nav_css + "\n</style>", 1)
 # Clear any pre-existing signature card from older HTML before placing the two
 # side mottos on the cover image itself.
-html, _ = re.subn(r'<section class="owner-signature"[^>]*>.*?</section>\\s*', '', html, flags=re.S)
+html, _ = re.subn(r'<section class="owner-signature"[^>]*>.*?</section>\s*', '', html, flags=re.S)
 owner_markup = (
     '<section class="owner-signature" aria-label="品牌署名">'
     '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
