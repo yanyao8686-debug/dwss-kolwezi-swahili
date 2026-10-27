@@ -555,7 +555,12 @@ shared = replace_once(
     "public notes placeholder",
 )
 private_note_line = 'notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null'
-shared = replace_once(shared, private_note_line, "notes: null", "do not publish personal source/note", expected=2)
+if shared.count(private_note_line) == 2:
+    shared = replace_once(shared, private_note_line, "notes: null", "do not publish personal source/note", expected=2)
+elif shared.count("notes: null") >= 2:
+    print("PASS: personal source and note fields are already excluded from automatic sharing.")
+else:
+    raise SystemExit("Personal source/note privacy invariant not satisfied.")
 
 # Keep shared list searches consistent, show optional French fallback without
 # mislabelling it as the local Swahili term, and allow revealing more than 300 rows.
