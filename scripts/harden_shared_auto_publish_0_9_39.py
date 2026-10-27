@@ -17,6 +17,7 @@ html=read("index.html")
 marker_count=html.count("DWSS 0.9.38")
 if marker_count < 1: raise SystemExit("No DWSS 0.9.38 HTML release markers found")
 html=html.replace("DWSS 0.9.38","DWSS 0.9.39")
+html=once(html,"#resultCard .dwss-secondary-details>summary{list-style:none;cursor:pointer;color:#ff4b12!important;font-size:16px!important;font-weight:800!important;line-height:1.2;padding:5px 2px;text-decoration-line:underline!important;text-decoration-color:#ff4b12!important;text-decoration-thickness:2px!important;text-underline-offset:4px!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important}","#resultCard .dwss-secondary-details>summary{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;list-style:none;cursor:pointer;color:#ff4b12!important;font-size:clamp(10px,3.4vw,13px)!important;font-weight:800!important;line-height:1.35;padding:5px 0!important;letter-spacing:-.03em!important;text-decoration-line:underline!important;text-decoration-color:#ff4b12!important;text-decoration-thickness:2px!important;text-underline-offset:3px!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;overflow:visible!important;text-overflow:clip!important}","responsive details summary typography")
 write("index.html",html)
 
 sw=once(read("sw.js"),"const APP_VERSION = '0.9.38';","const APP_VERSION = '0.9.39';","Service Worker cache namespace")
