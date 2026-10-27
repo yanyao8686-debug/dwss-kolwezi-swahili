@@ -79,9 +79,7 @@ nav_css = """
 """
 html = html.replace("</style>", nav_css + "\n</style>", 1)
 owner_markup = (
-    '<section class="owner-signature" aria-label="品牌寄语">'
-    '<div class="owner-name">陈谍</div>'
-    '<div class="owner-motto">以德立身 · 以信行远</div>'
+    '<section class="owner-signature" aria-label="品牌署名">'
     '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
     '</section>'
 )
@@ -90,11 +88,11 @@ if owner_count != 1:
     raise SystemExit("Could not place owner signature inside cover artwork")
 owner_css = """
 .cover-frame{position:relative}
-.owner-signature{--owner-text-color:#f7f8fc;position:absolute;left:0;right:0;bottom:3.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:#f2f5fb;box-shadow:none;pointer-events:none}
-.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:var(--owner-text-color);text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(222,232,250,.35)}
-.owner-motto{margin-top:2px;font-size:11px;letter-spacing:.12em;color:#e7edf8;text-shadow:0 1px 4px rgba(0,0,0,.65)}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:var(--owner-text-color);text-shadow:0 1px 4px rgba(0,0,0,.75)}
-@media(min-width:700px){.owner-signature{bottom:4%;padding:0 9%}.owner-name{font-size:28px}.owner-sides{font-size:15px}}
+.owner-signature{--owner-text-color:#debe79;position:absolute;left:0;right:0;bottom:7.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:var(--owner-text-color);box-shadow:none;pointer-events:none}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:0 auto;max-width:none;font-size:clamp(16px,3.2vw,22px);font-weight:800;letter-spacing:.1em;color:var(--owner-text-color);text-shadow:0 1px 2px rgba(0,0,0,.72),0 0 7px rgba(222,190,121,.22)}
+.owner-sides span{white-space:nowrap}
+@media(min-width:700px){.owner-signature{bottom:7.5%;padding:0 8%}.owner-sides{font-size:22px}}
+@media(max-width:380px){.owner-signature{padding:0 6%}.owner-sides{font-size:clamp(15px,4vw,17px);letter-spacing:.06em}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
 # Simplify the translation result: keep the local reading prominent and remove auxiliary panels.
@@ -584,15 +582,15 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.18';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.19';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.18", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.19", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
-if 'color:#f7f8fc' not in html or '.owner-name' not in html or '.owner-sides' not in html:
-    raise SystemExit("Owner signature color rules are missing")
+if 'color:#debe79' not in html or '.owner-sides' not in html or '.owner-name' in html or '.owner-motto' in html:
+    raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.18 compact result UI, source additions, navigation and matching signature colors applied.")
+print("DWSS 0.9.19 clean cover signature, source additions, navigation and compact result UI applied.")
