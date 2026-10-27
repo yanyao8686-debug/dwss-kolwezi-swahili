@@ -655,7 +655,7 @@ app=app.replace(
 old_helpers="""function localReadingVariant(item){return (item.variants||[]).find(v=>v.reading)||null;}
 function localLatinVariants(item){return (item.variants||[]).map(v=>v.latin).filter(Boolean);}"""
 new_helpers="""function preferredLocalVariants(item){
- const variants=(item.variants||[]).filter(v=>v.reading||v.latin);
+ const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
  // Priority is fixed: the two original source files, then community-shared local Swahili,
  // then personal local additions. French is never treated as a local-language hit.
  for(const origin of ['builtin','shared','personal']){
@@ -668,7 +668,7 @@ function localReadingVariant(item){return preferredLocalVariants(item).find(v=>v
 function localLatinVariants(item){return preferredLocalVariants(item).map(v=>v.latin).filter(Boolean);}
 function localOrigin(item){
  for(const origin of ['builtin','shared','personal']){
-  if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)))return origin;
+  if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')))return origin;
  }
  return null;
 }
