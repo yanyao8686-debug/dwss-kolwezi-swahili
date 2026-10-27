@@ -235,13 +235,21 @@ else:
     input_inner = html[input_bounds[1]:input_bounds[2]]
     result_inner = html[result_bounds[1]:result_bounds[2]]
 
+    # Preserve the legacy source node for renderTranslation(), but do not
+    # depend on the exact label text, attribute order, or separator markup.
     result_inner, source_count = re.subn(
-        r'<div class="resultlabel">原文</div>\s*(<div id="resultOriginal"[^>]*>.*?</div>)\s*<hr[^>]*>',
-        r'<div class="source-echo" hidden><div class="resultlabel">输入原文</div>\1</div>',
+        r'<div\\b(?=[^>]*\\bid="resultOriginal")[^>]*>.*?</div>',
+        lambda match: '<div class="source-echo" hidden><div class="resultlabel">输入原文</div>' + match.group(0) + '</div>',
         result_inner, count=1, flags=re.S
     )
     if source_count != 1:
-        raise SystemExit("Could not preserve the source text in its hidden compatibility node")
+        raise SystemExit("Could not preserve #resultOriginal in its hidden compatibility node")
+    result_inner = re.sub(
+        r'<div class="resultlabel">[^<]*</div>\\s*(?=<div class="source-echo" hidden>)',
+        '',
+        result_inner, count=1, flags=re.S
+    )
+    result_inner = re.sub(r'</div>\\s*<hr[^>]*>', '</div>', result_inner, count=1, flags=re.S)
     result_inner = result_inner.replace('<h2>翻译结果</h2>', '<h2>当地斯语中文谐音</h2>', 1)
     result_inner = result_inner.replace(
         '当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）',
