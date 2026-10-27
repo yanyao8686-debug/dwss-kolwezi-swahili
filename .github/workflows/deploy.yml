@@ -1,5 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
-# 0.9.27 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
+# 0.9.28 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
 
 on:
   push:
@@ -686,8 +686,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.27" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.27';" public/sw.js
+          grep -Fq "Version: 0.9.28" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.28';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -717,7 +717,7 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.27 — four-item navigation, collapsed details and gold headings" public/index.html
+          grep -Fq "DWSS 0.9.28 — four-item navigation, collapsed details and gold headings" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -938,8 +938,8 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg"; then
-                if grep -Fq "Version: 0.9.27" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.27" "$TMP/index.html" \
+                if grep -Fq "Version: 0.9.28" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.28" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
@@ -955,7 +955,7 @@ jobs:
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.27"
+                  FAILURE_REASON="all live assets match 0.9.28"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -969,7 +969,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.27 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.28 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
