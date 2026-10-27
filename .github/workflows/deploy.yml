@@ -648,6 +648,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'echo "VALIDATION FAILED at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
           ! grep -Fq '<header class="top">' public/index.html
           ! grep -Fq 'class="card pwa-card"' public/index.html
           grep -Fq 'class="status-strip"' public/index.html
