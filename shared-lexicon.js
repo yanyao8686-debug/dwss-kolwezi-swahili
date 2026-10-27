@@ -419,7 +419,8 @@ window.DWSSSharedLexicon = Object.freeze({
   get count() { return terms.length + queue.length; }
 });
 function start() {
-  buildUi(); notifyApp();
+  // Shared vocabulary is automatic; do not create a separate floating UI.
+  notifyApp();
   window.addEventListener("dwss:personal-term-added", event => {
     const detail = event && event.detail || {};
     const entry = detail.entry || detail;
