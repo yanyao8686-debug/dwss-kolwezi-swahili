@@ -1,5 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
-# 0.9.30 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
+# 0.9.31 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
 
 on:
   push:
@@ -674,11 +674,13 @@ jobs:
           if not nav:
               raise SystemExit("Primary navigation missing")
           tabs = re.findall(r'data-tab="([^"]+)"', nav.group(1))
-          required_tabs = ["maintenance", "translate", "saved"]
+          required_tabs = ["maintenance", "saved"]
           if any(f'data-tab="{tab}"' not in nav.group(1) for tab in required_tabs):
               raise SystemExit("Required primary navigation action missing: " + repr(tabs))
-          if 'data-tab="dictionary"' in nav.group(1):
-              raise SystemExit("Dictionary must not appear in primary navigation")
+          if 'data-tab="translate"' in nav.group(1) or 'data-tab="dictionary"' in nav.group(1):
+              raise SystemExit("Translation must be the default page, not a top navigation option; dictionary must remain hidden")
+          if nav.group(1).count("<button") != 3 or 'class="nav-clear-slot"' not in nav.group(1):
+              raise SystemExit("Primary navigation must contain exactly three equal action slots")
           if 'id="dictionary"' not in html or 'id="dictSearch"' not in html:
               raise SystemExit("Dictionary panel/data was removed unexpectedly")
           if "linear-gradient(135deg,#103966,#1d5a8e)" not in html:
@@ -686,8 +688,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.30" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.30';" public/sw.js
+          grep -Fq "Version: 0.9.31" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.31';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -717,13 +719,19 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.30 — four-item navigation, collapsed details and gold headings" public/index.html
+          grep -Fq "DWSS 0.9.31 — three-action navigation, default translation and collapsed details" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
           checks = {
+              "three equal navigation actions, with translation as the default page": 'class="nav-clear-slot"' in html and "grid-template-columns:repeat(3,minmax(0,1fr))" in html and 'data-tab="maintenance"' in html and 'data-tab="saved"' in html and 'data-tab="translate"' not in re.search(r'<nav class="tabs">(.*?)</nav>',html,re.S).group(1) and 'class="panel active" id="translate"' in html,
+              "clear information button is moved to the third equal navigation slot": "nav-clear-action" in html and "clearButton.textContent='清空信息'" in html and "clearSlot.replaceWith(clearButton)" in html,
+              "add and history panels have a return path to the default translation page": "dwss-return-translation" in html and "panel.id==='translate'" in html,
+              "input and result headings are gold with Chinese colons": "color:#d3a94d!important" in html and "输入你想表达的中文：" in html and "翻译的斯语中文谐音：" in html,
+              "nonessential translation detail is preserved in a collapsed disclosure": "dwss-secondary-details" in html and "查看翻译依据与匹配详情（需要时展开）" in html and "secondary.forEach(node=>disclosure.appendChild(node))" in html,
+              "manual lookup button is removed from the visible translation interface": '#resultCard #translateBtn{display:none!important}' in html and "查词并拼配" not in html,
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "only one gold motto block is overlaid inside the cover": html.count('class="owner-signature"') == 1 and re.search(r'<section class="cover-frame"[^>]*>.*?class="owner-signature".*?</section>',html,re.S) and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
               "side mottos and 陈谍 use one metallic-gold type rule": "--owner-gold:#e9c978" in html.split(".owner-signature{",1)[1].split("}",1)[0] and ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "filter:brightness(1.15)" in html and "font-weight:700" in html and "color:var(--owner-gold)" in html and "background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%)" in html.split(".owner-cover-author,.owner-sides span{",1)[1].split("}",1)[0],
@@ -934,8 +942,8 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg"; then
-                if grep -Fq "Version: 0.9.30" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.30" "$TMP/index.html" \
+                if grep -Fq "Version: 0.9.31" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.31" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
@@ -951,7 +959,7 @@ jobs:
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.30"
+                  FAILURE_REASON="all live assets match 0.9.31"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -965,7 +973,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.30 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.31 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi

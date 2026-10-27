@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.30 matched input and result surfaces for the translation workspace."""
+"""DWSS 0.9.31 matched input and result surfaces for the translation workspace."""
 from pathlib import Path
 import csv
 import gzip
@@ -29,14 +29,14 @@ def replace_once(source, old, new, label, expected=1):
 
 # 1. Keep the dictionary engine/data, but permanently remove its primary-navigation entry.
 html = read("index.html")
-nav_new = """<nav class="tabs"><button class="tab" data-tab="maintenance"><span>添加新词</span></button><button class="tab active" data-tab="translate"><span>翻译</span></button><button class="tab" data-tab="saved"><span>历史记录</span></button><button class="tab nav-clear-slot" type="button" aria-label="清空">清空</button></nav>"""
+nav_new = """<nav class="tabs"><button class="tab" data-tab="maintenance"><span>添加新词</span></button><button class="tab" data-tab="saved"><span>历史记录</span></button><button class="nav-clear-slot" type="button" aria-label="清空信息">清空信息</button></nav>"""
 html, nav_count = re.subn(r'<nav class="tabs">.*?</nav>', lambda _: nav_new, html, count=1, flags=re.S)
 if nav_count != 1:
     raise SystemExit("Primary navigation replacement failed")
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.30 — four-item navigation, collapsed details and gold headings",
+    "DWSS 0.9.31 — three-action navigation, default translation and collapsed details",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.30 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.31 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -252,7 +252,7 @@ else:
     )
     result_inner = re.sub(r'</div>\s*<hr[^>]*>', '</div>', result_inner, count=1, flags=re.S)
     result_inner = result_inner.replace('<h2>翻译结果</h2>', '<h2>翻译的斯语中文谐音：</h2>', 1)
-    result_inner = result_inner.replace('当地斯语中文谐音</h2>', '翻译的斯语中文谐音：</h2>', 1)
+    result_inner = result_inner.replace('翻译的斯语中文谐音：</h2>', '翻译的斯语中文谐音：</h2>', 1)
     result_inner = result_inner.replace(
         '当地斯瓦西里语中文谐音（法语补位显示中文谐音并标注“法语”）',
         '当地读音 · 中文谐音（法语备用会单独标注）', 1
@@ -271,7 +271,7 @@ else:
     html = html[:input_bounds[0]] + workspace + html[input_bounds[3]:]
 
 html = ensure_hidden_samples_node(html)
-html = html.replace('输入你想表达的中文</h2>', '输入你想表达的中文：</h2>', 1)
+html = html.replace('输入你想表达的中文：</h2>', '输入你想表达的中文：</h2>', 1)
 html = html.replace('当地斯语中文谐音</h2>', '翻译的斯语中文谐音：</h2>', 1)
 if html.count('id="translationWorkspace"') != 1 or html.count('id="samples"') != 1:
     raise SystemExit("Translation workspace or hidden compatibility node was not created exactly once")
@@ -279,12 +279,16 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.30 — compact four-item navigation and collapsed secondary details */
+/* DWSS 0.9.31 — three equal actions, default translation home and collapsed secondary details */
 #translate.panel.active{display:block!important}
-nav.tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;align-items:stretch}
-nav.tabs .tab,nav.tabs #clearBtn{min-width:0!important;width:100%!important;min-height:54px!important;padding:9px 3px!important;display:flex!important;align-items:center!important;justify-content:center!important;white-space:nowrap!important;font-size:clamp(13px,3.2vw,16px)!important;line-height:1.15!important}
+nav.tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;align-items:stretch}
+nav.tabs .tab,nav.tabs .nav-clear-action{min-width:0!important;width:100%!important;min-height:52px!important;padding:8px 3px!important;display:flex!important;align-items:center!important;justify-content:center!important;white-space:nowrap!important;font-size:clamp(13px,3.1vw,16px)!important;line-height:1.15!important;flex:initial!important}
 nav.tabs .tab span{display:inline!important}
-nav.tabs #clearBtn{border-radius:14px!important}
+nav.tabs .nav-clear-action{border:1px solid #e1e7ed!important;border-radius:15px!important;background:linear-gradient(145deg,#f4f6f8,#e9eef3)!important;color:#425a73!important;font-weight:700;box-shadow:0 2px 5px rgba(29,55,81,.045)}
+nav.tabs .tab.active{border-color:#123f70!important;background:linear-gradient(135deg,#103966,#1c5688)!important;color:#fff!important;box-shadow:0 7px 16px rgba(16,57,102,.22)}
+nav.tabs .nav-clear-action:active{transform:translateY(1px)}
+nav.tabs .nav-clear-action:focus-visible,.dwss-return-translation:focus-visible{outline:3px solid rgba(207,169,77,.35)!important;outline-offset:2px}
+.dwss-return-translation{display:flex;align-items:center;justify-content:flex-start;width:100%;margin:0 0 10px;padding:3px 2px 8px;background:transparent;color:#c49b43;font-size:13px;font-weight:750;text-align:left}
 #translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(17,44,82,.06);margin:0 0 10px}
 .translation-input-section,.translation-output-section{min-width:0}
 .translation-input-section{padding:10px 12px 5px}
@@ -300,7 +304,7 @@ nav.tabs #clearBtn{border-radius:14px!important}
 #resultCard .resultlabel{font-size:10px;color:#78869c;letter-spacing:.02em}
 #resultCard #resultReading{width:100%;box-sizing:border-box;min-height:88px;padding:10px 12px;border:1px solid #dfc477!important;border-radius:14px!important;background:#F7E3A0!important;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)!important;color:#28344a;font-size:clamp(22px,4.4vw,30px);font-weight:800;line-height:1.45;letter-spacing:.02em;overflow-wrap:anywhere;display:flex;align-items:center}
 #resultCard #resultReading.empty{font-size:15px;font-weight:500;color:#93a0b2}
-#resultCard #translateBtn,#resultCard #clearBtn{display:none!important}
+#resultCard #translateBtn{display:none!important}
 #resultCard .stats{margin-top:6px;margin-bottom:4px}
 #resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}
 #resultCard .dwss-secondary-details{margin-top:7px;border-top:1px solid #e8edf4;padding-top:5px}
@@ -312,7 +316,7 @@ nav.tabs #clearBtn{border-radius:14px!important}
 #resultCard .dwss-secondary-details details{margin:5px 0}
 #samples[hidden]{display:none!important}
 @media(min-width:760px){.panel#translate.active{display:block!important}.panel#translate>.translation-workspace{width:100%;max-width:880px;margin:0 auto 10px}}
-@media(max-width:520px){nav.tabs{gap:5px!important}nav.tabs .tab,nav.tabs #clearBtn{min-height:48px!important;padding:7px 2px!important;font-size:13px!important}#translationWorkspace.card{border-radius:16px}.translation-input-section{padding:8px 10px 4px}.translation-output-section{padding:4px 10px 10px}#resultCard #resultReading{font-size:23px}}
+@media(max-width:520px){nav.tabs{gap:5px!important}nav.tabs .tab,nav.tabs .nav-clear-action{min-height:48px!important;padding:7px 2px!important;font-size:13px!important}#translationWorkspace.card{border-radius:16px}.translation-input-section{padding:8px 10px 4px}.translation-output-section{padding:4px 10px 10px}#resultCard #resultReading{font-size:23px}}
 """
 html = html.replace("</style>", workspace_css + "\n</style>", 1)
 if html.count('id="translationWorkspace"') != 1 or html.count('id="samples" hidden') != 1:
@@ -341,17 +345,45 @@ autogrow_script = r"""<script id="dwss-autogrow-input">
     const clearSlot=nav&&nav.querySelector('.nav-clear-slot');
     const clearButton=document.getElementById('clearBtn');
     const translateButton=document.getElementById('translateBtn');
-    if(clearSlot&&clearButton){clearButton.className='tab';clearButton.textContent='清空';clearButton.setAttribute('aria-label','清空输入和翻译结果');clearSlot.replaceWith(clearButton);}
-    if(translateButton)translateButton.hidden=true;
+    if(clearSlot&&clearButton){
+      clearButton.className='nav-clear-action';
+      clearButton.textContent='清空信息';
+      clearButton.setAttribute('aria-label','清空当前中文输入和翻译结果');
+      clearSlot.replaceWith(clearButton);
+    }
+    if(translateButton){translateButton.hidden=true;translateButton.textContent='自动翻译';}
     if(actions&&actions.parentElement!==outputSection)outputSection.insertBefore(actions,stats||null);
     if(helper&&helper.parentElement!==outputSection)outputSection.insertBefore(helper,stats||null);
     const secondary=[];
-    outputSection.querySelectorAll('.hint,.segmentlist,.quality-note,.candidate-extra,.segment-meta,details').forEach(node=>{if(!node.closest('.dwss-secondary-details'))secondary.push(node);});
+    Array.from(outputSection.children).forEach(node=>{
+      if(node.classList.contains('stats') ||
+         node.matches('details.quality-note,details.hint') ||
+         node.classList.contains('segmentlist') ||
+         (node.classList.contains('resultlabel')&&node.textContent.includes('匹配明细'))){
+        secondary.push(node);
+      }
+    });
     if(secondary.length&&!outputSection.querySelector('.dwss-secondary-details')){
       const disclosure=document.createElement('details');disclosure.className='dwss-secondary-details';
       const summary=document.createElement('summary');summary.textContent='查看翻译依据与匹配详情（需要时展开）';disclosure.appendChild(summary);
       secondary.forEach(node=>disclosure.appendChild(node));outputSection.appendChild(disclosure);
     }
+    const goTranslate=()=>{
+      document.querySelectorAll('.panel').forEach(panel=>panel.classList.toggle('active',panel.id==='translate'));
+      document.querySelectorAll('nav.tabs .tab').forEach(tab=>tab.classList.remove('active'));
+      window.scrollTo({top:0,behavior:'smooth'});
+    };
+    ['maintenance','saved'].forEach(panelId=>{
+      const panel=document.getElementById(panelId);
+      if(panel&&!panel.querySelector('.dwss-return-translation')){
+        const back=document.createElement('button');
+        back.type='button';back.className='dwss-return-translation';
+        back.textContent='← 返回翻译主界面';
+        back.addEventListener('click',goTranslate);
+        const card=panel.querySelector('.card')||panel;
+        card.insertBefore(back,card.firstChild);
+      }
+    });
     if(input.dataset.dwssAutoGrowBound!=='1'){
       input.addEventListener('input',function(){fit(input);});
       input.addEventListener('change',function(){fit(input);});
@@ -818,10 +850,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.30';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.31';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.30", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.31", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -829,4 +861,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.30 four-item navigation, collapsed secondary details and gold headings applied.")
+print("DWSS 0.9.31 four-item navigation, collapsed secondary details and gold headings applied.")
