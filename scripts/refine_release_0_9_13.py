@@ -78,6 +78,9 @@ nav_css = """
 @media(max-width:420px){.tabs .tab{min-height:54px;font-size:11px}.tabs .tab[data-tab="translate"]{font-size:14px}}
 """
 html = html.replace("</style>", nav_css + "\n</style>", 1)
+# Clear any pre-existing signature card from older HTML before placing the two
+# side mottos on the cover image itself.
+html, _ = re.subn(r'<section class="owner-signature"[^>]*>.*?</section>\\s*', '', html, flags=re.S)
 owner_markup = (
     '<section class="owner-signature" aria-label="品牌署名">'
     '<div class="owner-sides"><span>德行四海</span><span>威震八方</span></div>'
@@ -583,15 +586,15 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.19';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.20';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.19", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.20", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
-if 'color:#debe79' not in html or '.owner-sides' not in html or '.owner-name' in html or '.owner-motto' in html:
+if '--owner-gold:#e9c978' not in html or '.owner-sides' not in html or 'font-size:clamp(18px,5.4vw,25px)' not in html or '.owner-name' in html or '.owner-motto' in html:
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.19 clean cover signature, source additions, navigation and compact result UI applied.")
+print("DWSS 0.9.20 gold cover mottos, source additions, navigation and compact result UI applied.")
