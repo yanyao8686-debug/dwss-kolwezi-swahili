@@ -793,14 +793,14 @@ jobs:
           const nav=html.match(/<nav class="tabs">(.*?)<\/nav>/s);
           if(!nav) throw new Error('Primary navigation missing');
           const tabs=[...nav[1].matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]);
-          if(tabs.join(',')!=='translate,dictionary,saved,maintenance') throw new Error('Unexpected navigation: '+tabs.join(','));
+          if(tabs.join(',')!=='maintenance,translate,saved') throw new Error('Unexpected navigation: '+tabs.join(','));
           for(const id of ['translate','saved','maintenance','dictionary','dictSearch','inputText','resultReading','segmentList','favorites','history','entryForm','exportCustom','importCustom','networkBadge','pwaState','pwaMessage','pwaToast','checkUpdateBtn']) {
             if(!idSet.has(id)) throw new Error('Required UI element missing: '+id);
           }
           if(html.includes('id="saveHistoryBtn"')) throw new Error('Save-to-history button still present');
           if(!html.includes('id="pwaState" hidden')) throw new Error('PWA mode chip should start hidden');
           if(!boot.includes("for (const src of ['./french-fallback.js', './app.js', './pwa.js'])")) throw new Error('Bootstrap module load sequence changed');
-          console.log('Regression audit passed: unique IDs, guarded controls, four tabs, dictionary panel, late PWA initialization and update feedback.');
+          console.log('Regression audit passed: unique IDs, guarded controls, three tabs, dictionary data panel, late PWA initialization and update feedback.');
           NODE
           node --check public/boot.js
           node --check public/pwa.js
