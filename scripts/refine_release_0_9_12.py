@@ -218,7 +218,7 @@ shared = replace_once(
 # A subsequent duplicate-key lookup resolves whether the first insert committed.
 shared = replace_once(
     shared,
-    '  } catch (e) {\n    setStatus("提交失败：" + (e && e.message ? e.message : "请检查网络后重试"), "error");\n    alert("共享词条提交失败，请稍后重试。\\\\n" + (e && e.message ? e.message : ""));',
+    '  } catch (e) {\n    setStatus("提交失败：" + (e && e.message ? e.message : "请检查网络后重试"), "error");\n    alert("共享词条提交失败，请稍后重试。\\n" + (e && e.message ? e.message : ""));',
     '  } catch (e) {\n    queue = queue.filter(q => q.client_submit_id !== payload.client_submit_id);\n    queue.unshift(payload); save(QUEUE_KEY, queue); render(); count(); notifyApp();\n    setStatus("提交结果暂未确认；已保留本机队列，联网后自动核对并补传。", "offline");\n    scheduleRetry();',
     "queue ambiguous manual shared submit",
 )
