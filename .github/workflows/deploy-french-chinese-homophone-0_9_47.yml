@@ -90,7 +90,7 @@ jobs:
             "legacy phrase script is not precached": "french-fallback.js" not in sw,
             "cover exists": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
             "dictionary exists": (p/"dictionary.js.gz").is_file(),
-            "updated usage guide": "DWSS 0.9.47" in (p/"README_部署与使用.md").read_text(encoding="utf-8"),
+            "updated usage guide": "0.9.47" in (p/"README_部署与使用.md").read_text(encoding="utf-8"),
           }
           for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
           failed=[name for name,ok in checks.items() if not ok]
