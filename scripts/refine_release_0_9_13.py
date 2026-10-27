@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.22 responsive translation workspace and quality refinements."""
+"""DWSS 0.9.23 matched input and result surfaces for the translation workspace."""
 from pathlib import Path
 import csv
 import gzip
@@ -36,7 +36,7 @@ if nav_count != 1:
 html = replace_once(
     html,
     "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge",
-    "DWSS 0.9.22 — centered navigation, full source additions and gold cover mottos",
+    "DWSS 0.9.23 — centered navigation, full source additions and gold cover mottos",
     "release CSS marker",
 )
 html = re.sub(r"版本 0\.9\.11[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
@@ -162,7 +162,7 @@ if 'id="dwss-simple-result-ui"' not in html:
     html = html.replace("</body>", result_ui_script + "\n</body>", 1)
 if '#resultCard .quality-note' not in html or '点击当地读音复制' not in html:
     raise SystemExit("Compact result UI did not apply")
-html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.22 · DWSS 智能翻译 PWA", html, count=1)
+html = re.sub(r"版本 0\.9\.13[^<]*", "版本 0.9.23 · DWSS 智能翻译 PWA", html, count=1)
 
 # 1b. Use one Google-Translate-style card with the Chinese input above and
 #     the local-reading result directly below. Keep a hidden samples node
@@ -275,7 +275,7 @@ if '<h2>常用表达</h2>' in html or 'id="resultReading"' not in html:
     raise SystemExit("The visible samples card remains or the result node is missing")
 
 workspace_css = r"""
-/* DWSS 0.9.22 — unified Google-Translate-style input and result surface */
+/* DWSS 0.9.23 — matched-color, matched-height Google-Translate-style input and result surface */
 #translate.panel.active{display:block!important}
 #translationWorkspace.card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;border:1px solid #dfe7f1;border-radius:22px;background:#fff;box-shadow:0 12px 34px rgba(17,44,82,.075);margin:0 0 16px}
 .translation-input-section,.translation-output-section{min-width:0;padding:clamp(16px,3.2vw,25px)}
@@ -292,7 +292,7 @@ workspace_css = r"""
 #resultCard .sectionTitle{align-items:center;margin-bottom:14px}
 #resultCard .sectionTitle h2{font-size:clamp(16px,2.4vw,19px);font-weight:750;letter-spacing:-.02em;color:#172b49}
 #resultCard .resultlabel{font-size:11px;color:#78869c;letter-spacing:.02em}
-#resultCard #resultReading{min-height:72px;padding:10px 0 12px;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#152b4b;font-size:clamp(24px,4.8vw,34px);font-weight:800;line-height:1.55;letter-spacing:.025em;overflow-wrap:anywhere}
+#resultCard #resultReading{width:100%;box-sizing:border-box;min-height:clamp(126px,20vw,176px);padding:15px 16px;border:1px solid #dfc477!important;border-radius:16px!important;background:#F7E3A0!important;box-shadow:inset 0 1px 2px rgba(111,82,24,.05)!important;color:#28344a;font-size:clamp(24px,4.8vw,34px);font-weight:800;line-height:1.55;letter-spacing:.025em;overflow-wrap:anywhere;display:flex;align-items:center}
 #resultCard #resultReading.empty{font-size:16px;font-weight:500;color:#93a0b2}
 #resultCard .stats{margin-top:8px}
 #resultCard .quality-note,#resultCard .hint{margin-top:12px!important}
@@ -751,10 +751,10 @@ summary = [
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.22';", "service worker cache version")
+sw = replace_once(sw, "const APP_VERSION = '0.9.13';", "const APP_VERSION = '0.9.23';", "service worker cache version")
 write("sw.js", sw)
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.13", "Version: 0.9.22", "release version metadata")
+version = replace_once(version, "Version: 0.9.13", "Version: 0.9.23", "release version metadata")
 write("VERSION.txt", version)
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
@@ -762,4 +762,4 @@ if '--owner-gold:#e9c978' not in html or '.owner-cover-author' not in html or '.
     raise SystemExit("Owner signature placement/color regression detected")
 if 'src="cover.jpg"' not in html or 'id="translationWorkspace"' not in html or 'id="samples" hidden' not in html:
     raise SystemExit("Original DWSS cover artwork reference was removed")
-print("DWSS 0.9.22 matched-gold cover typography, unified live translation workspace and release updates applied.")
+print("DWSS 0.9.23 matched-gold cover typography, matched-color translation result box and release updates applied.")

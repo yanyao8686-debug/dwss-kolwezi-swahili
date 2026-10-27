@@ -1,5 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
-# 0.9.22 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
+# 0.9.23 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
 
 on:
   push:
@@ -686,8 +686,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.22" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.22';" public/sw.js
+          grep -Fq "Version: 0.9.23" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.23';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -717,7 +717,7 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.22 — centered navigation, full source additions and gold cover mottos" public/index.html
+          grep -Fq "DWSS 0.9.23 — centered navigation, full source additions and gold cover mottos" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -731,7 +731,7 @@ jobs:
               "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
-              "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
+              "reading result box matches input color, border and minimum height": '#resultCard #resultReading{width:100%;box-sizing:border-box;min-height:clamp(126px,20vw,176px);padding:15px 16px;border:1px solid #dfc477!important;border-radius:16px!important;background:#F7E3A0!important' in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
               "source and user-proposed 给我 forms are both preserved and clearly marked": "刀呢摸挖" in app and "刀呢莫挖" in app and "原始PDF记录为" in app,
               "side mottos and center author match title scale": ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "font-family:" in html and "white-space:nowrap" in html,
@@ -933,17 +933,18 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg"; then
-                if grep -Fq "Version: 0.9.22" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.22" "$TMP/index.html" \
+                if grep -Fq "Version: 0.9.23" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.23" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
+              && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
                   && grep -Fq "scheduleDwssLiveTranslation" "$TMP/app.js" \
                   && grep -Fq "'compositionstart'" "$TMP/app.js" \
                   && grep -Fq "'compositionend'" "$TMP/app.js" \
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.22"
+                  FAILURE_REASON="all live assets match 0.9.23"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -957,7 +958,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.22 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.23 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
