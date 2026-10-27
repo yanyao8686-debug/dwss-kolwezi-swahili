@@ -809,7 +809,7 @@ jobs:
               "unique-conflict recovery": "23505" in shared,
               "local Swahili can share with verified pronunciation and optional spelling": "if (reading)" in shared and "local_text: latin || null" in shared,
               "latin-only terms never invent pronunciation": "if (latin)" in shared and "补齐当地真实读音" in shared,
-              "legacy personal terms are not bulk-published": 'if (!["pending", "queued"].includes(entry.shareSyncStatus)) continue;' in shared,
+              "legacy personal Swahili terms are auto-backfilled": "function needsAutomaticShare(entry)" in shared and "const hasLocalSwahiliReading = !!String(entry && entry.reading || \"\" ).trim();" in shared and "if (!needsAutomaticShare(entry)) continue;" in shared,
               "shared panel spelling is optional": 'if (swi) swi.required = false;' in shared and 'if (!chinese || !pron || (src === "fr" && !french))' in shared,
               "queued edit reuses same submit ID": "if (existingQueue) Object.assign(existingQueue, payload)" in shared,
           }
