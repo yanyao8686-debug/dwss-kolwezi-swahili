@@ -695,7 +695,7 @@ jobs:
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
               "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
               "side mottos match owner name color": "color:#f7f8fc" in html.split(".owner-name{",1)[1].split("}",1)[0] and "color:#f7f8fc" in html.split(".owner-sides{",1)[1].split("}",1)[0],
-              "local and French variants are separated correctly": "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&" in app and ".test(v.reading||''))||null;" in app,
+              "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
@@ -724,7 +724,7 @@ jobs:
               raise SystemExit("Missing File 2 source readings for 笔 or 给我")
           if "uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.reading).join(' / ')" not in app:
               raise SystemExit("Multiple source readings are not promoted to the main translation result")
-          if "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\\\s*法\\\\s*[)）]/.test(v.reading||''))||null;}" not in app:
+          if "function preferredLocalVariants(item){" not in app or "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" not in app or "function localOrigin(item){" not in app:
               raise SystemExit("French-marked records can still be selected as local Swahili readings")
           if "刀呢摸挖" not in app:
               raise SystemExit("User-reported spelling correction candidate for 给我 is missing")
