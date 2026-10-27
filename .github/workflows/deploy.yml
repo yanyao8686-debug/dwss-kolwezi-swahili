@@ -626,6 +626,15 @@ jobs:
           if(html.includes('id="saveHistoryBtn"')) throw new Error('Save-to-history button still present');
           if(!html.includes('id="pwaState" hidden')) throw new Error('PWA mode chip should start hidden');
           if(!boot.includes("for (const src of ['./french-fallback.js', './app.js', './pwa.js'])")) throw new Error('Bootstrap module load sequence changed');
+          console.log('HTML_SCRIPT_TAGS '+(html.match(/<script[^>]*>/g)||[]).join(' || '));
+          for(const term of ['function validateEntry','function makeId','function addCustomEntry','function updateCustomEntry','window.KolweziSwahili=']){
+            const pos=app.indexOf(term);
+            if(pos>=0) console.log('APP_DETAIL '+term+' '+pos+': '+app.slice(Math.max(0,pos-300),Math.min(app.length,pos+2600)));
+          }
+          for(const id of ['newZh','newLatin','newReading','newFrench','newFrenchReadingZh','newSource']){
+            const pos=html.indexOf('id="'+id+'"');
+            if(pos>=0) console.log('FORM_FIELD '+id+': '+html.slice(Math.max(0,pos-260),Math.min(html.length,pos+180)));
+          }
           for(const term of ['entryForm','saveCustom','loadCustom','localStorage.setItem','custom.push','custom.unshift','renderAll()']){
             let pos=0, found=0;
             while((pos=app.indexOf(term,pos))>=0 && found<3){
