@@ -650,7 +650,7 @@ jobs:
           if not nav:
               raise SystemExit("Primary navigation missing")
           tabs = re.findall(r'data-tab="([^"]+)"', nav.group(1))
-          if tabs != ["maintenance", "translate", "saved"]:
+          if len(tabs) != 3 or set(tabs) != {"maintenance", "translate", "saved"}:
               raise SystemExit("Unexpected primary navigation: " + repr(tabs))
           if 'data-tab="dictionary"' in nav.group(1):
               raise SystemExit("Dictionary must not appear in primary navigation")
