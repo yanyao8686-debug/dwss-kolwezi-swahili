@@ -372,7 +372,7 @@ app = replace_once(app, old_filter_events, new_filter_events, "dictionary filter
 app = replace_once(
     app,
     "$('translateBtn').addEventListener('click',renderTranslation);$('clearBtn')",
-    "let dwssInputTimer=null;$('inputText').addEventListener('input',()=>{clearTimeout(dwssInputTimer);dwssInputTimer=setTimeout(()=>renderTranslation({recordHistory:false}),420);});$('translateBtn').addEventListener('click',renderTranslation);$('clearBtn')",
+    "let dwssInputTimer=null;const scheduleDwssLiveTranslation=delay=>{clearTimeout(dwssInputTimer);dwssInputTimer=setTimeout(()=>renderTranslation({recordHistory:false}),delay);};$('inputText').addEventListener('compositionstart',()=>clearTimeout(dwssInputTimer));$('inputText').addEventListener('compositionend',()=>scheduleDwssLiveTranslation(180));$('inputText').addEventListener('input',event=>{if(event&&event.isComposing)return;scheduleDwssLiveTranslation(420);});$('translateBtn').addEventListener('click',renderTranslation);$('clearBtn')",
     "Google-style live translation input binding",
 )
 app = replace_once(
