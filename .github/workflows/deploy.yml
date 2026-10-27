@@ -1476,7 +1476,7 @@ jobs:
                   && grep -Fq "return hasLocalSwahiliReading || [\"pending\", \"queued\"].includes(status);" "$TMP/shared-lexicon.js" \
                   && grep -Fq "retryPending: retryPendingSync" "$TMP/shared-lexicon.js" \
                   && grep -Fq 'local_text: src === "sw" ? (local || null) : null,' "$TMP/shared-lexicon.js" \
-                  && ! grep -Fq 'buildUi(); notifyApp();' "$TMP/shared-lexicon.js"
+                  && ! grep -Fq 'buildUi(); notifyApp();' "$TMP/shared-lexicon.js" \
                   && grep -Fq "function retryPendingSync()" "$TMP/shared-lexicon.js" \
                   && grep -Fq "function customShareStatusLabel(entry)" "$TMP/app.js" \
                   && grep -Fq "共享状态：" "$TMP/app.js" \
