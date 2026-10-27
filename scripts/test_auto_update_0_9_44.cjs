@@ -22,7 +22,7 @@ assert.match(version,/Version: 0\.9\.44/,'release marker updated');
 assert.match(pwa,/dwss:pwa-resume:0\.9\.44/,'draft snapshot is version-scoped');
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function run({controlled=true,seedSnapshot=false}={}){
+async function run({controlled=true,seedSnapshot=false,simulateUpdate=true}={}){
  const els=new Map(),windowHandlers={},documentHandlers={},serviceWorkerHandlers={};
  const calls={register:0,update:0,reload:0,waitingMessages:0,inputEvents:0,restored:{}};
  class El{
@@ -59,6 +59,7 @@ async function run({controlled=true,seedSnapshot=false}={}){
     addEventListener(t,f){(this.handlers[t]??=[]).push(f);},
     async update(){
      calls.update++;
+     if(!simulateUpdate) return;
      const worker={state:'installing',handlers:{},addEventListener(t,f){(this.handlers[t]??=[]).push(f);}};
      registration.installing=worker;
      (registration.handlers.updatefound||[]).forEach(f=>f());
@@ -108,7 +109,7 @@ async function run({controlled=true,seedSnapshot=false}={}){
  const initial=await run({controlled:false});
  assert.equal(initial.calls.update,1,'first install also checks for updates');
  assert.equal(initial.calls.reload,0,'first installation does not force-reload the page');
- const restored=await run({controlled:true,seedSnapshot:true});
+ const restored=await run({controlled:true,seedSnapshot:true,simulateUpdate:false});
  assert.equal(restored.els.get('inputText').value,'早班','translation draft restored');
  assert.equal(restored.els.get('newZh').value,'夜班','Chinese term draft restored');
  assert.equal(restored.els.get('newReading').value,'本地读音','pronunciation draft restored');
