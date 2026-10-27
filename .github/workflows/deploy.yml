@@ -724,15 +724,17 @@ jobs:
           PY
           python3 - <<'PY'
           from pathlib import Path
+          import gzip
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
           shared = (Path("public") / "shared-lexicon.js").read_text(encoding="utf-8")
+          dictionary = gzip.decompress((Path("public") / "dictionary.js.gz").read_bytes()).decode("utf-8")
           tokenizer = app[app.find("function tokenize(raw)"):app.find("function renderTranslation")]
           if "lookupLocalSynonymAt(input,i)" in tokenizer:
               raise SystemExit("Automatic synonym replacement remains in tokenizer")
           if "french:String(t.french_text||'').trim()" not in app:
               raise SystemExit("Shared French fallback is still dropped")
-          if 'reading:"比各"' not in app or 'reading:"刀呢莫挖"' not in app:
-              raise SystemExit("Missing File 2 source readings for 笔 or 给我")
+          if '"reading":"比各"' not in dictionary or '"reading":"刀呢莫挖"' not in dictionary:
+              raise SystemExit("Missing original File 2 source readings for 笔 or 给我 in compressed dictionary")
           if "uniqueLocalVariants(found).filter(v=>v.reading).map(v=>v.reading).join(' / ')" not in app:
               raise SystemExit("Multiple source readings are not promoted to the main translation result")
           if "function preferredLocalVariants(item){" not in app or "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" not in app or "function localOrigin(item){" not in app:
