@@ -39,9 +39,11 @@ app = once(app, "version:'0.9.41'", "version:'0.9.42'", "app runtime version")
 write("app.js", app)
 
 html = read("index.html")
-if "DWSS 0.9.41" not in html or "版本 0.9.41" not in html:
+if "DWSS 0.9.41" not in html:
     raise SystemExit("Expected DWSS 0.9.41 HTML base")
 html = html.replace("DWSS 0.9.41", "DWSS 0.9.42")
+# The legacy footer still displayed 0.9.32; advance it with the real bundle version.
+html = html.replace("版本 0.9.32", "版本 0.9.42")
 html = html.replace("版本 0.9.41", "版本 0.9.42")
 write("index.html", html)
 
