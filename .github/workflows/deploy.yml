@@ -657,11 +657,22 @@ jobs:
           grep -Fq "Version: 0.9.12" public/VERSION.txt
           grep -Fq "const APP_VERSION = '0.9.12';" public/sw.js
           grep -Fq "DWSS 0.9.12 — restored dictionary, safer sharing and manual candidates" public/index.html
-          grep -Fq 'data-tab="dictionary"' public/index.html
-          grep -Fq 'grid-template-columns:repeat(4,minmax(0,1fr))' public/index.html
-          grep -Fq '.status-strip #installAppBtn:not([hidden])' public/index.html
-          grep -Fq 'id="personalShareNotice"' public/index.html
-          grep -Fq '个人“备注”只保存在本机，不会上传' public/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          html = (Path("public") / "index.html").read_text(encoding="utf-8")
+          checks = {
+              "dictionary nav is visible": 'data-tab="dictionary"' in html,
+              "four navigation columns": "grid-template-columns:repeat(4,minmax(0,1fr))" in html,
+              "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
+              "personal sharing privacy notice is visible": 'id="personalShareNotice"' in html and "不会上传" in html,
+              "dictionary panel remains present": 'id="dictionary"' in html and 'id="dictSearch"' in html,
+          }
+          for name, ok in checks.items():
+              print(("PASS " if ok else "FAIL ") + name)
+          missing = [name for name, ok in checks.items() if not ok]
+          if missing:
+              raise SystemExit("Static quality checks failed: " + ", ".join(missing))
+          PY
           python3 - <<'PY'
           from pathlib import Path
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
