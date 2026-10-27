@@ -10,7 +10,7 @@ on:
       - 'scripts/integrate_shared_search.py'
       - 'scripts/finalize_shared_release.py'
       - 'scripts/upgrade_context_0_9_0.py'
-      - 'scripts/refine_release_0_9_12.py'
+      - 'scripts/refine_release_0_9_13.py'
   workflow_dispatch:
 
 permissions:
@@ -77,6 +77,20 @@ jobs:
           grep -Fq "origin:'shared'" public/app.js
           grep -Fq "dwss:shared-terms-updated" public/shared-lexicon.js
           node --check public/app.js
+          python3 - <<'PY'
+          from pathlib import Path
+          app = (Path("public") / "app.js").read_text(encoding="utf-8")
+          required = [
+              "let dictVisibleLimit=250;",
+              "filtered.slice(0,dictVisibleLimit).map",
+              "dictVisibleLimit+=250",
+              "dictVisibleLimit=250;renderDictionary();",
+              "加载更多（已显示 ",
+          ]
+          missing = [item for item in required if item not in app]
+          if missing:
+              raise SystemExit("Dictionary pagination check failed: " + ", ".join(missing))
+          PY
           node --check public/french-fallback.js
           node --check public/sw.js
           node --check public/pwa.js
@@ -229,7 +243,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.12 — one-step shared vocabulary sync and legacy edit bridge */
+          /* DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -332,11 +346,11 @@ jobs:
           .pwa-toast.visible{opacity:1;transform:translateY(0)}
           .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.12 — one-step shared vocabulary sync and legacy edit bridge" not in html:
+          if "DWSS 0.9.13 — one-step shared vocabulary sync and legacy edit bridge" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.12 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.13 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -588,12 +602,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.12';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.13';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.12", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.13", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -609,18 +623,18 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.12 enables one-step sync for new terms and on-edit sync for legacy terms.")
+          print("DWSS 0.9.13 enables one-step sync for new terms and on-edit sync for legacy terms.")
           PY
-      - name: Apply DWSS 0.9.12 product-quality fixes
+      - name: Apply DWSS 0.9.13 product-quality fixes
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/refine_release_0_9_12.py
-          python3 scripts/refine_release_0_9_12.py public
+          python3 -m py_compile scripts/refine_release_0_9_13.py
+          python3 scripts/refine_release_0_9_13.py public
           node --check public/app.js
           node --check public/shared-lexicon.js
           node --check public/sw.js
-      - name: Validate DWSS 0.9.12 navigation, privacy, install, candidates and sync
+      - name: Validate DWSS 0.9.13 navigation, privacy, install, candidates and sync
         shell: bash
         run: |
           set -euo pipefail
@@ -654,9 +668,9 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.12" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.12';" public/sw.js
-          grep -Fq "DWSS 0.9.12 — restored dictionary, safer sharing and manual candidates" public/index.html
+          grep -Fq "Version: 0.9.13" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.13';" public/sw.js
+          grep -Fq "DWSS 0.9.13 — restored dictionary, safer sharing and manual candidates" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           html = (Path("public") / "index.html").read_text(encoding="utf-8")
@@ -772,7 +786,7 @@ jobs:
           if(html.includes('id="saveHistoryBtn"')) throw new Error('Save-to-history button still present');
           if(!html.includes('id="pwaState" hidden')) throw new Error('PWA mode chip should start hidden');
           if(!boot.includes("for (const src of ['./french-fallback.js', './app.js', './pwa.js'])")) throw new Error('Bootstrap module load sequence changed');
-          console.log('Regression audit passed: unique IDs, guarded removed control, preserved panels, three tabs, late PWA initialization and update feedback.');
+          console.log('Regression audit passed: unique IDs, guarded controls, four tabs, dictionary panel, late PWA initialization and update feedback.');
           NODE
           node --check public/boot.js
           node --check public/pwa.js
