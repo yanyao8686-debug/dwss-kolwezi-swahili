@@ -50,18 +50,6 @@ privacy_note = (
 form_anchor = '<form id="entryForm">'
 html = replace_once(html, form_anchor, privacy_note + form_anchor, "personal sharing privacy notice")
 # The second, manually curated shared form has a public notes field. Label it as such.
-html = replace_once(
-    html,
-    '<label>备注<textarea name="notes"',
-    '<label>公开备注（可选）<textarea name="notes"',
-    "mark shared note as public",
-)
-html = replace_once(
-    html,
-    "使用场景或补充说明（可选）",
-    "只填写适合所有人查看的通用说明，不要填写人名或内部信息",
-    "public notes placeholder",
-)
 
 # Correct the install prompt visibility without showing a permanently hidden PWA message.
 hidden_install = ".status-strip #pwaMessage,.status-strip #installAppBtn{display:none!important}"
@@ -122,6 +110,18 @@ write("app.js", app)
 # 3. Public shared vocabulary must never receive private source/contact notes
 #    copied from a personal entry. Only the actual vocabulary fields are shared.
 shared = read("shared-lexicon.js")
+shared = replace_once(
+    shared,
+    '<label>备注<textarea name="notes"',
+    '<label>公开备注（可选）<textarea name="notes"',
+    "mark shared note as public",
+)
+shared = replace_once(
+    shared,
+    "使用场景或补充说明（可选）",
+    "只填写适合所有人查看的通用说明，不要填写人名或内部信息",
+    "public notes placeholder",
+)
 private_note_line = 'notes: [entry.source ? "来源：" + String(entry.source).trim() : "", String(entry.note || "").trim()].filter(Boolean).join(" · ") || null'
 shared = replace_once(shared, private_note_line, "notes: null", "do not publish personal source/note", expected=2)
 
