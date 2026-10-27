@@ -1411,7 +1411,19 @@ jobs:
                 if python3 -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes(); w=(int.from_bytes(b[26:28],"little") & 0x3fff) if len(b)>=30 else 0; h=(int.from_bytes(b[28:30],"little") & 0x3fff) if len(b)>=30 else 0; sys.exit(0 if len(b)>=150000 and b[:4]==b"RIFF" and b[8:12]==b"WEBP" and b[12:16]==b"VP8 " and b[23:26]==bytes((0x9d,0x01,0x2a)) and w==1536 and h==1536 else 1)' "$TMP/cover.webp"; then
                   LIVE_COVER_VALID=1
                 fi
-                                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.39" "$TMP/VERSION.txt" \
+                                echo "LIVE_DIAGNOSTICS:"
+                echo "VERSION=$(grep -E 'Version: 0.9.[0-9]+' "$TMP/VERSION.txt" | head -1 || true)"
+                echo "INDEX_MARKERS=$(grep -o 'DWSS 0.9.[0-9][0-9]' "$TMP/index.html" | sort -u | tr '\n' ';' || true)"
+                echo "APP_VERSION=$(grep -o "version:'0.9.[0-9][0-9]'" "$TMP/app.js" | head -1 || true)"
+                echo "SW_VERSION=$(grep -o "const APP_VERSION = '0.9.[0-9][0-9]';" "$TMP/sw.js" | head -1 || true)"
+                echo "RANK_POLICY=$(grep -Fc 'const rankOf={personal:0,shared:1,builtin:2};' "$TMP/app.js" || true)"
+                echo "FRENCH_GUARD=$(grep -Fc 'if(lookupLocalAt(input,index))return null;' "$TMP/app.js" || true)"
+                echo "SHARED_HELPER=$(grep -Fc 'function needsAutomaticShare(entry)' "$TMP/shared-lexicon.js" || true)"
+                echo "SHARED_AUTO_RULE=$(grep -Fc 'return hasLocalSwahiliReading || [\"pending\", \"queued\"].includes(status);' "$TMP/shared-lexicon.js" || true)"
+                echo "SHARED_NOTES_NULL=$(grep -Fc 'notes: null' "$TMP/shared-lexicon.js" || true)"
+                echo "DETAIL_LABEL=$(grep -Fc '单个斯语读法释义（点击加号展开）：' "$TMP/index.html" || true)"
+                echo "DETAIL_STYLE=$(grep -Fc 'text-decoration-color:#ff4b12!important' "$TMP/index.html" || true)"
+                if [ "$LIVE_COVER_VALID" = "1" ] && grep -Fq "Version: 0.9.39" "$TMP/VERSION.txt" \
                   && grep -Fq "DWSS 0.9.39" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
