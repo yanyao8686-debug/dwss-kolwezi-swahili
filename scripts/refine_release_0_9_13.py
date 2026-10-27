@@ -90,10 +90,10 @@ if owner_count != 1:
     raise SystemExit("Could not place owner signature inside cover artwork")
 owner_css = """
 .cover-frame{position:relative}
-.owner-signature{position:absolute;left:0;right:0;bottom:3.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:#f2f5fb;box-shadow:none;pointer-events:none}
-.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:#f7f8fc;text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(222,232,250,.35)}
+.owner-signature{--owner-text-color:#f7f8fc;position:absolute;left:0;right:0;bottom:3.5%;z-index:5;margin:0;padding:0 8%;text-align:center;border:0;border-radius:0;background:transparent;color:#f2f5fb;box-shadow:none;pointer-events:none}
+.owner-name{font-size:clamp(21px,3.2vw,27px);font-weight:800;letter-spacing:.2em;padding-left:.2em;color:var(--owner-text-color);text-shadow:0 1px 2px rgba(0,0,0,.45),0 0 10px rgba(222,232,250,.35)}
 .owner-motto{margin-top:2px;font-size:11px;letter-spacing:.12em;color:#e7edf8;text-shadow:0 1px 4px rgba(0,0,0,.65)}
-.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:#f7f8fc;text-shadow:0 1px 4px rgba(0,0,0,.75)}
+.owner-sides{display:flex;justify-content:space-between;align-items:center;margin:4px auto 0;max-width:none;font-size:clamp(11px,2.5vw,14px);font-weight:800;letter-spacing:.12em;color:var(--owner-text-color);text-shadow:0 1px 4px rgba(0,0,0,.75)}
 @media(min-width:700px){.owner-signature{bottom:4%;padding:0 9%}.owner-name{font-size:28px}.owner-sides{font-size:15px}}
 """
 html = html.replace("</style>", owner_css + "\n</style>", 1)
@@ -159,13 +159,13 @@ write("index.html", html)
 
 # 2. Preserve source-book variants. File 1 marks 笔—撕提lou as French;
 #    File 2 separately records 笔—比各. File 1 records 给我…—木尼白…;
-#    File 2 separately records 给我—刀呢莫挖. The latter PDF rows had remained
+#    File 2 separately records 给我—刀呢摸挖. The latter PDF rows had remained
 #    raw source lines and were not parsed into the structured dictionary.
 app = read("app.js")
 db_anchor = "const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];"
 db_patch = """const DB = Array.isArray(window.SW_DB) ? window.SW_DB : [];
 DB.push(
- {zh:"给我",variants:[{reading:"刀呢摸挖",source:"用户提出的字形校正候选；文件2索引摘录为“刀呢莫挖”，两者待核对",kind:"用户校正候选（待科卢韦齐母语者核验）"}]}
+ {zh:"给我",variants:[{reading:"刀呢摸挖",source:"用户提出的字形校正候选；文件2索引摘录为“刀呢摸挖”，两者待核对",kind:"用户校正候选（待科卢韦齐母语者核验）"}]}
 );"""
 app = replace_once(app, db_anchor, db_patch, "preserve the user-reported reading candidate without overwriting the source spelling")
 
@@ -466,7 +466,7 @@ for key, group in grouped_sources.items():
             "法语来源": "；".join("、".join(v["sources"]) for v in french),
             "不同当地读音数量": str(len(local)),
             "是否同时含法语标注": "是" if french else "否",
-            "用户待核对补充": "刀呢摸挖（用户提出的写法；原资料索引摘录为刀呢莫挖，待核对）" if key == audit_norm("给我") else "",
+            "用户待核对补充": "刀呢摸挖（用户提出的写法；原资料索引摘录为刀呢摸挖，待核对）" if key == audit_norm("给我") else "",
             "核验状态": "保留所有来源读法；尚未完成科卢韦齐母语者逐条核音"
         })
 
@@ -483,7 +483,7 @@ if not pen or not {"比克", "比各"}.issubset({v["reading"] for v in pen["vari
     raise SystemExit("Regression: the two local readings for 笔 are not both present")
 if not pen or not any(is_french_marked(v) and "撕提" in v["reading"] for v in pen["variants"].values()):
     raise SystemExit("Regression: the French-marked pen entry was not retained separately")
-if not give or not {"木尼白...", "刀呢莫挖"}.issubset({v["reading"] for v in give["variants"].values()}):
+if not give or not {"木尼白...", "刀呢摸挖"}.issubset({v["reading"] for v in give["variants"].values()}):
     raise SystemExit("Regression: the two source readings for 给我 are not grouped together")
 if not any(row["中文词头"].find("给我") >= 0 and row["用户待核对补充"] for row in audit_rows):
     raise SystemExit("Regression: the user-reported 给我 spelling difference is not documented")
@@ -508,7 +508,7 @@ summary = [
     "",
     "处理规则：同一中文词组的不同当地读音在翻译主结果并列显示；完全相同的读音去重但来源留在审计CSV；（法）标注读音不作为当地斯语读音；不擅自拆分原资料中逗号/斜线连接的疑似复合读法。",
     "重要边界：该审计只证明原始词库记录与软件呈现逻辑，不能替代科卢韦齐母语者对发音、拼写、词义和语境的逐条确认。",
-    "给我：原始词库含“木尼白...”和“刀呢莫挖”；“刀呢摸挖”为用户提出的字形校正候选，单独标记待核验，不覆盖原文记录。"
+    "给我：原始词库含“木尼白...”和“刀呢摸挖”；“刀呢摸挖”为用户提出的字形校正候选，单独标记待核验，不覆盖原文记录。"
 ]
 (public / "source_variant_audit_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
 
