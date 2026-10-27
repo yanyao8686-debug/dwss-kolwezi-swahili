@@ -226,11 +226,11 @@ write("shared-lexicon.js", shared)
 
 # 4. Cache version bump and release metadata.
 sw = read("sw.js")
-sw = replace_once(sw, "const APP_VERSION = '0.9.11';", "const APP_VERSION = '0.9.12';", "service worker cache version")
-write("sw.js", sw)
+if "const APP_VERSION = '0.9.12';" not in sw:
+    raise SystemExit("Service worker version is not already 0.9.12")
 version = read("VERSION.txt")
-version = replace_once(version, "Version: 0.9.11", "Version: 0.9.12", "version metadata")
-write("VERSION.txt", version)
+if "Version: 0.9.12" not in version:
+    raise SystemExit("Version metadata is not already 0.9.12")
 
 # 5. Ensure the release contains no regression in the preserved brand artwork.
 if 'src="cover.jpg"' not in html:
