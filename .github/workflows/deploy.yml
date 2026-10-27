@@ -715,7 +715,7 @@ jobs:
               "side mottos and center author match title scale": ".owner-cover-author,.owner-sides span{" in html and "font-size:6.0cqw" in html and "font-family:" in html and "white-space:nowrap" in html,
               "input and result are in one stacked workspace card": 'id="translationWorkspace"' in html and html.index('id="inputText"') < html.index('id="resultReading"') and 'id="resultCard"' in html,
               "the visible common-phrases card is removed but startup compatibility remains": '<h2>常用表达</h2>' not in html and 'id="samples" hidden' in html,
-              "typing updates translation without filling history with partial input": "dwssInputTimer" in app and "renderTranslation({recordHistory:false})" in app,
+              "typing updates translation without filling history with partial input": "scheduleDwssLiveTranslation" in app and "renderTranslation({recordHistory:false})" in app and "'compositionstart'" in app and "'compositionend'" in app and "event.isComposing" in app,
               "result keeps the source value node required by the renderer": '<div class="source-echo" hidden>' in html and 'id="resultOriginal"' in html,
               "PWA install button can become visible": ".status-strip #installAppBtn:not([hidden])" in html,
               "personal sharing privacy notice is visible": 'id="personalShareNotice"' in html and "不会上传" in html,
