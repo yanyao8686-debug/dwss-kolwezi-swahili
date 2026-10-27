@@ -573,16 +573,30 @@ jobs:
           grep -Fq "Version: 0.9.8" public/VERSION.txt
           grep -Fq "const APP_VERSION = '0.9.8';" public/sw.js
           grep -Fq "DWSS 0.9.8 — automatic one-step shared vocabulary sync" public/index.html
-          grep -Fq "shareSyncStatus:'pending'" public/app.js
-          grep -Fq "dwss:personal-term-added" public/app.js
-          grep -Fq "setCustomShareStatus" public/app.js
-          grep -Fq "dwss:app-ready" public/app.js
-          grep -Fq "async function submitPersonalTerm" public/shared-lexicon.js
-          grep -Fq "function buildPersonalPayload" public/shared-lexicon.js
-          grep -Fq "__personal_entry_id" public/shared-lexicon.js
-          grep -Fq "client_submit_id" public/shared-lexicon.js
-          grep -Fq "23505" public/shared-lexicon.js
+          python3 - <<'PY'
+          from pathlib import Path
+          app = (Path("public") / "app.js").read_text(encoding="utf-8")
+          shared = (Path("public") / "shared-lexicon.js").read_text(encoding="utf-8")
+          required = {
+              "personal add event": "dwss:personal-term-added" in app,
+              "pending sync marker": "shareSyncStatus:'pending'" in app,
+              "local sync status callback": "setCustomShareStatus" in app,
+              "app ready event": "dwss:app-ready" in app,
+              "personal sync function": "async function submitPersonalTerm" in shared,
+              "payload builder": "function buildPersonalPayload" in shared,
+              "offline personal queue owner": "__personal_entry_id" in shared,
+              "stable idempotency key": "client_submit_id" in shared,
+              "unique-conflict recovery": "23505" in shared,
+          }
+          missing = [name for name, ok in required.items() if not ok]
+          print("Personal-to-shared integration checks:")
+          for name, ok in required.items():
+              print(("PASS " if ok else "FAIL ") + name)
+          if missing:
+              raise SystemExit("Missing sync integration: " + ", ".join(missing))
+          PY
           node --check public/shared-lexicon.js
+
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
