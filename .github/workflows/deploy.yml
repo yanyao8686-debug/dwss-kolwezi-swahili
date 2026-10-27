@@ -1376,7 +1376,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The repair script is idempotent when the source was already normalized.
+          # Idempotent payload and launcher fixes; also refresh the legacy footer marker.
           python3 scripts/fix_shared_auto_publish_0_9_42.py
           node --check public/app.js
           node --check public/shared-lexicon.js
