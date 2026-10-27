@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync('public/index.html','utf8');
+const app=fs.readFileSync('public/app.js','utf8');
+const sw=fs.readFileSync('public/sw.js','utf8');
+const pwa=fs.readFileSync('public/pwa.js','utf8');
+const version=fs.readFileSync('public/VERSION.txt','utf8');
+
+assert.doesNotMatch(html,/保存后立即用于本机翻译，并自动同步给所有用户。/,'static add-word save/sync note removed');
+assert.doesNotMatch(html,/优先使用当地斯语中文谐音；当地斯语没有对应词条时/,'homepage fallback explainer removed');
+assert.match(html,/id="maintenanceMessage" class="form-message" role="status" aria-live="polite"><\/div>/,'empty dynamic status node retained for real messages');
+assert.match(html,/#maintenance #maintenanceMessage:empty\{display:none;margin:0;padding:0;border:0;min-height:0\}/,'empty note container occupies no layout space');
+assert.match(html,/id="newZh"/,'Chinese meaning field remains');
+assert.match(html,/id="newReading"/,'local Swahili homophone field remains');
+assert.match(html,/id="newFrenchReadingZh"/,'French homophone field remains');
+assert.match(html,/id="entrySubmit"[^>]*>保存新词/,'save button remains');
+assert.match(html,/id="shareSyncSummary"/,'cloud sync indicator remains');
+assert.match(html,/id="resultReading"/,'single translation result remains');
+assert.match(app,/function setMessage\(s,type\)\{\$\('maintenanceMessage'\)\.textContent=s;/,'dynamic success/error messages continue to work');
+assert.match(app,/type:'frenchFallback'/,'French fallback translation logic remains');
+assert.match(app,/version:'0\.9\.50'/,'app metadata version bumped');
+assert.match(sw,/const APP_VERSION = '0\.9\.50';/,'service worker cache bumped');
+assert.match(pwa,/'newFrenchReadingZh'/,'French entry draft remains protected during update');
+assert.match(html,/DWSS_AUTO_UPDATE_0_9_50/,'automatic update marker bumped');
+assert.match(html,/版本 0\.9\.50 · DWSS/,'visible version bumped');
+assert.match(version,/Version: 0\.9\.50/,'VERSION file bumped');
+console.log('PASS 0.9.50: both marked notes removed; status auto-collapses; fields, save, cloud indicator and translation fallback unchanged.');
