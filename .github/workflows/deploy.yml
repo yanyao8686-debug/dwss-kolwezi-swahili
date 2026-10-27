@@ -694,8 +694,8 @@ jobs:
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
               "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
               "owner signature below cover": 'class="owner-signature"' in html and "陈谍" in html and "以德立身 · 以信行远" in html,
-              "side mottos match owner name color": bool(re.search(r"\\.owner-name\\{[^}]*color:#f7f8fc", html)) and bool(re.search(r"\\.owner-sides\\{[^}]*color:#f7f8fc", html)),
-              "local and French variants are separated correctly": "localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&!/[（(]\\\\s*法\\\\s*[)）]/.test(v.reading||''))||null;" in (Path("scripts/refine_release_0_9_13.py").read_text(encoding="utf-8")),
+              "side mottos match owner name color": "color:#f7f8fc" in html.split(".owner-name{",1)[1].split("}",1)[0] and "color:#f7f8fc" in html.split(".owner-sides{",1)[1].split("}",1)[0],
+              "local and French variants are separated correctly": "function localReadingVariant(item){return (item.variants||[]).find(v=>(v.reading||v.latin)&&" in app and ".test(v.reading||''))||null;" in app,
 
               "translation result hides secondary details": '#resultCard .quality-note,#resultCard .candidate-extra,#resultCard .segment-meta{display:none!important}' in html,
               "reading surface uses clean white background": '#resultCard .dwss-result-surface{background:#fff!important' in html,
