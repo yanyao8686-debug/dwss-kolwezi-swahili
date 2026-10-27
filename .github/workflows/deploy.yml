@@ -32,10 +32,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v4
       - name: Configure Pages
+        id: configure_pages
         uses: actions/configure-pages@v5
       - name: Verify and unpack the DWSS 0.6.4 release
+        id: verify_unpack
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +93,7 @@ jobs:
           grep -Fq "contextLabel" public/app.js
           touch public/.nojekyll
       - name: Compact DWSS interface copy and optional details
+        id: compact_ui
         shell: bash
         run: |
           python3 - <<'PY'
@@ -615,6 +619,7 @@ jobs:
           print("DWSS 0.9.13 enables one-step sync for new terms and on-edit sync for legacy terms.")
           PY
       - name: Apply DWSS 0.9.13 product-quality fixes
+        id: apply_release
         shell: bash
         run: |
           set -euo pipefail
@@ -624,6 +629,7 @@ jobs:
           node --check public/shared-lexicon.js
           node --check public/sw.js
       - name: Validate DWSS 0.9.14 navigation, source variants, owner signature and sync
+        id: validate_release
         shell: bash
         run: |
           set -euo pipefail
@@ -817,6 +823,7 @@ jobs:
           test -s public/dictionary.js.gz
           test -s public/cover.jpg
       - name: Audit PWA, navigation and DOM event wiring
+        id: audit_dom
         shell: bash
         run: |
           node <<'NODE'
@@ -861,6 +868,7 @@ jobs:
           node --check public/shared-lexicon.js
           node --check public/french-fallback.js
       - name: Upload Pages artifact
+        id: upload_artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
@@ -874,10 +882,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           DEPLOY_OUTCOME: ${{ steps.deployment.outcome }}
+          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
+          CONFIGURE_PAGES_OUTCOME: ${{ steps.configure_pages.outcome }}
+          UNPACK_OUTCOME: ${{ steps.verify_unpack.outcome }}
+          COMPACT_UI_OUTCOME: ${{ steps.compact_ui.outcome }}
+          APPLY_RELEASE_OUTCOME: ${{ steps.apply_release.outcome }}
+          VALIDATE_RELEASE_OUTCOME: ${{ steps.validate_release.outcome }}
+          AUDIT_DOM_OUTCOME: ${{ steps.audit_dom.outcome }}
+          UPLOAD_ARTIFACT_OUTCOME: ${{ steps.upload_artifact.outcome }}
         run: |
           set -uo pipefail
           STATE=failure
           FAILURE_REASON="deploy-outcome=${DEPLOY_OUTCOME}"
+          for entry in "checkout:${CHECKOUT_OUTCOME}" "configure-pages:${CONFIGURE_PAGES_OUTCOME}" "unpack:${UNPACK_OUTCOME}" "compact-ui:${COMPACT_UI_OUTCOME}" "apply-release:${APPLY_RELEASE_OUTCOME}" "validate-release:${VALIDATE_RELEASE_OUTCOME}" "audit-dom:${AUDIT_DOM_OUTCOME}" "upload-artifact:${UPLOAD_ARTIFACT_OUTCOME}" "deploy:${DEPLOY_OUTCOME}"; do
+            STEP_NAME="${entry%%:*}"
+            STEP_RESULT="${entry#*:}"
+            if [ "$STEP_RESULT" = "failure" ] || [ "$STEP_RESULT" = "cancelled" ]; then
+              FAILURE_REASON="${STEP_NAME}-${STEP_RESULT}"
+              break
+            fi
+          done
           BASE_URL="${PAGE_URL:-https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/}"
           BASE_URL="${BASE_URL%/}"
           TMP="${RUNNER_TEMP}/dwss-pages-check"
