@@ -1,5 +1,5 @@
 name: Deploy DWSS PWA to GitHub Pages
-# 0.9.25 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
+# 0.9.26 follow-up: force a fresh Pages build after the translation-workspace generator was corrected.
 
 on:
   push:
@@ -686,8 +686,8 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.25" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.25';" public/sw.js
+          grep -Fq "Version: 0.9.26" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.26';" public/sw.js
           test -s public/source_variant_audit.csv
           test -s public/source_variant_audit_summary.txt
           python3 - <<'PY'
@@ -717,7 +717,7 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.25 — centered navigation, full source additions and gold cover mottos" public/index.html
+          grep -Fq "DWSS 0.9.26 — centered navigation, full source additions and gold cover mottos" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -725,7 +725,8 @@ jobs:
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
           checks = {
               "dictionary nav is absent": 'data-tab="dictionary"' not in html,
-              "three navigation columns with wider center": "grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr)" in html,
+              "four compact navigation items include clear after history": 'class="nav-clear-slot"' in html and "grid-template-columns:repeat(4,minmax(0,1fr))" in html and 'data-tab="saved"' in html,
+              "input and result headings use gold and end with colon": "color:#d3a94d!important" in html and "输入你想表达的中文：" in html and "翻译的斯语中文谐音：" in html,
               "only one gold motto block is overlaid inside the cover": html.count('class="owner-signature"') == 1 and re.search(r'<section class="cover-frame"[^>]*>.*?class="owner-signature".*?</section>',html,re.S) and "德行四海" in html and "威震八方" in html and "以德立身 · 以信行远" not in html and ".owner-name" not in html and ".owner-motto" not in html,
               "side mottos and 陈谍 use one metallic-gold type rule": "--owner-gold:#e9c978" in html.split(".owner-signature{",1)[1].split("}",1)[0] and ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "filter:brightness(1.15)" in html and "font-weight:700" in html and "color:var(--owner-gold)" in html and "background:linear-gradient(180deg,#fff7d9 0%,#f2d891 30%,#d7ad58 72%,#f6dda0 100%)" in html.split(".owner-cover-author,.owner-sides span{",1)[1].split("}",1)[0],
               "local and French variants are separated correctly": "function preferredLocalVariants(item){" in app and "const variants=(item.variants||[]).filter(v=>(v.reading||v.latin)&&!" in app and "function localOrigin(item){" in app,
@@ -734,7 +735,8 @@ jobs:
               "input grows without internal scrolling or manual resizing": '#inputText{display:block;width:100%;box-sizing:border-box;min-height:88px;height:auto;max-height:none;overflow-x:hidden;overflow-y:hidden;resize:none' in html and 'id="dwss-autogrow-input"' in html and "input.style.overflowY='hidden'" in html and "input.scrollHeight+border" in html,
               "redundant output label is hidden so the two text boxes sit closer": "#resultCard>.copyline{display:none!important}" in html,
               "result box matches input color and compact minimum height": '#resultCard #resultReading{width:100%;box-sizing:border-box;min-height:88px;padding:10px 12px;border:1px solid #dfc477!important;border-radius:14px!important;background:#F7E3A0!important' in html,
-              "input and result are close with action buttons below both": 'id="dwss-autogrow-input"' in html and "outputSection.insertBefore(actions,stats||null)" in html and ".translation-input-section{padding:10px 12px 5px}" in html and "min-height:0;scroll-margin-top:70px" in html,
+              "nonessential translation detail is preserved inside a collapsed disclosure": "dwss-secondary-details" in html and "查看翻译依据与匹配详情（需要时展开）" in html and "secondary.forEach(node=>disclosure.appendChild(node))" in html,
+              "clear action is moved to the fourth navigation slot without removing its handler": "clearSlot.replaceWith(clearButton)" in html and "getElementById('clearBtn')" in html,
               "reading copies by tap instead of a large button": 'id="dwss-simple-result-ui"' in html and "btn.remove()" in html and "点击当地读音复制" in html,
               "source and user-proposed 给我 forms are both preserved and clearly marked": "刀呢摸挖" in app and "刀呢莫挖" in app and "原始PDF记录为" in app,
               "side mottos and center author match title scale": ".owner-cover-author,.owner-sides span{" in html and "font-size:5.0cqw" in html and "font-family:" in html and "white-space:nowrap" in html,
@@ -936,12 +938,14 @@ jobs:
                 && curl -fsSL --max-time 20 "${BASE_URL}/app.js?verify=${GITHUB_SHA}" -o "$TMP/app.js" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/dictionary.js.gz?verify=${GITHUB_SHA}" -o "$TMP/dictionary.js.gz" \
                 && curl -fsSL --max-time 20 "${BASE_URL}/cover.jpg?verify=${GITHUB_SHA}" -o "$TMP/cover.jpg"; then
-                if grep -Fq "Version: 0.9.25" "$TMP/VERSION.txt" \
-                  && grep -Fq "DWSS 0.9.25" "$TMP/index.html" \
+                if grep -Fq "Version: 0.9.26" "$TMP/VERSION.txt" \
+                  && grep -Fq "DWSS 0.9.26" "$TMP/index.html" \
                   && grep -Fq 'id="translationWorkspace"' "$TMP/index.html" \
                   && grep -Fq 'id="samples" hidden' "$TMP/index.html" \
               && grep -Fq 'background:#F7E3A0!important' "$TMP/index.html" \
               && grep -Fq 'id="dwss-autogrow-input"' "$TMP/index.html" \
+              && grep -Fq 'class="nav-clear-slot"' "$TMP/index.html" \
+              && grep -Fq 'color:#d3a94d!important' "$TMP/index.html" \
               && grep -Fq '#resultCard>.copyline{display:none!important}' "$TMP/index.html" \
               && grep -Fq 'overflow-y:hidden;resize:none' "$TMP/index.html" \
               && grep -Fq 'min-height:88px' "$TMP/index.html" \
@@ -951,7 +955,7 @@ jobs:
                   && test -s "$TMP/dictionary.js.gz" \
                   && test -s "$TMP/cover.jpg"; then
                   STATE=success
-                  FAILURE_REASON="all live assets match 0.9.25"
+                  FAILURE_REASON="all live assets match 0.9.26"
                   break
                 else
                   FAILURE_REASON="live asset content or version mismatch"
@@ -965,7 +969,7 @@ jobs:
           fi
 
           if [ "$STATE" = "success" ]; then
-            DESCRIPTION="DWSS 0.9.25 live Pages assets verified"
+            DESCRIPTION="DWSS 0.9.26 live Pages assets verified"
           else
             DESCRIPTION="DWSS verification failed: ${FAILURE_REASON}"
           fi
