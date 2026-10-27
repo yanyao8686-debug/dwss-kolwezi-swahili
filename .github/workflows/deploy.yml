@@ -717,7 +717,7 @@ jobs:
               raise SystemExit("Normalized source dictionary group count is implausibly low")
           print("PASS current-dictionary audit; actual measured counts are preserved in source_variant_audit_summary.txt.")
           PY
-          grep -Fq "DWSS 0.9.27 — centered navigation, full source additions and gold cover mottos" public/index.html
+          grep -Fq "DWSS 0.9.27 — four-item navigation, collapsed details and gold headings" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           import re
