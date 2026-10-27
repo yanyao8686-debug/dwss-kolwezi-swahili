@@ -228,7 +228,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.10 — one-step shared vocabulary sync */
+          /* DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -331,11 +331,11 @@ jobs:
           .pwa-toast.visible{opacity:1;transform:translateY(0)}
           .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.10 — one-step shared vocabulary sync" not in html:
+          if "DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.10 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.11 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -557,7 +557,7 @@ jobs:
            const v=validateEntry(data);if(typeof v==='string')return {ok:false,error:v};
            const dup=custom.find((c,j)=>j!==i&&norm(c.zh)===norm(v.zh)&&norm(c.reading)===norm(v.reading)&&norm(c.latin)===norm(v.latin)&&norm(c.french)===norm(v.french));
            if(dup)return {ok:false,error:'相同的自定义词条已存在。'};
-           const retryShare=['needs-info','queued'].includes(custom[i].shareSyncStatus);
+           const retryShare=custom[i].shareSyncStatus!=='synced';
            custom[i]={...custom[i],...v,updatedAt:new Date().toISOString(),...(retryShare?{shareSyncStatus:'pending'}:{})};
            saveCustom();rebuild();
            if(retryShare)window.dispatchEvent(new CustomEvent('dwss:personal-term-added',{detail:{entry:{...custom[i]}}}));
@@ -587,12 +587,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.10';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.11';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.10", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.11", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -608,9 +608,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.10 allows local pronunciation-only terms, protects legacy personal entries, and keeps an idempotent offline queue.")
+          print("DWSS 0.9.11 enables one-step sync for new terms and on-edit sync for legacy terms.")
           PY
-      - name: Validate one-step shared sync, PWA initialization and interface regression 0.9.9
+      - name: Validate one-step shared sync and legacy edit bridge 0.9.11
         shell: bash
         run: |
           set -euo pipefail
@@ -644,15 +644,16 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.10" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.10';" public/sw.js
-          grep -Fq "DWSS 0.9.10 — one-step shared vocabulary sync" public/index.html
+          grep -Fq "Version: 0.9.11" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.11';" public/sw.js
+          grep -Fq "DWSS 0.9.11 — one-step shared vocabulary sync and legacy edit bridge" public/index.html
           python3 - <<'PY'
           from pathlib import Path
           app = (Path("public") / "app.js").read_text(encoding="utf-8")
           shared = (Path("public") / "shared-lexicon.js").read_text(encoding="utf-8")
           required = {
               "personal add event": "dwss:personal-term-added" in app,
+              "legacy personal edit triggers one-time sync": "shareSyncStatus!=='synced'" in app,
               "pending sync marker": "shareSyncStatus:'pending'" in app,
               "local sync status callback": "setCustomShareStatus" in app,
               "app ready event": "dwss:app-ready" in app,
