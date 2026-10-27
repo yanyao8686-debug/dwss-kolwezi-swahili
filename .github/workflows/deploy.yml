@@ -228,7 +228,7 @@ jobs:
           if n != 1:
               raise SystemExit("Save-to-history action button not found")
           compact_css = """
-          /* DWSS 0.9.7 — PWA update feedback and initialization repair */
+          /* DWSS 0.9.8 — automatic one-step shared vocabulary sync */
           .hint{font-size:12px;line-height:1.45;color:#718096}
           .resultlabel{font-size:11px;letter-spacing:.01em}
           .card h2{letter-spacing:-.015em}
@@ -331,11 +331,11 @@ jobs:
           .pwa-toast.visible{opacity:1;transform:translateY(0)}
           .pwa-toast[hidden]{display:none!important}
           """
-          if "DWSS 0.9.7 — PWA update feedback" not in html:
+          if "DWSS 0.9.8 — automatic one-step shared vocabulary sync" not in html:
               if "</style>" not in html:
                   raise SystemExit("Style insertion point missing")
               html = html.replace("</style>", compact_css + "\n</style>", 1)
-          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.7 · DWSS 智能翻译 PWA", html, count=1)
+          html = re.sub(r"版本 0\.9\.0[^<]*", "版本 0.9.8 · DWSS 智能翻译 PWA", html, count=1)
           required_ids = ["inputText","resultReading","segmentList","dictResults","favorites","history","entryForm","exportCustom","importCustom","networkBadge","pwaState","pwaMessage","installAppBtn","checkUpdateBtn"]
           missing = [item for item in required_ids if f'id="{item}"' not in html]
           if missing:
@@ -513,12 +513,12 @@ jobs:
 
           # Cache bust, so installed PWAs fetch the new interface.
           sw = read("sw.js")
-          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.7';", sw, count=1)
+          sw, n = re.subn(r"const APP_VERSION = '0\.9\.0';", "const APP_VERSION = '0.9.8';", sw, count=1)
           if n != 1:
               raise SystemExit("Service-worker version anchor missing")
           write("sw.js", sw)
           version = read("VERSION.txt")
-          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.7", version, count=1)
+          version, n = re.subn(r"Version: 0\.9\.0", "Version: 0.9.8", version, count=1)
           if n != 1:
               raise SystemExit("Version file anchor missing")
           write("VERSION.txt", version)
@@ -534,9 +534,9 @@ jobs:
               actual = hashlib.sha256((public / name).read_bytes()).hexdigest()
               if actual != expected:
                   raise SystemExit(f"Protected asset changed during UI build: {name}")
-          print("DWSS 0.9.7 repairs late-loaded PWA initialization and displays update feedback.")
+          print("DWSS 0.9.8 adds one-step personal-to-shared vocabulary sync with durable queue and duplicate protection.")
           PY
-      - name: Validate PWA initialization, update feedback and interface regression 0.9.7
+      - name: Validate one-step shared sync, PWA initialization and interface regression 0.9.8
         shell: bash
         run: |
           set -euo pipefail
@@ -570,9 +570,19 @@ jobs:
           PY
           grep -Fq 'background-color:#F7E3A0!important' public/index.html
           grep -Fq 'textarea,select' public/index.html
-          grep -Fq "Version: 0.9.7" public/VERSION.txt
-          grep -Fq "const APP_VERSION = '0.9.7';" public/sw.js
-          grep -Fq "DWSS 0.9.7 — PWA update feedback" public/index.html
+          grep -Fq "Version: 0.9.8" public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.8';" public/sw.js
+          grep -Fq "DWSS 0.9.8 — automatic one-step shared vocabulary sync" public/index.html
+          grep -Fq "shareSyncStatus:'pending'" public/app.js
+          grep -Fq "dwss:personal-term-added" public/app.js
+          grep -Fq "setCustomShareStatus" public/app.js
+          grep -Fq "dwss:app-ready" public/app.js
+          grep -Fq "async function submitPersonalTerm" public/shared-lexicon.js
+          grep -Fq "function buildPersonalPayload" public/shared-lexicon.js
+          grep -Fq "__personal_entry_id" public/shared-lexicon.js
+          grep -Fq "client_submit_id" public/shared-lexicon.js
+          grep -Fq "23505" public/shared-lexicon.js
+          node --check public/shared-lexicon.js
           grep -Fq "function renderUnknownRecommendations" public/app.js
           python3 - <<'PY'
           from pathlib import Path
@@ -626,22 +636,6 @@ jobs:
           if(html.includes('id="saveHistoryBtn"')) throw new Error('Save-to-history button still present');
           if(!html.includes('id="pwaState" hidden')) throw new Error('PWA mode chip should start hidden');
           if(!boot.includes("for (const src of ['./french-fallback.js', './app.js', './pwa.js'])")) throw new Error('Bootstrap module load sequence changed');
-          console.log('HTML_SCRIPT_TAGS '+(html.match(/<script[^>]*>/g)||[]).join(' || '));
-          for(const term of ['function validateEntry','function makeId','function addCustomEntry','function updateCustomEntry','window.KolweziSwahili=']){
-            const pos=app.indexOf(term);
-            if(pos>=0) console.log('APP_DETAIL '+term+' '+pos+': '+app.slice(Math.max(0,pos-300),Math.min(app.length,pos+2600)));
-          }
-          for(const id of ['newZh','newLatin','newReading','newFrench','newFrenchReadingZh','newSource']){
-            const pos=html.indexOf('id="'+id+'"');
-            if(pos>=0) console.log('FORM_FIELD '+id+': '+html.slice(Math.max(0,pos-260),Math.min(html.length,pos+180)));
-          }
-          for(const term of ['entryForm','saveCustom','loadCustom','localStorage.setItem','custom.push','custom.unshift','renderAll()']){
-            let pos=0, found=0;
-            while((pos=app.indexOf(term,pos))>=0 && found<3){
-              console.log('APP_FLOW '+term+' '+pos+': '+app.slice(Math.max(0,pos-420),Math.min(app.length,pos+1200)));
-              pos+=term.length;found++;
-            }
-          }
           console.log('Regression audit passed: unique IDs, guarded removed control, preserved panels, three tabs, late PWA initialization and update feedback.');
           NODE
           node --check public/boot.js
