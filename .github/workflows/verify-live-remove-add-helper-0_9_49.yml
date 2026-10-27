@@ -1,0 +1,38 @@
+name: Verify DWSS 0.9.49 helper removal on live Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-remove-add-helper-0_9_49.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live DWSS 0.9.49
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.49"
+          mkdir -p "$TMP"
+          curl -fsSL --retry 5 --retry-delay 3 --max-time 30 "$BASE_URL/VERSION.txt?verify=$GITHUB_SHA" -o "$TMP/VERSION.txt"
+          curl -fsSL --retry 5 --retry-delay 3 --max-time 30 "$BASE_URL/index.html?verify=$GITHUB_SHA" -o "$TMP/index.html"
+          curl -fsSL --retry 5 --retry-delay 3 --max-time 30 "$BASE_URL/app.js?verify=$GITHUB_SHA" -o "$TMP/app.js"
+          curl -fsSL --retry 5 --retry-delay 3 --max-time 30 "$BASE_URL/sw.js?verify=$GITHUB_SHA" -o "$TMP/sw.js"
+          grep -Fq 'Version: 0.9.49' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.49 · DWSS' "$TMP/index.html"
+          ! grep -Fq 'id="addWordLanguageHint"' "$TMP/index.html"
+          ! grep -Fq '中文意思必填；斯语中文谐音、法语中文谐音' "$TMP/index.html"
+          grep -Fq 'id="newZh"' "$TMP/index.html"
+          grep -Fq 'id="newReading"' "$TMP/index.html"
+          grep -Fq 'id="newFrenchReadingZh"' "$TMP/index.html"
+          grep -Fq 'id="entrySubmit"' "$TMP/index.html"
+          grep -Fq "version:'0.9.49'" "$TMP/app.js"
+          grep -Fq "const APP_VERSION = '0.9.49';" "$TMP/sw.js"
+          echo "PASS: LIVE DWSS 0.9.49 - circled helper removed; three fields and save button retained."
