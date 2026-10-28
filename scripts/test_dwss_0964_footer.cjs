@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = process.env.DWSS_TEST_ROOT || 'public';
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const version = fs.readFileSync(path.join(root, 'VERSION.txt'), 'utf8');
+const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+
+assert(!html.includes('词库来自原始资料；当地读音尚待科卢韦齐母语者全面复核。'), 'footer disclaimer removed');
+assert(!html.includes('软件版权、品牌归属与授权说明'), 'legal accordion title removed');
+assert(!html.includes('class="legal-details"'), 'legal accordion container removed');
+assert(!html.includes('class="legal-body"'), 'legal accordion body removed');
+assert(!html.includes('.legal-details{'), 'unused legal accordion styling removed');
+assert(html.includes('© 2026 DWSS / 陈谍 · 保留所有权利'), 'copyright stamp retained');
+assert(html.includes('版本 0.9.64 · DWSS 智能翻译 PWA'), 'new visible version retained');
+assert(html.includes('<meta name="dwss-auto-update" content="0.9.64">'), 'auto-update metadata bumped');
+assert(html.includes('<!-- DWSS_AUTO_UPDATE_0_9_64 -->'), 'auto-update marker bumped');
+assert(version.includes('Version: 0.9.64'), 'VERSION.txt bumped');
+assert(version.includes('0.9.64: Remove the footer source/pronunciation disclaimer'), 'release notes include exact changes');
+assert(sw.includes("const APP_VERSION = '0.9.64';"), 'Service Worker cache version bumped');
+console.log('PASS: DWSS 0.9.64 footer removal, retained elements, auto-update marker, version and cache-busting tests.');
