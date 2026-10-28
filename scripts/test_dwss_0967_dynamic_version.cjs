@@ -13,7 +13,7 @@ assert(html.includes('<!-- DWSS_AUTO_UPDATE_0_9_67 -->'), 'auto-update marker bu
 assert(version.includes('Version: 0.9.67'), 'VERSION.txt bumped');
 assert(version.includes('0.9.67: Automatically read the current VERSION.txt'), 'release notes describe dynamic label feature');
 
-assert(pwa.includes("fetch('./VERSION.txt?dwss-version-check=' + Date.now(), { cache: 'no-store' })'), 'PWA reads fresh live VERSION.txt at startup');
+assert(pwa.includes(`fetch('./VERSION.txt?dwss-version-check=' + Date.now(), { cache: 'no-store' })`), 'PWA reads fresh live VERSION.txt at startup');
 assert(pwa.includes("textNode.nodeValue = '版本 ' + match[1] + ' · 刚果金斯语翻译';"), 'visible label uses the server version and fixed app name');
 assert(pwa.includes('refreshDisplayedVersion();'), 'version refresh is called automatically');
 
