@@ -1,26 +1,25 @@
-# DWSS 原生应用构建说明
+# 刚果金斯语翻译（Android）
 
-此目录将已部署的 DWSS 网站资源打包进 Capacitor 原生容器，不改变 Supabase 共享词库结构。
+这是 DWSS 科卢韦齐斯瓦希里语助手的 Android 原生安装包工程。只构建 Android，不再构建 iOS。
 
-## 当前构建方式
+## 应用信息
+- 桌面显示名称：刚果金斯语翻译
+- Android application ID：`com.dwss.kolwezi`（保持稳定，后续升级沿用）
+- 图标：使用正式网页封面 `cover.jpg` 生成 Android 普通图标和自适应图标。
+- 网页资源：构建时从正式站点下载并嵌入 APK；离线可打开已缓存/内置的本地词库，联网后使用 Supabase 共享词库。
 
-- Android：GitHub Actions 使用官方 Android 工具链生成可侧载的 Debug APK。
-- iOS：GitHub Actions 在 macOS 上编译 iOS Simulator .app，用于界面和功能预检；这不是可安装到实体 iPhone 的 IPA。
-- 网页资源：构建时从正式 GitHub Pages 站点拉取并嵌入 www/，因此构建前应先通过网站回归测试。
+## 构建
+CI 从正式网站下载经过发布的网页文件，使用 Capacitor 8、JDK 21 和 Android SDK 36 构建 Debug APK，并检查 APK 的包名、版本、应用标签、签名和图标资源。
 
-## 本地构建
+APK 输出文件名：`刚果金斯语翻译-<网站版本>.apk`。
 
-需要 Node.js 22+、Android Studio/JDK 21；iOS 需要 macOS、Xcode 26+。
+## 安装和分享
+1. 构建完成后，从 GitHub Actions 的 Artifact 下载 ZIP 并解压。
+2. 将其中的 APK 发送给其他 Android 手机用户（微信、WhatsApp、Telegram、蓝牙、USB 等均可）。
+3. 接收者下载 APK 后点击安装；Android 可能要求允许当前浏览器或文件管理器“安装未知应用”。只在确认 APK 来自可信发送者时允许。
+4. 安装后打开应用。第一次使用共享词库/跨设备同步需要互联网；离线时可使用 APK 内嵌的网页资源和词库。
 
-1. 进入 mobile 目录并运行 npm install。
-2. 将正式站点资源复制到 www/（见 .github/workflows/build-native-apps.yml）。
-3. 运行 npx cap add android、npx cap sync android。
-4. 进入 android 目录运行 ./gradlew assembleDebug。
+## 签名和后续升级注意
+当前先产出可直接侧载安装的 Debug APK，并由 CI 签名。每次 GitHub runner 生成的默认 Debug 签名可能不同；下一次更新时，若签名不一致，Android 会拒绝覆盖安装，需要先卸载旧版再安装新版，可能清除仅保存在该手机本地的个人词条/历史。共享云端词库不受影响。正式长期分发前，建议建立并妥善保管固定的 Release keystore，并把签名信息作为私有 CI secrets 配置；绝不能把 keystore 或密码提交到公开仓库。
 
-## iOS 签名限制
-
-无 Apple Developer Program 会员时，不能通过 TestFlight/App Store 正式分发，也不能生成可供普通用户直接安装的签名 IPA。免费 Apple Account 可在 Mac 上用 Xcode 对个人设备做有限的开发测试，但需要用户本人登录并签名。不要把未签名 IPA 误称为可安装包。
-
-## 版本和数据
-
-应用内嵌资源随原生包版本更新；共享词库继续通过 Supabase 在线同步。网页 Service Worker 的自动更新不负责替换原生 APK/IPA。Android 原生版本升级应通过新 APK 安装；iOS 需重新签名安装或经 TestFlight/App Store 分发。
+这不是 Google Play 上架包。若以后要上架或进行稳定长期分发，应使用固定 Release 签名密钥生成签名 Release APK。
