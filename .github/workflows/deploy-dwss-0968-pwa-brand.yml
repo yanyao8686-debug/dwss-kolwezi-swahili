@@ -1,0 +1,119 @@
+name: Deploy DWSS 0.9.68 PWA display name fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0968-pwa-brand.yml'
+      - 'scripts/fix_dwss_0968_pwa_app_name.py'
+      - 'scripts/test_dwss_0968_pwa_app_name.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Fetch verified live DWSS 0.9.67 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.67' public/VERSION.txt
+          for file in index.html manifest.webmanifest boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 6 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          grep -Fq "const APP_VERSION = '0.9.67';" public/sw.js
+          grep -Fq 'DWSS斯语助手' public/manifest.webmanifest
+          gzip -t public/dictionary.js.gz
+      - name: Apply PWA installed app name
+        run: python3 scripts/fix_dwss_0968_pwa_app_name.py
+      - name: Syntax, metadata and asset regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0968_pwa_app_name.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip
+          import json
+          p=Path("public")
+          manifest=json.loads((p/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("display") != "standalone":raise SystemExit("PWA no longer opens standalone")
+          if manifest.get("id") != "./?app=dwss-kolwezi-swahili":raise SystemExit("PWA identity unexpectedly changed")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.refs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  for key in ("src","href"):
+                      value=a.get(key,"")
+                      if value and not value.startswith(("https://","http://","data:","#","mailto:")):
+                          self.refs.append(value.split("?")[0])
+          audit=Audit();audit.feed((p/"index.html").read_text(encoding="utf-8"))
+          duplicates={k:v for k,v in Counter(audit.ids).items() if v>1}
+          missing=[v for v in audit.refs if not (p/v).exists()]
+          if duplicates:raise SystemExit("duplicate HTML IDs: "+str(duplicates))
+          if missing:raise SystemExit("missing local assets: "+str(missing))
+          data=gzip.decompress((p/"dictionary.js.gz").read_bytes()).decode("utf-8")
+          if "window.SW_DB" not in data:raise SystemExit("invalid DWSS dictionary export")
+          (p/".nojekyll").touch()
+          print("PASS: PWA identity and standalone mode retained; local assets and dictionary are valid.")
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy DWSS 0.9.68
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live PWA name, standalone mode and updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          TMP="$RUNNER_TEMP/dwss-live-0.9.68"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html manifest.webmanifest boot.js pwa.js sw.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz" -o "$TMP/dictionary.js.gz"
+          grep -Fq 'Version: 0.9.68' "$TMP/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_68' "$TMP/index.html"
+          grep -Fq '<meta name="apple-mobile-web-app-title" content="刚果金斯语翻译">' "$TMP/index.html"
+          grep -Fq '<meta name="application-name" content="刚果金斯语翻译">' "$TMP/index.html"
+          grep -Fq '<title>刚果金斯语翻译</title>' "$TMP/index.html"
+          grep -Fq '刚果金斯语翻译' "$TMP/manifest.webmanifest"
+          if grep -Fq 'DWSS斯语助手' "$TMP/manifest.webmanifest"; then exit 1; fi
+          if grep -Fq 'DWSS 科卢韦齐斯瓦西里语助手' "$TMP/index.html"; then exit 1; fi
+          grep -Fq '"display": "standalone"' "$TMP/manifest.webmanifest"
+          grep -Fq '"id": "./?app=dwss-kolwezi-swahili"' "$TMP/manifest.webmanifest"
+          grep -Fq '© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.68';" "$TMP/sw.js"
+          gzip -t "$TMP/dictionary.js.gz"
+          cmp -s public/dictionary.js.gz "$TMP/dictionary.js.gz"
+          echo 'PASS: live 0.9.68 PWA launcher/browser title is 刚果金斯语翻译; standalone identity and auto-update are preserved.'
