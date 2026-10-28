@@ -1,0 +1,102 @@
+name: Deploy DWSS 0.9.62 remove result metadata and pin update status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0962-result-cleanup.yml'
+      - 'scripts/fix_dwss_0962_result_cleanup.py'
+      - 'scripts/test_dwss_0962_result_cleanup.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Fetch verified live DWSS 0.9.61 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 6 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.61' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+      - name: Apply 0.9.62 result cleanup
+        run: python3 scripts/fix_dwss_0962_result_cleanup.py
+      - name: Syntax and result-layout regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "public/$file"; done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0962_result_cleanup.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          p=Path("public")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.refs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  for key in ("src","href"):
+                      value=a.get(key,"")
+                      if value and not value.startswith(("https://","http://","data:","#","mailto:")):
+                          self.refs.append(value.split("?")[0])
+          audit=Audit();audit.feed((p/"index.html").read_text(encoding="utf-8"))
+          duplicate={k:v for k,v in Counter(audit.ids).items() if v>1}
+          missing=[v for v in audit.refs if not (p/v).exists()]
+          if duplicate:raise SystemExit("duplicate HTML IDs: "+str(duplicate))
+          if missing:raise SystemExit("missing local assets: "+str(missing))
+          (p/".nojekyll").touch()
+          print("PASS: unique HTML IDs and all local assets present.")
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy DWSS 0.9.62
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live DWSS 0.9.62 result cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.62"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js pwa.js sw.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.62' "$TMP/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_62' "$TMP/index.html"
+          grep -Fq '单个斯语读法释义：' "$TMP/index.html"
+          grep -Fq 'font-size:16px!important' "$TMP/index.html"
+          grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html"
+          grep -Fq 'position:sticky!important;top:0!important' "$TMP/index.html"
+          grep -Fq 'top:52px!important' "$TMP/index.html"
+          grep -Fq '.dwss-secondary-details .stats,' "$TMP/index.html"
+          grep -Fq '.dwss-secondary-details .quality-note,' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.62';" "$TMP/sw.js"
+          echo 'PASS: live 0.9.62 removes the red-box metadata, styles the fixed heading and pins update status while scrolling.'
