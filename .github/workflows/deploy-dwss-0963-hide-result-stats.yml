@@ -1,12 +1,6 @@
 name: Deploy DWSS 0.9.63 hide top-level result statistics
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-dwss-0963-hide-result-stats.yml'
-      - 'scripts/fix_dwss_0963_hide_result_stats.py'
-      - 'scripts/test_dwss_0963_hide_result_stats.cjs'
   workflow_dispatch:
 
 permissions:
