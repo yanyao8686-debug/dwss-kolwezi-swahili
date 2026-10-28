@@ -20,6 +20,11 @@ assert(dictionary.length > 1000, 'decompressed dictionary is not empty');
 const dictionaryText = dictionary.toString('utf8');
 assert(dictionaryText.includes('window.SW_DB'), 'dictionary exports window.SW_DB');
 fs.writeFileSync(dictionaryPath, dictionary);
+// Android's AAPT2 expands .gz assets to a .js entry. Keeping both files would
+// create duplicate public/dictionary.js resources during Gradle asset merging.
+fs.rmSync(gzipPath);
+assert(fs.existsSync(dictionaryPath), 'uncompressed Android dictionary is retained');
+assert(!fs.existsSync(gzipPath), 'compressed duplicate is removed before APK packaging');
 
 const boot = fs.readFileSync(nativeBootPath, 'utf8');
 assert(boot.includes("location.hostname === 'localhost'"), 'Android local-host path detection exists');
