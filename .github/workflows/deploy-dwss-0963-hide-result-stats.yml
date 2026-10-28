@@ -95,10 +95,11 @@ jobs:
           test -s "$TMP/dictionary.js.gz"
           gzip -t "$TMP/dictionary.js.gz"
           cmp -s public/dictionary.js.gz "$TMP/dictionary.js.gz"
-          python3 - <<'PY'
+          DWSS_LIVE_DICTIONARY="$TMP/dictionary.js.gz" python3 - <<'PY'
           import gzip
+          import os
           from pathlib import Path
-          data = gzip.decompress(Path("$TMP/dictionary.js.gz").read_bytes()).decode("utf-8")
+          data = gzip.decompress(Path(os.environ["DWSS_LIVE_DICTIONARY"]).read_bytes()).decode("utf-8")
           if "window.SW_DB" not in data:
               raise SystemExit("Live dictionary endpoint does not contain the expected DWSS dictionary export.")
           print("PASS: live dictionary.js.gz returns HTTP 200, is valid gzip, matches the deployed artifact and exports window.SW_DB.")
