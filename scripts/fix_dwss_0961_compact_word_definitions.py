@@ -73,6 +73,8 @@ new_script = """    const secondary=[];
     }"""
 replace_once("index.html", old_script, new_script, "remove expandable wrapper and keep all details visible")
 
+replace_once("index.html", 'content="0.9.60"><!-- DWSS_AUTO_UPDATE_0_9_60 -->', 'content="0.9.61"><!-- DWSS_AUTO_UPDATE_0_9_61 -->', "PWA release marker")
+replace_once("index.html", "版本 0.9.60 · DWSS 智能翻译 PWA", "版本 0.9.61 · DWSS 智能翻译 PWA", "visible release version")
 replace_once("app.js", "version:'0.9.60'", "version:'0.9.61'", "application version")
 replace_once("sw.js", "const APP_VERSION = '0.9.60';", "const APP_VERSION = '0.9.61';", "service-worker cache version")
 version = ROOT / "VERSION.txt"
