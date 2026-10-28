@@ -103,7 +103,7 @@ replace_once('app.js', "version:'0.9.58'", "version:'0.9.59'", 'application vers
 replace_once('sw.js', "const APP_VERSION = '0.9.58';", "const APP_VERSION = '0.9.59';", 'service worker cache version')
 version = ROOT / 'VERSION.txt'
 info = version.read_text(encoding='utf-8').replace('Version: 0.9.58', 'Version: 0.9.59', 1)
-note = ('0.9.59: Remove the manual “检查更新” button; automatic update is verified to run on app open, network reconnection, return to foreground and focus. Move the live automatic-update state badge to the button\\'s former right-side position. Preserve draft-safe automatic Service Worker replacement.\n')
+note = ('0.9.59: Remove the manual “检查更新” button; automatic update is verified to run on app open, network reconnection, return to foreground and focus. Move the live automatic-update state badge to the former right-side position. Preserve draft-safe automatic Service Worker replacement.\n')
 if note not in info:
     info = info.rstrip() + '\n' + note
 version.write_text(info, encoding='utf-8')
