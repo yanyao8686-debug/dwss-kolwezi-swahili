@@ -1,0 +1,98 @@
+name: Deploy DWSS 0.9.53 return link style and offline sync verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0953-return-style-offline-sync.yml'
+      - 'scripts/fix_dwss_0953_return_style.py'
+      - 'scripts/test_dwss_0953_release.cjs'
+      - 'scripts/test_shared_offline_sync_0_9_53.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Fetch exact verified 0.9.52 live base
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 5 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.52' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 4 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          echo "PASS: fetched live DWSS 0.9.52 assets, not an obsolete package."
+
+      - name: Apply 0.9.53 typography adjustment and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fix_dwss_0953_return_style.py
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0953_release.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_shared_offline_sync_0_9_53.cjs
+          grep -Fq 'Version: 0.9.53' public/VERSION.txt
+          grep -Fq 'id="newZh"' public/index.html
+          grep -Fq 'id="newReading"' public/index.html
+          grep -Fq 'id="newFrenchReadingZh"' public/index.html
+          grep -Fq 'id="entrySubmit"' public/index.html
+          test -s public/dictionary.js.gz
+          test -s public/cover.webp
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.53
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.53
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE="${PAGE_URL%/}"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.53"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            curl -fsSL --retry 6 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.53' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.53 · DWSS' "$TMP/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_53' "$TMP/index.html"
+          grep -Fq 'font-size:16px!important' "$TMP/index.html"
+          grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.53';" "$TMP/sw.js"
+          grep -Fq 'dwss_shared_terms_queue_v1' "$TMP/shared-lexicon.js"
+          grep -Fq 'dwss:personal-term-added' "$TMP/shared-lexicon.js"
+          grep -Fq 'dwss-edit-dictionary-pronunciation' "$TMP/dictionary-overrides.js"
+          echo "PASS: LIVE DWSS 0.9.53 return-link typography, update cache, public dictionary editor, and offline queue verified."
