@@ -10,7 +10,7 @@ const app = read(root, 'app.js');
 const sw = read(root, 'sw.js');
 const version = read(root, 'VERSION.txt');
 
-assert.equal((html.match(/<h2>斯语翻译中文谐音：<\\/h2>/g) || []).length, 1,
+assert.equal((html.match(/<h2>斯语翻译中文谐音：<\/h2>/g) || []).length, 1,
   'requested heading must appear exactly once');
 assert(!html.includes('<h2>翻译结果中文谐音：</h2>'),
   'old main-screen heading must be replaced');
@@ -18,9 +18,9 @@ assert(app.includes('翻译结果中文谐音会显示在这里'),
   'unrequested placeholder wording in the empty result state must remain unchanged');
 assert(html.includes('中文谐音结果') && html.includes('复制谐音'),
   'other result labels must remain unchanged');
-const navMatch = html.match(/<nav class="tabs">([\\s\\S]*?)<\\/nav>/);
+const navMatch = html.match(/<nav class="tabs">([\s\S]*?)<\/nav>/);
 assert(navMatch, 'main navigation must exist');
-assert.equal((navMatch[1].match(/<button\\b/g) || []).length, 3,
+assert.equal((navMatch[1].match(/<button\b/g) || []).length, 3,
   'main navigation must retain its two tabs and clear action');
 assert(navMatch[1].includes('data-tab="maintenance"') &&
        navMatch[1].includes('data-tab="saved"') &&
@@ -69,7 +69,7 @@ if (baseRoot) {
   let expectedVersion = replaceOnce(baseVersion, 'Version: 0.9.55', 'Version: 0.9.56',
     'release version');
   const note = '0.9.56: Change only the main translation result heading to “斯语翻译中文谐音：”; all other user-facing content and behavior are unchanged.';
-  if (!expectedVersion.includes(note)) expectedVersion = expectedVersion.trimEnd() + '\\n' + note + '\\n';
+  if (!expectedVersion.includes(note)) expectedVersion = expectedVersion.trimEnd() + '\n' + note + '\n';
   assert.equal(version, expectedVersion,
     'VERSION.txt may differ only by release version and a one-line release note');
 
