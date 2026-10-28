@@ -1,0 +1,195 @@
+name: Deploy DWSS 0.9.51 public pronunciation editor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-public-dictionary-editor-0_9_51.yml'
+      - 'scripts/dwss_0_9_51_release_*.b64'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Fetch verified DWSS 0.9.50 site
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 5 --retry-delay 2 --max-time 30 "$BASE_URL/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.50' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp COPYRIGHT_AND_LICENSE.txt shared-lexicon.js supabase.min.js _headers cover.jpg; do
+            curl -fsSL --retry 4 --retry-delay 2 --max-time 60 "$BASE_URL/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+
+      - name: Restore DWSS 0.9.51 package and patch site
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            scripts/dwss_0_9_51_release_00.b64 \
+            scripts/dwss_0_9_51_release_01.b64 \
+            scripts/dwss_0_9_51_release_02.b64 \
+            scripts/dwss_0_9_51_release_03.b64 \
+            scripts/dwss_0_9_51_release_04.b64 \
+            scripts/dwss_0_9_51_release_05.b64 \
+            scripts/dwss_0_9_51_release_06.b64 \
+            scripts/dwss_0_9_51_release_07.b64 \
+            scripts/dwss_0_9_51_release_08.b64 \
+            > "$RUNNER_TEMP/dwss-0.9.51-package.b64"
+          base64 --decode "$RUNNER_TEMP/dwss-0.9.51-package.b64" > "$RUNNER_TEMP/dwss-0.9.51-package.tar.gz"
+          echo "c1821abacc750d34294439a845a305445f01dd532e8e29fbd89e1ece86ef5bd1  $RUNNER_TEMP/dwss-0.9.51-package.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/dwss-0.9.51-package"
+          tar -xzf "$RUNNER_TEMP/dwss-0.9.51-package.tar.gz" -C "$RUNNER_TEMP/dwss-0.9.51-package"
+          patch --batch --forward -p1 -d public < "$RUNNER_TEMP/dwss-0.9.51-package/dwss_0_9_51.patch"
+          cp "$RUNNER_TEMP/dwss-0.9.51-package/dictionary-overrides.js" public/dictionary-overrides.js
+          cp "$RUNNER_TEMP/dwss-0.9.51-package/test_dictionary_pronunciation_0951.cjs" "$RUNNER_TEMP/test_dictionary_pronunciation_0951.cjs"
+
+      - name: Syntax and local integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check public/app.js
+          node --check public/boot.js
+          node --check public/sw.js
+          node --check public/dictionary-overrides.js
+          DWSS_TEST_ROOT="$PWD/public" node "$RUNNER_TEMP/test_dictionary_pronunciation_0951.cjs"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          app=(p/"app.js").read_text(encoding="utf-8")
+          boot=(p/"boot.js").read_text(encoding="utf-8")
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          overrides=(p/"dictionary-overrides.js").read_text(encoding="utf-8")
+          checks={
+            "release version": "Version: 0.9.51" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "visible version": "版本 0.9.51 · DWSS" in html,
+            "service worker cache": "const APP_VERSION = '0.9.51';" in sw,
+            "first pronunciation only": "const variants=preferredLocalVariants(found).filter(v=>v.reading);" in app and "variants[0]" in app,
+            "duplicate Swahili pronunciations suppressed": "emittedLocalWords" in app and "s.duplicate" in app,
+            "public edit button exists": 'data-edit-pronunciation="' in app,
+            "public current revisions panel exists": 'id="publicPronunciationList"' in html,
+            "restore action exists": 'id="restoreBuiltinPronunciation"' in html,
+            "module loaded after app": "'./dictionary-overrides.js'" in boot,
+            "Supabase client loads before boot": html.index('src="./supabase.min.js"') < html.index('src="./boot.js"'),
+            "public endpoint has no admin key": "admin_key" not in overrides and "Authorization" not in overrides,
+            "public read selects only current row data": "dictionary_pronunciation_overrides" in overrides and "previous_local_pronunciations" not in overrides,
+            "French homophone entry still available": 'id="newFrenchReadingZh"' in html,
+            "cover retained": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size>100000,
+            "dictionary retained": (p/"dictionary.js.gz").is_file(),
+          }
+          for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("DWSS 0.9.51 release checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Test public server write, read, validation and restore without admin key
+        shell: bash
+        env:
+          SUPABASE_URL: https://pautxzcfmtwkaunjxghj.supabase.co
+          SUPABASE_PUBLIC_KEY: sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp
+        run: |
+          set -euo pipefail
+          REST="$SUPABASE_URL/rest/v1/dictionary_pronunciation_overrides"
+          FUNCTION="$SUPABASE_URL/functions/v1/dwss-edit-dictionary-pronunciation"
+          CHINESE="这个"
+          NORMALIZED="%E8%BF%99%E4%B8%AA"
+          HEADERS=(-H "apikey: $SUPABASE_PUBLIC_KEY" -H "Authorization: Bearer $SUPABASE_PUBLIC_KEY")
+          EXISTING="$(curl -fsS "${HEADERS[@]}" "$REST?normalized_chinese=eq$NORMALIZED&select=normalized_chinese,local_pronunciation_cn")"
+          if [ "$(printf '%s' "$EXISTING" | jq 'length')" -ne 0 ]; then
+            echo "Refusing to overwrite a pre-existing public user correction during release test."
+            exit 1
+          fi
+
+          # A non-dictionary headword must be rejected by server-side validation.
+          INVALID_CODE="$(curl -sS -o "$RUNNER_TEMP/dwss-invalid.json" -w '%{http_code}' \
+            -X POST "$FUNCTION" "${HEADERS[@]}" \
+            -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" \
+            --data '{"action":"update","chinese_text":"DWSS不存在词条测试","local_pronunciation_cn":"测试读音"}')"
+          test "$INVALID_CODE" = "422"
+          jq -e '.ok == false' "$RUNNER_TEMP/dwss-invalid.json" >/dev/null
+
+          cleanup() {
+            curl -sS -o /dev/null -X POST "$FUNCTION" "${HEADERS[@]}" \
+              -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" \
+              --data '{"action":"restore","chinese_text":"这个"}' || true
+          }
+          trap cleanup EXIT
+
+          # Public write: deliberately no administrator key or administrator header.
+          WRITE_CODE="$(curl -sS -o "$RUNNER_TEMP/dwss-write.json" -w '%{http_code}' \
+            -X POST "$FUNCTION" "${HEADERS[@]}" \
+            -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" \
+            --data '{"action":"update","chinese_text":"这个","local_pronunciation_cn":"撒"}')"
+          test "$WRITE_CODE" = "200"
+          jq -e '.ok == true and .override.local_pronunciation_cn == "撒"' "$RUNNER_TEMP/dwss-write.json" >/dev/null
+
+          # Public users must be able to read the new current revision.
+          READ="$(curl -fsS "${HEADERS[@]}" "$REST?normalized_chinese=eq$NORMALIZED&select=normalized_chinese,chinese_text,local_pronunciation_cn,updated_at")"
+          jq -e 'length == 1 and .[0].local_pronunciation_cn == "撒"' <<< "$READ" >/dev/null
+          jq -e '.[0] | (has("original_local_pronunciation_cn") or has("previous_local_pronunciations") or has("revision")) | not' <<< "$READ" >/dev/null
+
+          # Restore removes the single current override. No old value or history row remains.
+          RESTORE_CODE="$(curl -sS -o "$RUNNER_TEMP/dwss-restore.json" -w '%{http_code}' \
+            -X POST "$FUNCTION" "${HEADERS[@]}" \
+            -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" \
+            --data '{"action":"restore","chinese_text":"这个"}')"
+          test "$RESTORE_CODE" = "200"
+          jq -e '.ok == true and .action == "restored"' "$RUNNER_TEMP/dwss-restore.json" >/dev/null
+          RESTORED="$(curl -fsS "${HEADERS[@]}" "$REST?normalized_chinese=eq$NORMALIZED&select=normalized_chinese")"
+          test "$(printf '%s' "$RESTORED" | jq 'length')" -eq 0
+          trap - EXIT
+          echo "PASS: any public visitor can write without admin key; server validates headwords; public read works; only current value is stored; restore removes it."
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.51
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${PAGE_URL%/}"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.51"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js dictionary-overrides.js sw.js; do
+            curl -fsSL --retry 6 --retry-delay 3 --max-time 30 "$BASE_URL/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.51' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.51 · DWSS' "$TMP/index.html"
+          grep -Fq 'emittedLocalWords' "$TMP/app.js"
+          grep -Fq 'dictionary-overrides.js' "$TMP/boot.js"
+          grep -Fq 'id="publicPronunciationList"' "$TMP/index.html"
+          grep -Fq 'const APP_VERSION = '"'"'0.9.51'"'"';' "$TMP/sw.js"
+          echo "PASS: LIVE DWSS 0.9.51 - duplicate reading suppression and public dictionary editor verified."
