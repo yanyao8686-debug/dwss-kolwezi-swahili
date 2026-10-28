@@ -51,7 +51,7 @@ replace_once(
 
 replace_once('app.js', "version:'0.9.59'", "version:'0.9.60'", 'application version')
 replace_once('index.html', 'content="0.9.59"><!-- DWSS_AUTO_UPDATE_0_9_59 -->', 'content="0.9.60"><!-- DWSS_AUTO_UPDATE_0_9_60 -->', 'PWA auto-update marker')
-replace_once('index.html', '版本 0.9.59 · DWSS 智能翻译 PWA', '版本 0.9.60 · DWSS 智能翻译 PWA', 'visible version')
+replace_once('index.html', '版本 0.9.58 · DWSS 智能翻译 PWA', '版本 0.9.60 · DWSS 智能翻译 PWA', 'visible version')
 replace_once('sw.js', "const APP_VERSION = '0.9.59';", "const APP_VERSION = '0.9.60';", 'service worker cache version')
 version = ROOT / 'VERSION.txt'
 info = version.read_text(encoding='utf-8').replace('Version: 0.9.59', 'Version: 0.9.60', 1)
