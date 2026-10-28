@@ -1,0 +1,135 @@
+name: Build DWSS native Android and iOS apps
+
+on:
+  push:
+    branches: [feat/native-android-ios-capacitor]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-native-apps.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-web-assets:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download current verified DWSS web release
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p mobile/www
+          curl -fsSL --retry 5 --retry-delay 2 "$BASE/VERSION.txt" -o mobile/www/VERSION.txt
+          test -s mobile/www/VERSION.txt
+          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$f" -o "mobile/www/$f"
+            test -s "mobile/www/$f"
+          done
+          grep -q 'DWSS' mobile/www/index.html
+      - id: version
+        name: Read web release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^Version: //p' mobile/www/VERSION.txt | head -n1)
+          test -n "$VERSION"
+          echo "app_version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dwss-web-assets-${{ steps.version.outputs.app_version }}
+          path: mobile/www/
+          if-no-files-found: error
+
+  android-apk:
+    needs: prepare-web-assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: mobile/www/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install Capacitor and generate Android project
+        working-directory: mobile
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add android
+          npx cap sync android
+      - name: Build installable debug APK
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+      - name: Verify APK exists
+        run: |
+          set -euo pipefail
+          APK='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          file "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DWSS-Android-APK-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  ios-simulator-build:
+    needs: prepare-web-assets
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: mobile/www/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package.json
+      - name: Install Capacitor and generate iOS project
+        working-directory: mobile
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add ios
+          npx cap sync ios
+      - name: Compile iOS Simulator app (unsigned)
+        working-directory: mobile
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator build
+        run: |
+          set -euo pipefail
+          APP='mobile/build/Build/Products/Debug-iphonesimulator/App.app'
+          test -d "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/DWSS-iOS-Simulator-${{ needs.prepare-web-assets.outputs.app_version }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DWSS-iOS-Simulator-Unsigned-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: ${{ runner.temp }}/DWSS-iOS-Simulator-${{ needs.prepare-web-assets.outputs.app_version }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  summary:
+    if: always()
+    needs: [prepare-web-assets, android-apk, ios-simulator-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report honest build status
+        run: |
+          echo 'Android APK: ${{ needs.android-apk.result }}'
+          echo 'iOS Simulator build: ${{ needs.ios-simulator-build.result }}'
+          echo 'An unsigned simulator .app is not an installable iPhone IPA.'
