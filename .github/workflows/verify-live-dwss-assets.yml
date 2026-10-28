@@ -1,0 +1,55 @@
+name: Verify live DWSS website assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-dwss-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public DWSS version, boot files and dictionary download
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          OUT="$RUNNER_TEMP/dwss-live-assets"
+          mkdir -p "$OUT"
+
+          for file in VERSION.txt index.html boot.js pwa.js sw.js; do
+            echo "Checking $file"
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$OUT/$file"
+            test -s "$OUT/$file"
+          done
+
+          VERSION=$(sed -n 's/^Version: //p' "$OUT/VERSION.txt" | head -n1)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "Live DWSS version: $VERSION"
+
+          grep -Fq "dictionary.js.gz" "$OUT/boot.js"
+          grep -Fq "pwa.js" "$OUT/boot.js"
+          grep -Fq "navigator.serviceWorker.register" "$OUT/pwa.js"
+          grep -Fq "dictionary.js.gz" "$OUT/sw.js"
+
+          echo "Checking the exact dictionary URL requested by boot.js"
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$OUT/dictionary.js.gz"
+          test -s "$OUT/dictionary.js.gz"
+          gzip -t "$OUT/dictionary.js.gz"
+          DWSS_LIVE_DICTIONARY="$OUT/dictionary.js.gz" python3 - <<'PY'
+          import gzip
+          import os
+          from pathlib import Path
+
+          text = gzip.decompress(Path(os.environ["DWSS_LIVE_DICTIONARY"]).read_bytes()).decode("utf-8")
+          if "window.SW_DB" not in text:
+              raise SystemExit("The live dictionary file is not a valid DWSS dictionary.")
+          print("PASS: dictionary.js.gz is reachable, valid gzip, and contains window.SW_DB.")
+          PY
+
+          echo "PASS: live website version $VERSION serves boot.js, pwa.js, sw.js and the dictionary file requested by boot.js."
