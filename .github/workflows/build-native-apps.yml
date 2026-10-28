@@ -121,7 +121,7 @@ jobs:
           unzip -t "$APK" >/dev/null
           DEX_STRINGS=$(unzip -p "$APK" classes.dex | strings)
           echo "$DEX_STRINGS" | grep -Fq 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/'
-          echo "$DEX_STRINGS" | grep -Fq 'android.webkit.ServiceWorkerController'
+          echo "$DEX_STRINGS" | grep -Fq 'ServiceWorkerController'
           echo "PASS: APK contains the HTTPS website URL and Android Service Worker-enabled WebView shell."
           echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
           mkdir -p mobile/dist
