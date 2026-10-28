@@ -86,9 +86,25 @@ jobs:
           BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
           TMP="$RUNNER_TEMP/dwss-live-0.9.63"
           mkdir -p "$TMP"
-          for file in VERSION.txt index.html app.js pwa.js sw.js; do
+          for file in VERSION.txt index.html app.js pwa.js sw.js boot.js; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
           done
+          # The Android WebView opens this website directly. Verify the exact
+          # dictionary asset requested by boot.js, not only the HTML and scripts.
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$TMP/dictionary.js.gz"
+          test -s "$TMP/dictionary.js.gz"
+          gzip -t "$TMP/dictionary.js.gz"
+          cmp -s public/dictionary.js.gz "$TMP/dictionary.js.gz"
+          python3 - <<'PY'
+          import gzip
+          from pathlib import Path
+          data = gzip.decompress(Path("$TMP/dictionary.js.gz").read_bytes()).decode("utf-8")
+          if "window.SW_DB" not in data:
+              raise SystemExit("Live dictionary endpoint does not contain the expected DWSS dictionary export.")
+          print("PASS: live dictionary.js.gz returns HTTP 200, is valid gzip, matches the deployed artifact and exports window.SW_DB.")
+          PY
+          grep -Fq "dictionary.js.gz" "$TMP/boot.js"
+          grep -Fq "pwa.js" "$TMP/boot.js"
           grep -Fq 'Version: 0.9.63' "$TMP/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_63' "$TMP/index.html"
           grep -Fq '#resultCard>.stats,' "$TMP/index.html"
