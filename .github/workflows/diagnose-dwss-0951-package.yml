@@ -1,0 +1,27 @@
+name: Diagnose DWSS 0.9.51 release package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-dwss-0951-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct and check release package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/dwss_0_9_51_release_00.b64 scripts/dwss_0_9_51_release_01.b64 scripts/dwss_0_9_51_release_02.b64 scripts/dwss_0_9_51_release_03.b64 scripts/dwss_0_9_51_release_04.b64 scripts/dwss_0_9_51_release_05.b64 scripts/dwss_0_9_51_release_06.b64 scripts/dwss_0_9_51_release_07.b64 scripts/dwss_0_9_51_release_08.b64 > "$RUNNER_TEMP/pkg.b64"
+          base64 --decode "$RUNNER_TEMP/pkg.b64" > "$RUNNER_TEMP/pkg.tar.gz"
+          wc -c "$RUNNER_TEMP/pkg.b64" "$RUNNER_TEMP/pkg.tar.gz"
+          sha256sum "$RUNNER_TEMP/pkg.tar.gz"
+          gzip -t "$RUNNER_TEMP/pkg.tar.gz"
+          tar -tzf "$RUNNER_TEMP/pkg.tar.gz"
