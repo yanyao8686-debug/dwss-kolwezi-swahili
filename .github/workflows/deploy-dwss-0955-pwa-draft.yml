@@ -1,0 +1,114 @@
+name: Deploy DWSS 0.9.55 preserve public pronunciation editor drafts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0955-pwa-draft.yml'
+      - 'scripts/fix_dwss_0955_update_draft.py'
+      - 'scripts/test_dwss_0955_release.cjs'
+      - 'scripts/test_first_reading_0_9_54.cjs'
+      - 'scripts/test_shared_offline_sync_0_9_53.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+
+      - name: Fetch verified live 0.9.54 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 5 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.54' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 4 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+
+      - name: Patch and test update-safe public editor drafts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fix_dwss_0955_update_draft.py
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "public/$file"; done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0955_release.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_first_reading_0_9_54.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_shared_offline_sync_0_9_53.cjs
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from collections import Counter
+          from pathlib import Path
+          p=Path("public")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.refs=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if "id" in a: self.ids.append(a["id"])
+                  for k in ("src","href"):
+                      v=a.get(k,"")
+                      if v and not v.startswith(("https://","http://","data:","#","mailto:")):
+                          self.refs.append(v.split("?")[0])
+          audit=Audit(); audit.feed((p/"index.html").read_text(encoding="utf-8"))
+          duplicate={k:v for k,v in Counter(audit.ids).items() if v>1}
+          missing=[v for v in audit.refs if not (p/v).exists()]
+          if duplicate: raise SystemExit("duplicate HTML IDs: "+str(duplicate))
+          if missing: raise SystemExit("missing local assets: "+str(missing))
+          html=(p/"index.html").read_text(encoding="utf-8")
+          nav=html.split('<nav class="tabs">',1)[1].split("</nav>",1)[0]
+          if 'data-tab="dictionary"' in nav or nav.count("<button") != 3:
+              raise SystemExit("main navigation does not match the three-action requirement")
+          if 'id="openPublicPronunciationEditor"' not in html:
+              raise SystemExit("public editor entry is missing from Add New Word")
+          (p/".nojekyll").touch()
+          print("PASS: unique HTML IDs, all assets present, original three-action navigation retained.")
+          PY
+          grep -Fq 'Version: 0.9.55' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.55';" public/sw.js
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.55
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.55
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.55"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            curl -fsSL --retry 6 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.55' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.55 · DWSS' "$TMP/index.html"
+          ! grep -Fq 'data-tab="dictionary"' "$TMP/index.html"
+          grep -Fq 'id="openPublicPronunciationEditor"' "$TMP/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_55' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.55';" "$TMP/sw.js"
+          grep -Fq 'pronunciationEditorValue' "$TMP/pwa.js"
+          grep -Fq 'activePanel:' "$TMP/pwa.js"
+          grep -Fq 'editorState.open && editorState.word' "$TMP/pwa.js"
+          grep -Fq 'dwss_shared_terms_queue_v1' "$TMP/shared-lexicon.js"
+          grep -Fq 'dwss-edit-dictionary-pronunciation' "$TMP/dictionary-overrides.js"
+          echo "PASS: LIVE 0.9.55 restores open pronunciation editor drafts across automatic updates."
