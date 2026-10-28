@@ -32,22 +32,34 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Fetch verified live DWSS 0.9.68 baseline
+      - name: Fetch verified live DWSS baseline
+        id: baseline
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p public
           curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
-          grep -Fq 'Version: 0.9.68' public/VERSION.txt
+          if grep -Fq 'Version: 0.9.68' public/VERSION.txt; then
+            echo 'needs_patch=true' >> "$GITHUB_OUTPUT"
+            EXPECTED_SW="const APP_VERSION = '0.9.68';"
+          elif grep -Fq 'Version: 0.9.69' public/VERSION.txt; then
+            echo 'needs_patch=false' >> "$GITHUB_OUTPUT"
+            EXPECTED_SW="const APP_VERSION = '0.9.69';"
+          else
+            echo 'Unexpected live baseline version:'
+            cat public/VERSION.txt
+            exit 1
+          fi
           for file in index.html manifest.webmanifest boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 6 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
             test -s "public/$file"
           done
-          grep -Fq "const APP_VERSION = '0.9.68';" public/sw.js
+          grep -Fq "$EXPECTED_SW" public/sw.js
           gzip -t public/dictionary.js.gz
 
       - name: Restore missing source vocabulary and add first-open announcement
+        if: steps.baseline.outputs.needs_patch == 'true'
         env:
           DWSS_PUBLIC_DIR: public
           DWSS_REPO_DIR: ${{ github.workspace }}
@@ -121,7 +133,7 @@ jobs:
           grep -Fq 'Version: 0.9.69' "$TMP/VERSION.txt"
           grep -Fq "const APP_VERSION = '0.9.69';" "$TMP/sw.js"
           grep -Fq 'dwss-release=0.9.69' "$TMP/index.html"
-          grep -Fq 'dwss-announcement-dismissed:0.9.69' "$TMP/index.html"
+          grep -Fq 'dwss:announcement-dismissed:0.9.69' "$TMP/index.html"
           grep -Fq '我已阅读，进入应用' "$TMP/index.html"
           grep -Fq '刚果金斯语翻译' "$TMP/manifest.webmanifest"
           if grep -Fq 'DWSS斯语助手' "$TMP/manifest.webmanifest"; then exit 1; fi
