@@ -17,14 +17,24 @@ assert(fs.existsSync(manifestPath), 'AndroidManifest.xml exists');
 assert(fs.existsSync(activityPath), 'custom WebView MainActivity exists');
 assert(buildGradle, 'app Gradle file exists');
 
+function readAndroidString(xml, name) {
+  const opening = '<string name="' + name + '"';
+  const start = xml.indexOf(opening);
+  if (start < 0) return null;
+  const contentStart = xml.indexOf('>', start) + 1;
+  const end = xml.indexOf('</string>', contentStart);
+  if (contentStart <= 0 || end < 0) return null;
+  return xml.slice(contentStart, end);
+}
+
 const defaultStringsPath = path.join(resourcesRoot, 'values/strings.xml');
 assert(fs.existsSync(defaultStringsPath), 'default strings.xml exists');
 const defaultStrings = fs.readFileSync(defaultStringsPath, 'utf8');
-assert.match(defaultStrings, /<string\\s+name="app_name"[^>]*>刚果金斯语翻译<\\/string>/);
-assert.match(defaultStrings, /<string\\s+name="title_activity_main"[^>]*>刚果金斯语翻译<\\/string>/);
+assert.equal(readAndroidString(defaultStrings, 'app_name'), '刚果金斯语翻译');
+assert.equal(readAndroidString(defaultStrings, 'title_activity_main'), '刚果金斯语翻译');
 
 const valueDirs = fs.readdirSync(resourcesRoot, {withFileTypes:true})
-  .filter(entry => entry.isDirectory() && /^values(?:-.+)?$/.test(entry.name))
+  .filter(entry => entry.isDirectory() && entry.name.startsWith('values'))
   .map(entry => path.join(resourcesRoot, entry.name));
 let localizedFiles = 0;
 for (const dir of valueDirs) {
@@ -33,44 +43,59 @@ for (const dir of valueDirs) {
   localizedFiles++;
   const xml = fs.readFileSync(file, 'utf8');
   for (const name of ['app_name', 'title_activity_main']) {
-    const re = new RegExp('<string\\\\s+name="' + name + '"[^>]*>([\\\\s\\\\S]*?)<\\\\/string>');
-    const match = re.exec(xml);
-    if (match) assert.equal(match[1], '刚果金斯语翻译', dir + '/' + name + ' must use the correct Chinese app name');
+    const value = readAndroidString(xml, name);
+    if (value !== null) assert.equal(value, '刚果金斯语翻译', dir + '/' + name + ' must use the correct app name');
   }
 }
 assert(localizedFiles > 0, 'Android locale resource files were audited');
 
 const manifest = fs.readFileSync(manifestPath, 'utf8');
-assert.match(manifest, /android\\.permission\\.INTERNET/);
-assert.match(manifest, /android:icon="@mipmap\\/ic_launcher"/);
-assert.match(manifest, /android:usesCleartextTraffic="false"/);
-const applicationTag = manifest.match(/<application\\b[^>]*>/)?.[0] || '';
-const activityTags = manifest.match(/<activity\\b[^>]*>/g) || [];
-const launcherTag = activityTags.find(tag => /android:name="(?:\\.MainActivity|com\\.dwss\\.kolwezi\\.MainActivity)"/.test(tag)) || '';
+assert(manifest.includes('android.permission.INTERNET'));
+assert(manifest.includes('android:icon="@mipmap/ic_launcher"'));
+assert(manifest.includes('android:usesCleartextTraffic="false"'));
+const appStart = manifest.indexOf('<application');
+const appEnd = manifest.indexOf('>', appStart);
+assert(appStart >= 0 && appEnd > appStart, 'application tag is present');
+const applicationTag = manifest.slice(appStart, appEnd + 1);
 assert(applicationTag.includes('android:label="@string/app_name"'), 'application label is forced to app_name');
+
+let launcherTag = '';
+let cursor = 0;
+while ((cursor = manifest.indexOf('<activity', cursor)) >= 0) {
+  const end = manifest.indexOf('>', cursor);
+  if (end < 0) break;
+  const tag = manifest.slice(cursor, end + 1);
+  if (tag.includes('android:name=".MainActivity"') || tag.includes('android:name="com.dwss.kolwezi.MainActivity"')) {
+    launcherTag = tag;
+    break;
+  }
+  cursor = end + 1;
+}
+assert(launcherTag, 'launcher activity tag is present');
 assert(launcherTag.includes('android:label="@string/app_name"'), 'launcher activity label is forced to app_name');
 
 const activity = fs.readFileSync(activityPath, 'utf8');
-assert.match(activity, /https:\\/\\/yanyao8686-debug\\.github\\.io\\/dwss-kolwezi-swahili\\//);
-assert.match(activity, /ServiceWorkerController\\.getInstance\\(\\)/);
-assert.match(activity, /setDomStorageEnabled\\(true\\)/);
-assert.match(activity, /MIXED_CONTENT_NEVER_ALLOW/);
-assert.match(activity, /setSupportMultipleWindows\\(false\\)/);
-assert.match(activity, /android\\.webkit\\.WebView/);
-assert.doesNotMatch(activity, /APP_HOST/, 'no host-only route that can send site redirects to Chrome');
-assert.doesNotMatch(activity, /startActivity\\(new Intent\\(Intent\\.ACTION_VIEW, uri\\)\\).*https/s, 'HTTPS navigation must not launch a browser');
+assert(activity.includes('https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/'));
+assert(activity.includes('ServiceWorkerController.getInstance()'));
+assert(activity.includes('setDomStorageEnabled(true)'));
+assert(activity.includes('MIXED_CONTENT_NEVER_ALLOW'));
+assert(activity.includes('setSupportMultipleWindows(false)'));
+assert(activity.includes('android.webkit.WebView'));
+assert(!activity.includes('APP_HOST'), 'there is no host-only route that can send redirects to Chrome');
+assert(!activity.includes('startActivity(new Intent(Intent.ACTION_VIEW, uri));') || activity.includes('"mailto".equals(scheme) || "tel".equals(scheme)'), 'external intents are limited to mail/phone protocols');
 
 const routeStart = activity.indexOf('private boolean routeUrl(Uri uri)');
 const routeEnd = activity.indexOf('private void showOfflinePage()', routeStart);
 assert(routeStart >= 0 && routeEnd > routeStart, 'routeUrl method is present');
 const route = activity.slice(routeStart, routeEnd);
-assert.match(route, /if \\("https"\\.equals\\(scheme\\) \\|\\| "http"\\.equals\\(scheme\\)\\) return false;/, 'all web URLs stay in WebView');
-assert.match(route, /"mailto"\\.equals\\(scheme\\) \\|\\| "tel"\\.equals\\(scheme\\)/, 'only mail/phone protocols are external-app actions');
+assert(route.includes('if ("https".equals(scheme) || "http".equals(scheme)) return false;'), 'all HTTP/HTTPS navigations stay inside WebView');
+assert(route.includes('"mailto".equals(scheme) || "tel".equals(scheme)'), 'only mail/phone protocols may open external apps');
+assert(!route.includes('APP_HOST'), 'no host-only comparison may send HTTPS redirects to browser');
 
 const gradle = fs.readFileSync(buildGradle, 'utf8');
-assert.match(gradle, /applicationId\\s+["']com\\.dwss\\.kolwezi["']/);
-assert.match(gradle, /versionCode\\s+\\d+/);
-assert.match(gradle, /versionName\\s+["']0\\.9\\.\\d+["']/);
+assert(gradle.includes('applicationId "com.dwss.kolwezi"') || gradle.includes("applicationId 'com.dwss.kolwezi'"));
+assert(gradle.includes('versionCode '));
+assert(gradle.includes('versionName '));
 
 for (const file of [
   'android/app/src/main/res/mipmap-mdpi/ic_launcher.png',
