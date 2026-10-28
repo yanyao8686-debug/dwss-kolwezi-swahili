@@ -102,7 +102,7 @@ jobs:
           grep -Fq 'Version: 0.9.67' "$TMP/VERSION.txt"
           grep -Fq '版本 0.9.67 · 刚果金斯语翻译' "$TMP/index.html"
           grep -Fq 'refreshDisplayedVersion();' "$TMP/pwa.js"
-          grep -Fq 'fetch(./VERSION.txt?dwss-version-check=' "$TMP/pwa.js"
+          grep -Fq "fetch('./VERSION.txt?dwss-version-check='" "$TMP/pwa.js"
           grep -Fq 'if (url.pathname.endsWith(/VERSION.txt))' "$TMP/sw.js" || grep -Fq "url.pathname.endsWith('/VERSION.txt')" "$TMP/sw.js"
           grep -Fq "'./VERSION.txt'" "$TMP/sw.js"
           grep -Fq "const APP_VERSION = '0.9.67';" "$TMP/sw.js"
