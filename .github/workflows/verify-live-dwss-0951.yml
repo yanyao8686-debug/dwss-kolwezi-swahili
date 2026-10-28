@@ -1,0 +1,32 @@
+name: Verify live DWSS 0.9.51 duplicate suppression and public editor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-dwss-0951.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live website assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p "$RUNNER_TEMP/dwss-live"
+          for f in VERSION.txt index.html app.js boot.js dictionary-overrides.js sw.js; do
+            curl -fsSL --retry 6 --retry-delay 3 "$BASE/$f?verify=$GITHUB_SHA" -o "$RUNNER_TEMP/dwss-live/$f"
+          done
+          grep -Fq 'Version: 0.9.51' "$RUNNER_TEMP/dwss-live/VERSION.txt"
+          grep -Fq '版本 0.9.51 · DWSS' "$RUNNER_TEMP/dwss-live/index.html"
+          grep -Fq 'id="publicPronunciationList"' "$RUNNER_TEMP/dwss-live/index.html"
+          grep -Fq 'emittedLocalWords' "$RUNNER_TEMP/dwss-live/app.js"
+          grep -Fq 'dictionary-overrides.js' "$RUNNER_TEMP/dwss-live/boot.js"
+          grep -Fq "const APP_VERSION = '0.9.51';" "$RUNNER_TEMP/dwss-live/sw.js"
+          echo "PASS: LIVE DWSS 0.9.51 verified."
