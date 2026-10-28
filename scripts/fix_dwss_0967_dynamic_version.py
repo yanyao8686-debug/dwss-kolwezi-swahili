@@ -95,8 +95,11 @@ version_route = r'''  // VERSION.txt is network-first: show the newest release o
       const latestUrl = new URL('./VERSION.txt', self.registration.scope).href;
       try {
         const fresh = await fetch(request, { cache: 'no-store' });
-        if (fresh && fresh.ok) await cache.put(latestUrl, fresh.clone());
-        return fresh;
+        if (fresh && fresh.ok) {
+          await cache.put(latestUrl, fresh.clone());
+          return fresh;
+        }
+        return (await cache.match(latestUrl)) || fresh || Response.error();
       } catch (_) {
         return (await cache.match(latestUrl)) || Response.error();
       }
