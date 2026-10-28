@@ -41,7 +41,10 @@ jobs:
           curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$OUT/dictionary.js.gz"
           test -s "$OUT/dictionary.js.gz"
           gzip -t "$OUT/dictionary.js.gz"
-          DWSS_LIVE_DICTIONARY="$OUT/dictionary.js.gz" python3 - <<'PY'
+          # Also test the exact unmodified URL requested by the Android WebView.
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz" -o "$OUT/dictionary-noquery.js.gz"
+          cmp -s "$OUT/dictionary.js.gz" "$OUT/dictionary-noquery.js.gz"
+          DWSS_LIVE_DICTIONARY="$OUT/dictionary-noquery.js.gz" python3 - <<'PY'
           import gzip
           import os
           from pathlib import Path
