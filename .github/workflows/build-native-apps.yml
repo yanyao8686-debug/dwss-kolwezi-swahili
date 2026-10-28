@@ -118,11 +118,33 @@ jobs:
           BADGING=$("$AAPT" dump badging "$APK")
           echo "$BADGING" | grep -F "package: name='com.dwss.kolwezi'"
           echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
+          LABEL_LINES=$(echo "$BADGING" | grep '^application-label' || true)
+          test -n "$LABEL_LINES"
+          while IFS= read -r LABEL_LINE; do
+            if [[ "$LABEL_LINE" != *"刚果金斯语翻译"* ]]; then
+              echo "ERROR: stale localized Android launcher label: $LABEL_LINE"
+              exit 1
+            fi
+          done <<< "$LABEL_LINES"
+          RESOURCE_DUMP=$("$AAPT" dump resources "$APK")
+          if echo "$RESOURCE_DUMP" | grep -Fq 'DWSS斯语助手'; then
+            echo 'ERROR: old DWSS斯语助手 launcher resource remains in APK.'
+            exit 1
+          fi
+          if echo "$RESOURCE_DUMP" | grep -Fq 'DWSS 科卢韦齐斯瓦西里语助手'; then
+            echo 'ERROR: old long DWSS launcher resource remains in APK.'
+            exit 1
+          fi
           unzip -t "$APK" >/dev/null
           DEX_STRINGS=$(for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$'); do unzip -p "$APK" "$DEX" | strings; done)
           echo "$DEX_STRINGS" | grep -Fq 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/'
           echo "$DEX_STRINGS" | grep -Fq 'ServiceWorkerController'
-          echo "PASS: APK contains the HTTPS website URL and Android Service Worker-enabled WebView shell."
+          echo "$DEX_STRINGS" | grep -Fq 'setSupportMultipleWindows'
+          if echo "$DEX_STRINGS" | grep -Fq 'APP_HOST'; then
+            echo 'ERROR: obsolete host-only external-browser routing remains in APK.'
+            exit 1
+          fi
+          echo "PASS: APK keeps HTTP/HTTPS navigation in the native WebView and enables the Service Worker shell."
           echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
           mkdir -p mobile/dist
           OUTPUT="mobile/dist/刚果金斯语翻译-$DWSS_WEB_VERSION.apk"
