@@ -7,6 +7,7 @@ on:
       - '.github/workflows/deploy-dwss-0956-heading.yml'
       - 'scripts/fix_dwss_0956_translation_heading.py'
       - 'scripts/test_dwss_0956_translation_heading.cjs'
+      - 'scripts/test_dwss_0956_release.cjs'
   workflow_dispatch:
 
 permissions:
@@ -54,7 +55,7 @@ jobs:
             node --check "public/$file"
           done
           DWSS_TEST_ROOT="$PWD/public" DWSS_BASE_ROOT="$RUNNER_TEMP/dwss-0955-baseline" node scripts/test_dwss_0956_translation_heading.cjs
-          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0955_release.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0956_release.cjs
           DWSS_TEST_ROOT="$PWD/public" node scripts/test_first_reading_0_9_54.cjs
           DWSS_TEST_ROOT="$PWD/public" node scripts/test_shared_offline_sync_0_9_53.cjs
           python3 - <<'PY'
