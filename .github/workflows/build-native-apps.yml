@@ -32,6 +32,9 @@ jobs:
           done
           grep -q 'DWSS' mobile/www/index.html
           file mobile/www/cover.jpg
+      - name: Prepare Android-compatible dictionary assets
+        working-directory: mobile
+        run: node scripts/prepare_android_web_assets.mjs
       - id: version
         name: Read and validate DWSS web release version
         shell: bash
@@ -116,6 +119,10 @@ jobs:
           echo "$BADGING" | grep -F "package: name='com.dwss.kolwezi'"
           echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
           unzip -t "$APK" >/dev/null
+          unzip -Z1 "$APK" | grep -Fxq 'assets/public/dictionary.js'
+          unzip -p "$APK" assets/public/boot.js | grep -Fq "location.hostname === 'localhost'"
+          unzip -p "$APK" assets/public/dictionary.js | grep -Fq 'window.SW_DB'
+          echo "PASS: APK contains the uncompressed local dictionary and Android-aware bootstrap."
           echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
           mkdir -p mobile/dist
           OUTPUT="mobile/dist/刚果金斯语翻译-$DWSS_WEB_VERSION.apk"
