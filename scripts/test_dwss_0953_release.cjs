@@ -1,0 +1,17 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = process.env.DWSS_TEST_ROOT || 'public';
+const html = fs.readFileSync(path + '/index.html', 'utf8');
+const app = fs.readFileSync(path + '/app.js', 'utf8');
+const sw = fs.readFileSync(path + '/sw.js', 'utf8');
+const version = fs.readFileSync(path + '/VERSION.txt', 'utf8');
+assert(html.includes("back.className='dwss-return-translation'"));
+assert.match(html, /\.dwss-return-translation\{[^}]*color:#ff4b12!important;[^}]*font-size:16px!important;[^}]*font-weight:800!important;[^}]*text-decoration-line:underline!important;[^}]*text-decoration-thickness:2px!important;/);
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_53'));
+assert(html.includes('版本 0.9.53 · DWSS'));
+assert(app.includes("version:'0.9.53'"));
+assert(sw.includes("const APP_VERSION = '0.9.53';"));
+assert(version.includes('Version: 0.9.53'));
+assert(fs.existsSync(path + '/shared-lexicon.js'));
+console.log('PASS: DWSS 0.9.53 return link typography/color/underline and release/cache markers.');
