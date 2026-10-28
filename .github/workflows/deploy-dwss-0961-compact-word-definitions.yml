@@ -1,0 +1,100 @@
+name: Deploy DWSS 0.9.61 compact always-visible individual word definitions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0961-compact-word-definitions.yml'
+      - 'scripts/fix_dwss_0961_compact_word_definitions.py'
+      - 'scripts/test_dwss_0961_compact_word_definitions.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Fetch verified live DWSS 0.9.60 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 6 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.60' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+      - name: Apply 0.9.61 compact word-list patch
+        run: python3 scripts/fix_dwss_0961_compact_word_definitions.py
+      - name: Syntax and layout regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "public/$file"; done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0961_compact_word_definitions.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          p=Path("public")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.refs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  for key in ("src","href"):
+                      value=a.get(key,"")
+                      if value and not value.startswith(("https://","http://","data:","#","mailto:")):
+                          self.refs.append(value.split("?")[0])
+          audit=Audit();audit.feed((p/"index.html").read_text(encoding="utf-8"))
+          duplicate={k:v for k,v in Counter(audit.ids).items() if v>1}
+          missing=[v for v in audit.refs if not (p/v).exists()]
+          if duplicate:raise SystemExit("duplicate HTML IDs: "+str(duplicate))
+          if missing:raise SystemExit("missing local assets: "+str(missing))
+          (p/".nojekyll").touch()
+          print("PASS: unique HTML IDs and all local assets present.")
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy DWSS 0.9.61
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live DWSS 0.9.61 compact definitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.61"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js sw.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.61' "$TMP/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_61' "$TMP/index.html"
+          grep -Fq '单个斯语读法释义：' "$TMP/index.html"
+          ! grep -Fq '单个斯语读法释义（点击加号展开）' "$TMP/index.html"
+          ! grep -Fq "document.createElement('details');disclosure.className='dwss-secondary-details'" "$TMP/index.html"
+          grep -Fq "document.createElement('section');section.className='dwss-secondary-details'" "$TMP/index.html"
+          grep -Fq 'grid-template-columns:minmax(42px,30%) minmax(0,1fr)!important' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.61';" "$TMP/sw.js"
+          echo 'PASS: live 0.9.61 shows fixed heading and all individual terms in compact visible rows.'
