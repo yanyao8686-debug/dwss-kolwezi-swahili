@@ -15,7 +15,7 @@ jobs:
   prepare-web-assets:
     runs-on: ubuntu-latest
     outputs:
-      app_version: \${{ steps.version.outputs.app_version }}
+      app_version: ${{ steps.version.outputs.app_version }}
     steps:
       - uses: actions/checkout@v4
       - name: Download current DWSS website resources
@@ -42,7 +42,7 @@ jobs:
           echo "app_version=$VERSION" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: dwss-web-assets-\${{ steps.version.outputs.app_version }}
+          name: dwss-web-assets-${{ steps.version.outputs.app_version }}
           path: mobile/www/
           if-no-files-found: error
           retention-days: 3
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: dwss-web-assets-\${{ needs.prepare-web-assets.outputs.app_version }}
+          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
           path: mobile/www/
       - uses: actions/setup-node@v4
         with:
@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check Pillow==11.3.0
-          SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n1)
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -88,7 +88,7 @@ jobs:
       - name: Apply Android app name and version metadata
         working-directory: mobile
         env:
-          DWSS_WEB_VERSION: \${{ needs.prepare-web-assets.outputs.app_version }}
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
         run: node scripts/configure_android.mjs
       - name: Verify generated Android project configuration
         working-directory: mobile
@@ -99,10 +99,10 @@ jobs:
       - name: Verify, rename and checksum APK
         shell: bash
         env:
-          DWSS_WEB_VERSION: \${{ needs.prepare-web-assets.outputs.app_version }}
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
         run: |
           set -euo pipefail
-          SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           APK='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
           test -s "$APK"
           AAPT="$SDK_ROOT/build-tools/36.0.0/aapt"
@@ -128,7 +128,7 @@ jobs:
           cat mobile/dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: 刚果金斯语翻译-Android-APK-\${{ needs.prepare-web-assets.outputs.app_version }}
+          name: 刚果金斯语翻译-Android-APK-${{ needs.prepare-web-assets.outputs.app_version }}
           path: |
             mobile/dist/*.apk
             mobile/dist/安装说明.txt
@@ -143,6 +143,6 @@ jobs:
     steps:
       - name: Report Android build status
         run: |
-          echo "Web assets: \${{ needs.prepare-web-assets.result }}"
-          echo "Android APK: \${{ needs.android-apk.result }}"
+          echo "Web assets: ${{ needs.prepare-web-assets.result }}"
+          echo "Android APK: ${{ needs.android-apk.result }}"
           echo "This workflow intentionally does not build iOS."
