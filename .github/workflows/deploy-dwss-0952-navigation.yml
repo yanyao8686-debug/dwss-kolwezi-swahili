@@ -1,0 +1,112 @@
+name: Deploy DWSS 0.9.52 dictionary navigation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0952-navigation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Fetch verified live DWSS 0.9.51 assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 5 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.51' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 4 --retry-delay 2 --max-time 60 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+
+      - name: Add visible public dictionary navigation tab
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fix_dictionary_tab_navigation_0_9_52.py
+          node --check public/app.js
+          node --check public/boot.js
+          node --check public/sw.js
+          node --check public/dictionary-overrides.js
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dictionary_tab_navigation_0_9_52.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          app=(p/"app.js").read_text(encoding="utf-8")
+          boot=(p/"boot.js").read_text(encoding="utf-8")
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          checks={
+            "release version": "Version: 0.9.52" in (p/"VERSION.txt").read_text(encoding="utf-8"),
+            "visible version": "版本 0.9.52 · DWSS" in html,
+            "automatic update marker": "DWSS_AUTO_UPDATE_0_9_52" in html,
+            "service worker cache": "const APP_VERSION = '0.9.52';" in sw,
+            "dictionary tab in main navigation": 'data-tab="dictionary"' in html,
+            "existing add-word tab": 'data-tab="maintenance"' in html,
+            "existing history tab": 'data-tab="saved"' in html,
+            "existing clear action": 'class="nav-clear-slot"' in html,
+            "four-column layout": "grid-template-columns:repeat(4,minmax(0,1fr))" in html,
+            "dictionary search panel": 'id="dictionary"' in html and 'id="dictSearch"' in html,
+            "public edits list": 'id="publicPronunciationList"' in html,
+            "edit and restore controls": 'id="pronunciationEditor"' in html and 'id="restoreBuiltinPronunciation"' in html,
+            "public editor boot module": "dictionary-overrides.js" in boot,
+            "deduplication retained": "emittedLocalWords" in app,
+            "French input retained": 'id="newFrenchReadingZh"' in html,
+            "cover retained": (p/"cover.webp").is_file() and (p/"cover.webp").stat().st_size > 100000,
+            "dictionary retained": (p/"dictionary.js.gz").is_file(),
+          }
+          for name,ok in checks.items(): print(("PASS " if ok else "FAIL ")+name)
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed: raise SystemExit("DWSS 0.9.52 release checks failed: "+", ".join(failed))
+          PY
+          touch public/.nojekyll
+
+      - name: Upload verified Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.52
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.52
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.52"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js sw.js dictionary-overrides.js; do
+            curl -fsSL --retry 6 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          grep -Fq 'Version: 0.9.52' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.52 · DWSS' "$TMP/index.html"
+          grep -Fq 'data-tab="dictionary"' "$TMP/index.html"
+          grep -Fq 'id="publicPronunciationList"' "$TMP/index.html"
+          grep -Fq 'emittedLocalWords' "$TMP/app.js"
+          grep -Fq 'dictionary-overrides.js' "$TMP/boot.js"
+          grep -Fq "const APP_VERSION = '0.9.52';" "$TMP/sw.js"
+          echo "PASS: LIVE DWSS 0.9.52 dictionary tab and editor verified."
