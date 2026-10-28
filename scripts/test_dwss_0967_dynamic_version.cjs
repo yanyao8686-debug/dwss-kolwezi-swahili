@@ -23,6 +23,7 @@ assert(sw.includes("if (url.pathname.endsWith('/VERSION.txt'))"), 'VERSION.txt h
 assert(sw.includes("fetch(request, { cache: 'no-store' })"), 'version endpoint is fetched network-first');
 assert(sw.includes("cache.put(latestUrl, fresh.clone())"), 'last successful version response is cached');
 assert(sw.includes("cache.match(latestUrl)"), 'offline mode falls back to last cached version');
+assert(sw.includes("return (await cache.match(latestUrl)) || fresh || Response.error();"), 'HTTP errors also fall back to the last cached version');
 
 assert(html.includes('© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利'), 'approved ownership stamp retained');
 assert(!html.includes('词库来自原始资料；当地读音尚待科卢韦齐母语者全面复核。'), 'removed disclaimer remains absent');
