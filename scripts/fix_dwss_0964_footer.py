@@ -18,16 +18,16 @@ if html.count(notice) != 1:
     raise SystemExit(f'Expected exactly one footer data/pronunciation notice; found {html.count(notice)}')
 html = html.replace(notice, '', 1)
 
-legal_pattern = re.compile(r'\\s*<details class="legal-details">.*?</details>', re.S)
+legal_pattern = re.compile(r'\s*<details class="legal-details">.*?</details>', re.S)
 html, legal_count = legal_pattern.subn('', html, count=1)
 if legal_count != 1:
     raise SystemExit(f'Expected exactly one software rights accordion; found {legal_count}')
 
 style_pattern = re.compile(
-    r'\\.legal-details\\{[^}]*\\}\\s*'
-    r'\\.legal-details summary\\{[^}]*\\}\\s*'
-    r'\\.legal-body\\{[^}]*\\}\\s*'
-    r'\\.legal-body strong\\{[^}]*\\}', re.S)
+    r'\.legal-details\{[^}]*\}\s*'
+    r'\.legal-details summary\{[^}]*\}\s*'
+    r'\.legal-body\{[^}]*\}\s*'
+    r'\.legal-body strong\{[^}]*\}', re.S)
 html, style_count = style_pattern.subn('', html, count=1)
 if style_count != 1:
     raise SystemExit(f'Expected exactly one unused legal disclosure style block; found {style_count}')
@@ -56,7 +56,7 @@ if version_text.count('Version: 0.9.63') != 1:
     raise SystemExit('Expected VERSION.txt to contain exactly one Version: 0.9.63 marker')
 version_text = version_text.replace('Version: 0.9.63', 'Version: 0.9.64', 1)
 version_text = re.sub(r'^Release date: .*$', 'Release date: 2026-10-29', version_text, count=1, flags=re.M)
-version_text += '\\n0.9.64: Remove the footer source/pronunciation disclaimer and the expanded software-rights accordion; retain the copyright stamp and visible version label.\\n'
+version_text += '\n0.9.64: Remove the footer source/pronunciation disclaimer and the expanded software-rights accordion; retain the copyright stamp and visible version label.\n'
 version_path.write_text(version_text, encoding='utf-8')
 
 sw = sw_path.read_text(encoding='utf-8')
