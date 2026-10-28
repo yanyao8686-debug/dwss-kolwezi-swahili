@@ -1,0 +1,116 @@
+name: Deploy DWSS 0.9.51 public dictionary editor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0951-final3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+
+      - name: Fetch live base
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.50' public/VERSION.txt
+          for f in index.html boot.js app.js pwa.js sw.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt shared-lexicon.js supabase.min.js _headers; do
+            curl -fsSL "$BASE/$f?base=$GITHUB_SHA" -o "public/$f"
+          done
+
+      - name: Restore package and patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/dwss_0_9_51_release_00.b64 scripts/dwss_0_9_51_release_01.b64 scripts/dwss_0_9_51_release_02.b64 scripts/dwss_0_9_51_release_03.b64 scripts/dwss_0_9_51_release_04.b64 scripts/dwss_0_9_51_release_05.b64 scripts/dwss_0_9_51_release_06.b64 scripts/dwss_0_9_51_release_07_00.b64 scripts/dwss_0_9_51_release_07_01.b64 scripts/dwss_0_9_51_release_07_02.b64 scripts/dwss_0_9_51_release_07_03.b64 scripts/dwss_0_9_51_release_08.b64 > "$RUNNER_TEMP/pkg.b64"
+          base64 -d "$RUNNER_TEMP/pkg.b64" > "$RUNNER_TEMP/pkg.tar.gz"
+          echo "c1821abacc750d34294439a845a305445f01dd532e8e29fbd89e1ece86ef5bd1  $RUNNER_TEMP/pkg.tar.gz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/pkg"
+          tar -xzf "$RUNNER_TEMP/pkg.tar.gz" -C "$RUNNER_TEMP/pkg"
+          patch --batch --forward -p1 -d public < "$RUNNER_TEMP/pkg/dwss_0_9_51.patch"
+          cp "$RUNNER_TEMP/pkg/dictionary-overrides.js" public/
+          node --check public/app.js
+          node --check public/boot.js
+          node --check public/sw.js
+          node --check public/dictionary-overrides.js
+          DWSS_TEST_ROOT="$PWD/public" node "$RUNNER_TEMP/pkg/test_dictionary_pronunciation_0951.cjs"
+          grep -Fq 'Version: 0.9.51' public/VERSION.txt
+          grep -Fq 'id="publicPronunciationList"' public/index.html
+          grep -Fq "const APP_VERSION = '0.9.51';" public/sw.js
+          touch public/.nojekyll
+
+      - name: Verify public no-key edit, read, validation and restore
+        shell: bash
+        env:
+          PROJECT_URL: https://pautxzcfmtwkaunjxghj.supabase.co
+          PUBLIC_KEY: sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp
+        run: |
+          set -euo pipefail
+          REST="$PROJECT_URL/rest/v1/dictionary_pronunciation_overrides"
+          FN="$PROJECT_URL/functions/v1/dwss-edit-dictionary-pronunciation"
+          NORM="%E8%BF%99%E4%B8%AA"
+          curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese" -o "$RUNNER_TEMP/before.json"
+          test "$(jq 'length' "$RUNNER_TEMP/before.json")" -eq 0
+          BAD="$(curl -sS -o "$RUNNER_TEMP/bad.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"DWSS不存在词条测试","local_pronunciation_cn":"测试读音"}')"
+          test "$BAD" = "422"
+          jq -e '.ok == false' "$RUNNER_TEMP/bad.json" >/dev/null
+          cleanup() {
+            curl -sS -o /dev/null -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"restore","chinese_text":"这个"}' || true
+          }
+          trap cleanup EXIT
+          CODE="$(curl -sS -o "$RUNNER_TEMP/write.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"这个","local_pronunciation_cn":"撒"}')"
+          test "$CODE" = "200"
+          jq -e '.ok == true and .override.local_pronunciation_cn == "撒"' "$RUNNER_TEMP/write.json" >/dev/null
+          curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese,chinese_text,local_pronunciation_cn,updated_at" -o "$RUNNER_TEMP/read.json"
+          jq -e 'length == 1 and .[0].local_pronunciation_cn == "撒"' "$RUNNER_TEMP/read.json" >/dev/null
+          jq -e '.[0] | (has("original_local_pronunciation_cn") or has("previous_local_pronunciations") or has("revision")) | not' "$RUNNER_TEMP/read.json" >/dev/null
+          CODE="$(curl -sS -o "$RUNNER_TEMP/restore.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"restore","chinese_text":"这个"}')"
+          test "$CODE" = "200"
+          jq -e '.ok == true and .action == "restored"' "$RUNNER_TEMP/restore.json" >/dev/null
+          curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese" -o "$RUNNER_TEMP/after.json"
+          test "$(jq 'length' "$RUNNER_TEMP/after.json")" -eq 0
+          trap - EXIT
+          echo "PASS: public no-key write; server validates word; anonymous read; only current value stored; restore clears override."
+
+      - name: Upload Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live 0.9.51
+        shell: bash
+        env:
+          PAGE_URL: \${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          BASE="$PAGE_URL"
+          BASE="$(printf '%s' "$BASE" | sed 's#/$##')"
+          curl -fsSL "$BASE/VERSION.txt?verify=$GITHUB_SHA" -o "$RUNNER_TEMP/live-version.txt"
+          curl -fsSL "$BASE/index.html?verify=$GITHUB_SHA" -o "$RUNNER_TEMP/live-index.html"
+          curl -fsSL "$BASE/app.js?verify=$GITHUB_SHA" -o "$RUNNER_TEMP/live-app.js"
+          grep -Fq 'Version: 0.9.51' "$RUNNER_TEMP/live-version.txt"
+          grep -Fq 'id="publicPronunciationList"' "$RUNNER_TEMP/live-index.html"
+          grep -Fq 'emittedLocalWords' "$RUNNER_TEMP/live-app.js"
+          echo "PASS: LIVE DWSS 0.9.51 deployed and verified."
