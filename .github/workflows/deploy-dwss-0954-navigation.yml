@@ -1,0 +1,140 @@
+name: Deploy DWSS 0.9.54 navigation correction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0954-navigation.yml'
+      - 'scripts/fix_dwss_0954_navigation.py'
+      - 'scripts/test_dwss_0954_navigation.cjs'
+      - 'scripts/test_first_reading_0_9_54.cjs'
+      - 'scripts/test_shared_offline_sync_0_9_53.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+
+      - name: Fetch live 0.9.53 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          mkdir -p public
+          curl -fsSL --retry 5 "$BASE/VERSION.txt?base=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.53' public/VERSION.txt
+          for file in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 4 "$BASE/$file?base=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+
+      - name: Patch and run runtime regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fix_dwss_0954_navigation.py
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "public/$file"; done
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_dwss_0954_navigation.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_first_reading_0_9_54.cjs
+          DWSS_TEST_ROOT="$PWD/public" node scripts/test_shared_offline_sync_0_9_53.cjs
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from collections import Counter
+          from pathlib import Path
+          p=Path("public")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.refs=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if "id" in a: self.ids.append(a["id"])
+                  for k in ("src","href"):
+                      v=a.get(k,"")
+                      if v and not v.startswith(("https://","http://","data:","#","mailto:")):
+                          self.refs.append(v.split("?")[0])
+          a=Audit(); a.feed((p/"index.html").read_text(encoding="utf-8"))
+          dup={k:v for k,v in Counter(a.ids).items() if v>1}
+          missing=[x for x in a.refs if not (p/x).exists()]
+          if dup: raise SystemExit("duplicate HTML ids: "+str(dup))
+          if missing: raise SystemExit("missing local assets: "+str(missing))
+          print("PASS: HTML IDs are unique and all local assets exist.")
+          PY
+          grep -Fq 'Version: 0.9.54' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.54';" public/sw.js
+          touch public/.nojekyll
+
+      - name: Verify public editor permissions without admin key
+        shell: bash
+        env:
+          SUPABASE_URL: https://pautxzcfmtwkaunjxghj.supabase.co
+          PUBLIC_KEY: sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp
+        run: |
+          set -euo pipefail
+          REST="$SUPABASE_URL/rest/v1/dictionary_pronunciation_overrides"
+          FN="$SUPABASE_URL/functions/v1/dwss-edit-dictionary-pronunciation"
+          NORM="%E8%BF%99%E4%B8%AA"
+          BEFORE=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese")
+          test "$(printf '%s' "$BEFORE" | jq 'length')" -eq 0
+          invalid=$(curl -sS -o "$RUNNER_TEMP/invalid.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"DWSS不存在词条测试","local_pronunciation_cn":"测试读音"}')
+          test "$invalid" = "422"
+          cleanup() {
+            curl -sS -o /dev/null -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"restore","chinese_text":"这个"}' || true
+          }
+          trap cleanup EXIT
+          write_code=$(curl -sS -o "$RUNNER_TEMP/write.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"这个","local_pronunciation_cn":"撒"}')
+          test "$write_code" = "200"
+          jq -e '.ok == true and .override.local_pronunciation_cn == "撒"' "$RUNNER_TEMP/write.json" >/dev/null
+          readback=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese,chinese_text,local_pronunciation_cn,updated_at")
+          jq -e 'length == 1 and .[0].local_pronunciation_cn == "撒"' <<< "$readback" >/dev/null
+          jq -e '.[0] | (has("original_local_pronunciation_cn") or has("previous_local_pronunciations") or has("revision")) | not' <<< "$readback" >/dev/null
+          restore_code=$(curl -sS -o "$RUNNER_TEMP/restore.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"restore","chinese_text":"这个"}')
+          test "$restore_code" = "200"
+          jq -e '.ok == true and .action == "restored"' "$RUNNER_TEMP/restore.json" >/dev/null
+          after=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese")
+          test "$(printf '%s' "$after" | jq 'length')" -eq 0
+          trap - EXIT
+          echo "PASS: anonymous server-validated write, public read, restore, no admin key, current-only storage."
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.54
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.54
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili"
+          TMP="$RUNNER_TEMP/dwss-live-0.9.54"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js sw.js shared-lexicon.js dictionary-overrides.js; do curl -fsSL --retry 6 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"; done
+          grep -Fq 'Version: 0.9.54' "$TMP/VERSION.txt"
+          grep -Fq '版本 0.9.54 · DWSS' "$TMP/index.html"
+          ! grep -Fq 'data-tab="dictionary"' "$TMP/index.html"
+          grep -Fq 'id="openPublicPronunciationEditor"' "$TMP/index.html"
+          grep -Fq "switchTab('dictionary')" "$TMP/app.js"
+          grep -Fq "['maintenance','saved','dictionary'].forEach(panelId=>{" "$TMP/index.html"
+          grep -Fq 'font-size:16px!important' "$TMP/index.html"
+          grep -Fq 'text-decoration-line:underline!important' "$TMP/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_54' "$TMP/index.html"
+          grep -Fq "const APP_VERSION = '0.9.54';" "$TMP/sw.js"
+          grep -Fq 'dwss_shared_terms_queue_v1' "$TMP/shared-lexicon.js"
+          grep -Fq 'dwss:personal-term-added' "$TMP/shared-lexicon.js"
+          grep -Fq 'dwss-edit-dictionary-pronunciation' "$TMP/dictionary-overrides.js"
+          echo "PASS: live 0.9.54 has original three-action navigation, editor access, offline sync and auto-update."
