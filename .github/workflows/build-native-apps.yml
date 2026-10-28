@@ -116,8 +116,8 @@ jobs:
           APKSIGNER="$SDK_ROOT/build-tools/36.0.0/apksigner"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           BADGING=$("$AAPT" dump badging "$APK")
-          echo "$BADGING" | grep -F "package: name='com.dwss.kolwezi'"
-          echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
+          grep -F "package: name='com.dwss.kolwezi'" <<< "$BADGING"
+          grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
           LABEL_LINES=$(echo "$BADGING" | grep '^application-label' || true)
           test -n "$LABEL_LINES"
           while IFS= read -r LABEL_LINE; do
@@ -127,25 +127,25 @@ jobs:
             fi
           done <<< "$LABEL_LINES"
           RESOURCE_DUMP=$("$AAPT" dump resources "$APK")
-          if echo "$RESOURCE_DUMP" | grep -Fq 'DWSS斯语助手'; then
+          if grep -Fq 'DWSS斯语助手' <<< "$RESOURCE_DUMP"; then
             echo 'ERROR: old DWSS斯语助手 launcher resource remains in APK.'
             exit 1
           fi
-          if echo "$RESOURCE_DUMP" | grep -Fq 'DWSS 科卢韦齐斯瓦西里语助手'; then
+          if grep -Fq 'DWSS 科卢韦齐斯瓦西里语助手' <<< "$RESOURCE_DUMP"; then
             echo 'ERROR: old long DWSS launcher resource remains in APK.'
             exit 1
           fi
           unzip -t "$APK" >/dev/null
           DEX_STRINGS=$(for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$'); do unzip -p "$APK" "$DEX" | strings; done)
-          echo "$DEX_STRINGS" | grep -Fq 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/'
-          echo "$DEX_STRINGS" | grep -Fq 'ServiceWorkerController'
-          echo "$DEX_STRINGS" | grep -Fq 'setSupportMultipleWindows'
-          if echo "$DEX_STRINGS" | grep -Fq 'APP_HOST'; then
+          grep -Fq 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/' <<< "$DEX_STRINGS"
+          grep -Fq 'ServiceWorkerController' <<< "$DEX_STRINGS"
+          grep -Fq 'setSupportMultipleWindows' <<< "$DEX_STRINGS"
+          if grep -Fq 'APP_HOST' <<< "$DEX_STRINGS"; then
             echo 'ERROR: obsolete host-only external-browser routing remains in APK.'
             exit 1
           fi
           echo "PASS: APK keeps HTTP/HTTPS navigation in the native WebView and enables the Service Worker shell."
-          echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
+          grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
           mkdir -p mobile/dist
           OUTPUT="mobile/dist/刚果金斯语翻译-$DWSS_WEB_VERSION.apk"
           cp "$APK" "$OUTPUT"
