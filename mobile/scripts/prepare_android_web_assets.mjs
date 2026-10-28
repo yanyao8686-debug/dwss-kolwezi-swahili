@@ -33,9 +33,21 @@ assert(boot.includes("'./dictionary.js.gz'"), 'compressed PWA fallback path exis
 assert(boot.includes("for (const src of ['./app.js', './dictionary-overrides.js', './pwa.js'])"), 'all application modules load after dictionary');
 fs.writeFileSync(deployedBootPath, boot);
 
+// The Android WebView also installs the bundled service worker. Its precache
+// manifest must reference the plain dictionary file, not the removed .gz asset.
+const serviceWorkerPath = path.join(root, 'sw.js');
+let serviceWorker = fs.readFileSync(serviceWorkerPath, 'utf8');
+assert(serviceWorker.includes("'./dictionary.js.gz'"), 'website service worker originally precaches the gzip dictionary');
+serviceWorker = serviceWorker.replace("'./dictionary.js.gz'", "'./dictionary.js'");
+assert(!serviceWorker.includes('dictionary.js.gz'), 'Android service worker no longer references the removed gzip file');
+fs.writeFileSync(serviceWorkerPath, serviceWorker);
+
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert(index.includes('./boot.js'), 'index.html loads boot.js');
 
 const installedBoot = fs.readFileSync(deployedBootPath, 'utf8');
 assert(installedBoot.includes("location.hostname === 'localhost'"), 'installed bootstrap is the Android-compatible version');
+const worker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+assert(worker.includes("'./dictionary.js'"), 'Android service worker precaches the uncompressed dictionary');
+assert(!worker.includes('dictionary.js.gz'), 'Android service worker does not request the removed gzip dictionary');
 console.log('PASS: generated uncompressed dictionary.js (' + dictionary.length + ' bytes) and installed Android-specific boot.js.');
