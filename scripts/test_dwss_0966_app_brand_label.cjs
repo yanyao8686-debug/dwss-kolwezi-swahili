@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = process.env.DWSS_TEST_ROOT || 'public';
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const version = fs.readFileSync(path.join(root, 'VERSION.txt'), 'utf8');
+const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+
+const oldLabel = '版本 0.9.65 · DWSS 智能翻译 PWA';
+const newLabel = '版本 0.9.66 · 刚果金斯语翻译';
+assert(!html.includes(oldLabel), 'old version label removed');
+assert.equal(html.split(newLabel).length - 1, 1, 'new version label appears exactly once');
+assert(html.includes('<meta name="dwss-auto-update" content="0.9.66">'), 'auto-update metadata bumped');
+assert(html.includes('<!-- DWSS_AUTO_UPDATE_0_9_66 -->'), 'auto-update marker bumped');
+assert(version.includes('Version: 0.9.66'), 'VERSION.txt bumped');
+assert(version.includes('0.9.66: Change the visible version descriptor'), 'release notes describe change');
+assert(sw.includes("const APP_VERSION = '0.9.66';"), 'Service Worker cache version bumped');
+assert(html.includes('© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利'), 'approved ownership text retained');
+assert(!html.includes('词库来自原始资料；当地读音尚待科卢韦齐母语者全面复核。'), 'removed disclaimer remains absent');
+assert(!html.includes('软件版权、品牌归属与授权说明'), 'removed legal accordion remains absent');
+console.log('PASS: DWSS 0.9.66 visible app label, version, cache marker and previous footer changes.');
