@@ -1,4 +1,4 @@
-name: Build DWSS native Android and iOS apps
+name: Build Android APK - 刚果金斯语翻译
 
 on:
   push:
@@ -15,35 +15,37 @@ jobs:
   prepare-web-assets:
     runs-on: ubuntu-latest
     outputs:
-      app_version: ${{ steps.version.outputs.app_version }}
+      app_version: \${{ steps.version.outputs.app_version }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download current verified DWSS web release
+      - name: Download current DWSS website resources
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p mobile/www
           curl -fsSL --retry 5 --retry-delay 2 "$BASE/VERSION.txt" -o mobile/www/VERSION.txt
-          test -s mobile/www/VERSION.txt
+          grep -q '^Version: ' mobile/www/VERSION.txt
           for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$f" -o "mobile/www/$f"
             test -s "mobile/www/$f"
           done
           grep -q 'DWSS' mobile/www/index.html
+          file mobile/www/cover.jpg
       - id: version
-        name: Read web release version
+        name: Read and validate DWSS web release version
         shell: bash
         run: |
           set -euo pipefail
           VERSION=$(sed -n 's/^Version: //p' mobile/www/VERSION.txt | head -n1)
-          test -n "$VERSION"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           echo "app_version=$VERSION" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: dwss-web-assets-${{ steps.version.outputs.app_version }}
+          name: dwss-web-assets-\${{ steps.version.outputs.app_version }}
           path: mobile/www/
           if-no-files-found: error
+          retention-days: 3
 
   android-apk:
     needs: prepare-web-assets
@@ -52,92 +54,95 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
+          name: dwss-web-assets-\${{ needs.prepare-web-assets.outputs.app_version }}
           path: mobile/www/
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: mobile/package.json
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-python@v5
         with:
-          distribution: temurin
-          java-version: '21'
-      - name: Install Android SDK packages
+          python-version: '3.12'
+      - name: Install Android build prerequisites
         shell: bash
         run: |
           set -euo pipefail
-          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n1)
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Install Capacitor and generate Android project
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+      - name: Generate launcher icon from official website cover
+        working-directory: mobile
+        run: python scripts/prepare_android_icons.py
+      - name: Install Capacitor and generate Android native project
         working-directory: mobile
         run: |
           npm install --no-audit --no-fund
           npx cap add android
           npx cap sync android
-      - name: Build installable debug APK
+      - name: Generate Android launcher and adaptive icons
+        working-directory: mobile
+        run: npx capacitor-assets generate --android --assetPath assets --iconBackgroundColor '#002658'
+      - name: Apply Android app name and version metadata
+        working-directory: mobile
+        env:
+          DWSS_WEB_VERSION: \${{ needs.prepare-web-assets.outputs.app_version }}
+        run: node scripts/configure_android.mjs
+      - name: Verify generated Android project configuration
+        working-directory: mobile
+        run: node scripts/test_android_project.mjs
+      - name: Build installable APK
         working-directory: mobile/android
         run: ./gradlew --no-daemon --stacktrace assembleDebug
-      - name: Verify APK exists
+      - name: Verify, rename and checksum APK
+        shell: bash
+        env:
+          DWSS_WEB_VERSION: \${{ needs.prepare-web-assets.outputs.app_version }}
         run: |
           set -euo pipefail
+          SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           APK='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
           test -s "$APK"
-          file "$APK"
+          AAPT="$SDK_ROOT/build-tools/36.0.0/aapt"
+          APKSIGNER="$SDK_ROOT/build-tools/36.0.0/apksigner"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          BADGING=$("$AAPT" dump badging "$APK")
+          echo "$BADGING" | grep -F "package: name='com.dwss.kolwezi'"
+          echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
+          unzip -t "$APK" >/dev/null
+          echo "$BADGING" | grep -F "application-label:'刚果金斯语翻译'"
+          mkdir -p mobile/dist
+          OUTPUT="mobile/dist/刚果金斯语翻译-$DWSS_WEB_VERSION.apk"
+          cp "$APK" "$OUTPUT"
+          cat > mobile/dist/安装说明.txt <<'EOF'
+          应用名称：刚果金斯语翻译
+          安装方法：将 APK 发送到安卓手机，下载后点击文件安装。
+          如系统提示，请只对本次可信文件来源允许“安装未知应用”。
+          安装后打开应用；共享词库和跨设备同步需要联网。
+          请不要把此安装包发送到 iPhone；它是 Android APK。
+          EOF
+          (cd mobile/dist && sha256sum "$(basename "$OUTPUT")" > SHA256SUMS.txt)
+          ls -lh mobile/dist/
+          cat mobile/dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: DWSS-Android-APK-${{ needs.prepare-web-assets.outputs.app_version }}
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: 刚果金斯语翻译-Android-APK-\${{ needs.prepare-web-assets.outputs.app_version }}
+          path: |
+            mobile/dist/*.apk
+            mobile/dist/安装说明.txt
+            mobile/dist/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 30
-
-  ios-simulator-build:
-    needs: prepare-web-assets
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
-          path: mobile/www/
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: mobile/package.json
-      - name: Install Capacitor and generate iOS project
-        working-directory: mobile
-        run: |
-          npm install --no-audit --no-fund
-          npx cap add ios
-          npx cap sync ios
-      - name: Compile iOS Simulator app (unsigned)
-        working-directory: mobile
-        run: |
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
-      - name: Package simulator build
-        run: |
-          set -euo pipefail
-          APP='mobile/build/Build/Products/Debug-iphonesimulator/App.app'
-          test -d "$APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/DWSS-iOS-Simulator-${{ needs.prepare-web-assets.outputs.app_version }}.zip"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: DWSS-iOS-Simulator-Unsigned-${{ needs.prepare-web-assets.outputs.app_version }}
-          path: ${{ runner.temp }}/DWSS-iOS-Simulator-${{ needs.prepare-web-assets.outputs.app_version }}.zip
-          if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
   summary:
     if: always()
-    needs: [prepare-web-assets, android-apk, ios-simulator-build]
+    needs: [prepare-web-assets, android-apk]
     runs-on: ubuntu-latest
     steps:
-      - name: Report honest build status
+      - name: Report Android build status
         run: |
-          echo 'Android APK: ${{ needs.android-apk.result }}'
-          echo 'iOS Simulator build: ${{ needs.ios-simulator-build.result }}'
-          echo 'An unsigned simulator .app is not an installable iPhone IPA.'
+          echo "Web assets: \${{ needs.prepare-web-assets.result }}"
+          echo "Android APK: \${{ needs.android-apk.result }}"
+          echo "This workflow intentionally does not build iOS."
