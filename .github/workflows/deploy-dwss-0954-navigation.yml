@@ -85,7 +85,7 @@ jobs:
           REST="$SUPABASE_URL/rest/v1/dictionary_pronunciation_overrides"
           FN="$SUPABASE_URL/functions/v1/dwss-edit-dictionary-pronunciation"
           NORM="%E8%BF%99%E4%B8%AA"
-          BEFORE=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese")
+          BEFORE=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq.$NORM&select=normalized_chinese")
           test "$(printf '%s' "$BEFORE" | jq 'length')" -eq 0
           invalid=$(curl -sS -o "$RUNNER_TEMP/invalid.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"DWSS不存在词条测试","local_pronunciation_cn":"测试读音"}')
           test "$invalid" = "422"
@@ -96,13 +96,13 @@ jobs:
           write_code=$(curl -sS -o "$RUNNER_TEMP/write.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"update","chinese_text":"这个","local_pronunciation_cn":"撒"}')
           test "$write_code" = "200"
           jq -e '.ok == true and .override.local_pronunciation_cn == "撒"' "$RUNNER_TEMP/write.json" >/dev/null
-          readback=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese,chinese_text,local_pronunciation_cn,updated_at")
+          readback=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq.$NORM&select=normalized_chinese,chinese_text,local_pronunciation_cn,updated_at")
           jq -e 'length == 1 and .[0].local_pronunciation_cn == "撒"' <<< "$readback" >/dev/null
           jq -e '.[0] | (has("original_local_pronunciation_cn") or has("previous_local_pronunciations") or has("revision")) | not' <<< "$readback" >/dev/null
           restore_code=$(curl -sS -o "$RUNNER_TEMP/restore.json" -w '%{http_code}' -X POST "$FN" -H "apikey: $PUBLIC_KEY" -H "Authorization: Bearer $PUBLIC_KEY" -H "Origin: https://yanyao8686-debug.github.io" -H "Content-Type: application/json" --data '{"action":"restore","chinese_text":"这个"}')
           test "$restore_code" = "200"
           jq -e '.ok == true and .action == "restored"' "$RUNNER_TEMP/restore.json" >/dev/null
-          after=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq$NORM&select=normalized_chinese")
+          after=$(curl -fsS -H "apikey: $PUBLIC_KEY" "$REST?normalized_chinese=eq.$NORM&select=normalized_chinese")
           test "$(printf '%s' "$after" | jq 'length')" -eq 0
           trap - EXIT
           echo "PASS: anonymous server-validated write, public read, restore, no admin key, current-only storage."
