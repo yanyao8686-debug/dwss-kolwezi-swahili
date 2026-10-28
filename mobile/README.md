@@ -1,25 +1,27 @@
 # 刚果金斯语翻译（Android）
 
-这是 DWSS 科卢韦齐斯瓦希里语助手的 Android 原生安装包工程。只构建 Android，不再构建 iOS。
+这是 DWSS 科卢韦齐斯瓦希里语助手的 Android 安装外壳。只构建 Android，不构建 iOS。
 
 ## 应用信息
 - 桌面显示名称：刚果金斯语翻译
-- Android application ID：`com.dwss.kolwezi`（保持稳定，后续升级沿用）
-- 图标：使用正式网页封面 `cover.jpg` 生成 Android 普通图标和自适应图标。
-- 网页资源：构建时从正式站点下载并嵌入 APK；离线可打开已缓存/内置的本地词库，联网后使用 Supabase 共享词库。
+- Android application ID：`com.dwss.kolwezi`
+- 图标：使用正式 DWSS 网站封面生成 Android 普通图标和自适应图标。
+- 主程序：Android WebView 打开官方 HTTPS 网站 `https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/`，不再把当前网页代码作为固定版本运行。
 
-## 构建
-CI 从正式网站下载经过发布的网页文件，使用 Capacitor 8、JDK 21 和 Android SDK 36 构建 Debug APK，并检查 APK 的包名、版本、应用标签、签名和图标资源。
+## 网页自动更新与离线缓存
+- APK 安装后，首次打开需要联网，让 WebView 打开正式网站并完成 Service Worker 首次缓存。
+- 网站本身已有 Service Worker 自动更新管理：打开应用、恢复联网或回到前台时检查新版；发现新版后后台下载、安装并刷新页面。
+- 下载更新失败时保留已经缓存的旧网页版本；网络中断时可在缓存已完成的前提下离线使用。
+- 以后普通网页功能、界面、词库程序逻辑的发布，只需更新正式网站，不用重新制作或发送 APK。
+- 共享词库和跨设备同步仍需互联网。首次打开未完成缓存前，离线不可用。
 
-APK 输出文件名：`刚果金斯语翻译-<网站版本>.apk`。
+## 哪些情况仍需要重新安装 APK
+只有 Android 原生外壳本身发生变化时才需要新 APK，例如桌面应用名称/图标、Android 权限、WebView 外壳代码、原生插件或包名变更。纯网页代码、样式和词库更新不需要新 APK。
 
 ## 安装和分享
-1. 构建完成后，从 GitHub Actions 的 Artifact 下载 ZIP 并解压。
-2. 将其中的 APK 发送给其他 Android 手机用户（微信、WhatsApp、Telegram、蓝牙、USB 等均可）。
-3. 接收者下载 APK 后点击安装；Android 可能要求允许当前浏览器或文件管理器“安装未知应用”。只在确认 APK 来自可信发送者时允许。
-4. 安装后打开应用。第一次使用共享词库/跨设备同步需要互联网；离线时可使用 APK 内嵌的网页资源和词库。
+将构建出的 APK 发送给 Android 用户；对方下载后点击安装。Android 可能要求对当前浏览器或文件管理器允许“安装未知应用”，只在确认文件来源可信时允许。APK 不能安装在 iPhone 上。
 
-## 签名和后续升级注意
-当前先产出可直接侧载安装的 Debug APK，并由 CI 签名。每次 GitHub runner 生成的默认 Debug 签名可能不同；下一次更新时，若签名不一致，Android 会拒绝覆盖安装，需要先卸载旧版再安装新版，可能清除仅保存在该手机本地的个人词条/历史。共享云端词库不受影响。正式长期分发前，建议建立并妥善保管固定的 Release keystore，并把签名信息作为私有 CI secrets 配置；绝不能把 keystore 或密码提交到公开仓库。
+## 本地资料与首次换版提醒
+旧版 APK 使用本机 WebView 的 `https://localhost` 本地数据来源；本版改为官方网页 HTTPS 域名，因此旧版的本机自定义词条、收藏和历史不会自动出现在新域名的数据空间。升级前请在旧版的“添加新词”页面生成并复制个人词库 JSON 备份，妥善保存后再安装新版。若 Android 因签名不同要求先卸载旧版，卸载会清除旧版本机数据；云端共享词库不受影响。
 
-这不是 Google Play 上架包。若以后要上架或进行稳定长期分发，应使用固定 Release 签名密钥生成签名 Release APK。
+当前 CI 仍输出 Debug 签名 APK。不同 CI 构建可能使用不同 Debug 签名；如果未来需要再次替换 APK，可能要卸载再装。长期稳定分发应配置固定且妥善保管的 Release 签名密钥，不要把密钥或密码提交到公开仓库。
