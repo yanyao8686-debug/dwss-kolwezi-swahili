@@ -25,16 +25,16 @@ fs.writeFileSync(strings, xml, 'utf8');
 
 let gradleText = fs.readFileSync(gradle, 'utf8');
 const version = process.env.DWSS_WEB_VERSION || '0.9.63';
-const match = /^(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(version);
+const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
 if (!match) throw new Error('Invalid web version: ' + version);
 const [, major, minor, patch] = match.map(Number);
 const versionCode = major * 1000000 + minor * 1000 + patch;
 if (!Number.isSafeInteger(versionCode) || versionCode < 1) throw new Error('Invalid Android versionCode.');
 
-if (!/versionCode\\s+\\d+/.test(gradleText)) throw new Error('Android versionCode not found.');
-if (!/versionName\\s+["'][^"']+["']/.test(gradleText)) throw new Error('Android versionName not found.');
-gradleText = gradleText.replace(/versionCode\\s+\\d+/, 'versionCode ' + versionCode);
-gradleText = gradleText.replace(/versionName\\s+["'][^"']+["']/, 'versionName "' + version + '"');
+if (!/versionCode\s+\d+/.test(gradleText)) throw new Error('Android versionCode not found.');
+if (!/versionName\s+["'][^"']+["']/.test(gradleText)) throw new Error('Android versionName not found.');
+gradleText = gradleText.replace(/versionCode\s+\d+/, 'versionCode ' + versionCode);
+gradleText = gradleText.replace(/versionName\s+["'][^"']+["']/, 'versionName "' + version + '"');
 fs.writeFileSync(gradle, gradleText, 'utf8');
 
 const manifestText = fs.readFileSync(manifest, 'utf8');
