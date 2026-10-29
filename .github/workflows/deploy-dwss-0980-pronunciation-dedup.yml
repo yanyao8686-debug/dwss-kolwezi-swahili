@@ -36,13 +36,25 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p public
           curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
-          grep -Fq 'Version: 0.9.79' public/VERSION.txt || { echo 'Expected live 0.9.79 baseline'; cat public/VERSION.txt; exit 1; }
+          if grep -Fq 'Version: 0.9.79' public/VERSION.txt; then
+            BASELINE='0.9.79'
+          elif grep -Fq 'Version: 0.9.80' public/VERSION.txt; then
+            BASELINE='0.9.80'
+          else
+            echo 'Expected live 0.9.79 or idempotent 0.9.80 baseline'
+            cat public/VERSION.txt
+            exit 1
+          fi
           for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest hanzi-pinyin.js pronunciation-search.js icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 8 --retry-delay 2 --max-time 90 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
             test -s "public/$file"
           done
           gzip -t public/dictionary.js.gz
-          grep -Fq "const APP_VERSION = '0.9.79';" public/sw.js
+          if [[ "$BASELINE" == '0.9.79' ]]; then
+            grep -Fq "const APP_VERSION = '0.9.79';" public/sw.js
+          else
+            grep -Fq "const APP_VERSION = '0.9.80';" public/sw.js
+          fi
       - name: Install pronunciation-result deduplication
         env:
           DWSS_PUBLIC_DIR: public

@@ -26,6 +26,26 @@ for name in ("VERSION.txt","sw.js","index.html","app.js","boot.js","pwa.js",
 if not SOURCE.is_file():raise SystemExit(f"Missing updated search source: {SOURCE}")
 shutil.copyfile(SOURCE,need("pronunciation-search.js"))
 
+# The 0.9.80 release is intentionally idempotent. A second run verifies the live release
+# instead of trying to bump 0.9.80 to itself or reverting it to the 0.9.79 baseline.
+baseline=need("VERSION.txt").read_text(encoding="utf-8")
+if "Version: 0.9.80" in baseline:
+    live_html=need("index.html").read_text(encoding="utf-8")
+    live_sw=need("sw.js").read_text(encoding="utf-8")
+    live_app=need("app.js").read_text(encoding="utf-8")
+    if "content=\"0.9.80\">" not in live_html:
+        raise SystemExit("0.9.80 baseline metadata is inconsistent.")
+    if "DWSS_AUTO_UPDATE_0_9_80" not in live_html or "dwss-release=0.9.80" not in live_html:
+        raise SystemExit("0.9.80 baseline cache markers are inconsistent.")
+    if "const APP_VERSION = '0.9.80';" not in live_sw or "version:'0.9.80'" not in live_app:
+        raise SystemExit("0.9.80 app or Service Worker version is inconsistent.")
+    if "Version: 0.9.79" in baseline:
+        raise SystemExit("Multiple release version markers were found.")
+    print("PASS: live 0.9.80 is already current; idempotent verification only, no version bump.")
+    raise SystemExit(0)
+if "Version: 0.9.79" not in baseline:
+    raise SystemExit("Expected a 0.9.79 or already-published 0.9.80 baseline.")
+
 hp=need("index.html")
 html=hp.read_text(encoding="utf-8")
 for old,new,label in (
