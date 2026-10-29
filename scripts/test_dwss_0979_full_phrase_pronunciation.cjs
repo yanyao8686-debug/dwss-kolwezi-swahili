@@ -66,7 +66,7 @@ assert(exactMatches.every(item => item.score === 1));
 
 // Similar but genuinely different syllables are not treated as homophones.
 const unrelated = [
-  {zh:'不同声母',variants:[{reading:'麻豆',source:'测试'}]},
+  {zh:'不同声母',variants:[{reading:'爸豆',source:'测试'}]},
   {zh:'不同整段',variants:[{reading:'麻球麻球',source:'测试'}]}
 ];
 assert.equal(engine.search('毛豆', unrelated, {limit:20}).length, 0);
