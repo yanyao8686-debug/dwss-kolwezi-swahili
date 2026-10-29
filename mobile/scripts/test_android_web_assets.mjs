@@ -3,12 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
-import { gunzipSync } from 'node:zlib';
 
 const root = path.resolve('www');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const versionText = read('VERSION.txt');
-const versionMatch = /^Version: (\\d+\\.\\d+\\.\\d+)$/m.exec(versionText);
+const versionMatch = /^Version: (\d+\\.\d+\\.\d+)$/m.exec(versionText);
 assert(versionMatch, 'VERSION.txt contains a valid web version');
 const version = versionMatch[1];
 
@@ -30,7 +29,7 @@ assert(fs.existsSync(path.join(root, 'hanzi-pinyin.js')));
 assert(fs.existsSync(path.join(root, 'pronunciation-search.js')));
 assert(fs.existsSync(path.join(root, 'dictionary.js')));
 
-const precache = sw.match(/const PRECACHE_URLS = \\[([\\s\\S]*?)\\];/);
+const precache = sw.match(/const PRECACHE_URLS = \\[([\s\\S]*?)\\];/);
 assert(precache, 'Service Worker precache list exists');
 for (const file of ['./dictionary.js', './hanzi-pinyin.js', './pronunciation-search.js']) {
   assert(precache[1].includes("'" + file + "'") || precache[1].includes('"' + file + '"'), 'offline precache contains ' + file);
