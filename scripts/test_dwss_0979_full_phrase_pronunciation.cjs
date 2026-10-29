@@ -53,7 +53,7 @@ const longerOnly = [
   {zh:'重复四音节词条',variants:[{reading:'毛豆毛豆',source:'测试'}]},
   {zh:'前后带词条',variants:[{reading:'大家毛豆',source:'测试'}]}
 ];
-assert.deepEqual(engine.search('毛豆', longerOnly, {limit:20}), []);
+assert.equal(engine.search('毛豆', longerOnly, {limit:20}).length, 0);
 
 // Full exact homophone matching still works, including a different character.
 const exactHomophones = [
@@ -69,11 +69,11 @@ const unrelated = [
   {zh:'不同声母',variants:[{reading:'麻豆',source:'测试'}]},
   {zh:'不同整段',variants:[{reading:'麻球麻球',source:'测试'}]}
 ];
-assert.deepEqual(engine.search('毛豆', unrelated, {limit:20}), []);
+assert.equal(engine.search('毛豆', unrelated, {limit:20}).length, 0);
 
 // Unmapped Han characters cannot be skipped to create a false shorter reading.
-assert.deepEqual(engine.toSyllables('毛💠豆', true), []);
-assert.deepEqual(engine.search('毛💠豆', exactHomophones, {limit:20}), []);
+assert.equal(engine.toSyllables('毛' + String.fromCodePoint(0x1F4A0) + '豆', true).length, 0);
+assert.equal(engine.search('毛' + String.fromCodePoint(0x1F4A0) + '豆', exactHomophones, {limit:20}).length, 0);
 
 // Test every actual result against the full active bundled source dictionary.
 const dictionaryContext = {window:{}};
