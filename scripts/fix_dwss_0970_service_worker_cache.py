@@ -38,8 +38,11 @@ sw_path = need("sw.js")
 sw = sw_path.read_text(encoding="utf-8")
 sw = replace_once(sw, "const APP_VERSION = '0.9.69';",
                   "const APP_VERSION = '0.9.70';", "Service Worker release")
-sw = replace_once(sw, "'./dictionary.js',",
-                  "'./dictionary.js.gz',", "Service Worker dictionary pre-cache")
+# The live 0.9.69 site may already have the correct gzip pre-cache path.
+# Repair only the obsolete plain filename; never fail or rewrite an already-correct entry.
+if "'./dictionary.js'," in sw:
+    sw = replace_once(sw, "'./dictionary.js',", "'./dictionary.js.gz',",
+                      "Service Worker dictionary pre-cache")
 if "'./dictionary.js'," in sw or "'./dictionary.js.gz'," not in sw:
     raise SystemExit("Service Worker pre-cache dictionary path is still invalid.")
 sw_path.write_text(sw, encoding="utf-8")
@@ -48,6 +51,8 @@ sw_path.write_text(sw, encoding="utf-8")
 boot = need("boot.js").read_text(encoding="utf-8")
 if "['./dictionary.js.gz', './dictionary.js']" not in boot:
     raise SystemExit("Unexpected boot.js web dictionary fallback; refusing a blind patch.")
+boot = replace_once(boot, "|| '0.9.69';", "|| '0.9.70';", "bootstrap fallback version")
+need("boot.js").write_text(boot, encoding="utf-8")
 
 app_path = need("app.js")
 app = app_path.read_text(encoding="utf-8")
@@ -61,9 +66,33 @@ html = replace_once(html, "DWSS_AUTO_UPDATE_0_9_69", "DWSS_AUTO_UPDATE_0_9_70",
                     "HTML update marker")
 html = replace_once(html, "版本 0.9.69 · 刚果金斯语翻译",
                     "版本 0.9.70 · 刚果金斯语翻译", "visible footer version")
-html = replace_once(html, "dwss:announcement-dismissed:0.9.69",
-                    "dwss:announcement-dismissed:0.9.70",
-                    "first-open announcement release key")
+# Use separate persistent dismissal keys for the web app and native Android APP.
+# A previous browser dismissal must never hide the announcement in Android.
+controller = r"""<script id="dwss-announcement-controller">
+(function(){
+ 'use strict';
+ const overlay=document.getElementById('dwss-announcement-overlay');
+ const button=document.getElementById('dwss-announcement-close');
+ if(!overlay||!button)return;
+ const nativeAndroid=new URLSearchParams(window.location.search).get('dwss-native-app')==='1';
+ const key='dwss:announcement-dismissed:0.9.70:'+(nativeAndroid?'android':'web');
+ let dismissed=false;
+ try{dismissed=localStorage.getItem(key)==='1';}catch(_){}
+ function close(){overlay.hidden=true;try{localStorage.setItem(key,'1');}catch(_){}}
+ button.addEventListener('click',close);
+ overlay.addEventListener('click',event=>{if(event.target===overlay)close();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden)close();});
+ if(!dismissed)overlay.hidden=false;
+})();
+</script>"""
+html, count = re.subn(
+    r'<script id="dwss-announcement-controller">[\\s\\S]*?</script>',
+    lambda _: controller,
+    html,
+    count=1
+)
+if count != 1:
+    raise SystemExit("Existing announcement controller was not found exactly once.")
 
 script_count = html.count("dwss-release=0.9.69")
 if script_count < 3:
