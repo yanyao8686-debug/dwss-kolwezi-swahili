@@ -16,8 +16,8 @@ assert(html.includes('<div class="pronunciation-lookup-instruction" role="note">
 assert(!html.includes('<h2>发音查询</h2>'));
 
 function rule(source, selector) {
-  const escaped = selector.replaceAll('.', '\\\\.');
-  const matches = [...source.matchAll(new RegExp(escaped + '\\\\s*\\\\{([^{}]*)\\\\}', 'gs'))];
+  const escaped = selector.replaceAll('.', '\\.');
+  const matches = [...source.matchAll(new RegExp(escaped + '\\s*\\{([^{}]*)\\}', 'gs'))];
   assert.equal(matches.length, 1, 'exactly one CSS rule for ' + selector);
   return matches[0][1];
 }
