@@ -18,6 +18,7 @@ assert(sw.includes("'./dictionary.js.gz'"), 'website dictionary gzip is pre-cach
 assert(!sw.includes("'./dictionary.js',"), 'nonexistent plain dictionary must not be pre-cached');
 assert.match(boot, /\['\.\/dictionary\.js\.gz', '\.\/dictionary\.js'\]/,
   'website loads gzip first; Android has a plain dictionary fallback');
+assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
 
 const precache = sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
 assert(precache, 'pre-cache URL list exists');
@@ -34,6 +35,8 @@ assert(html.includes('content="0.9.70">'));
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_70'));
 assert(html.includes('版本 0.9.70 · 刚果金斯语翻译'));
 assert(html.includes('dwss:announcement-dismissed:0.9.70'));
+assert(html.includes("get('dwss-native-app')==='1'"), 'native Android gets its own first-open state');
+assert(html.includes("(nativeAndroid?'android':'web')"), 'Android and web dismissal keys are independent');
 assert(!html.includes('dwss:announcement-dismissed:0.9.69'));
 for (const marker of ['一、开发目的','二、底版词库来源','三、云端共享词库','四、自动更新与离线使用','我已阅读，进入应用']) {
   assert(html.includes(marker), 'announcement content exists: ' + marker);
