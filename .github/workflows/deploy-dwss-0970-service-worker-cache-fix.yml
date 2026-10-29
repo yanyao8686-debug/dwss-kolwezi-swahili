@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,7 +111,7 @@ jobs:
       - name: Verify live 0.9.70 cache repair and footer
         shell: bash
         env:
-          DWSS_REPO_DIR: \${{ github.workspace }}
+          DWSS_REPO_DIR: ${{ github.workspace }}
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
@@ -202,7 +202,7 @@ jobs:
       - name: Verify live 0.9.70 cache repair and footer
         shell: bash
         env:
-          DWSS_REPO_DIR: \${{ github.workspace }}
+          DWSS_REPO_DIR: ${{ github.workspace }}
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
