@@ -25,7 +25,10 @@ for name in ("index.html", "app.js", "sw.js", "boot.js", "VERSION.txt",
 # Verify this patch is being applied to the exact live baseline.
 version_file = need("VERSION.txt")
 version = version_file.read_text(encoding="utf-8")
-version = replace_once(version, "Version: 0.9.69", "Version: 0.9.70", "release version")
+if "Version: 0.9.69" in version:
+    version = replace_once(version, "Version: 0.9.69", "Version: 0.9.70", "release version")
+elif "Version: 0.9.70" not in version:
+    raise SystemExit("Unexpected live release version; expected 0.9.69 or 0.9.70.")
 version = re.sub(r"^Release date: .*$", "Release date: 2026-10-29",
                  version, count=1, flags=re.M)
 if "0.9.70:" not in version:
@@ -36,8 +39,11 @@ version_file.write_text(version, encoding="utf-8")
 # A missing URL in cache.addAll rejects the entire Service Worker installation.
 sw_path = need("sw.js")
 sw = sw_path.read_text(encoding="utf-8")
-sw = replace_once(sw, "const APP_VERSION = '0.9.69';",
-                  "const APP_VERSION = '0.9.70';", "Service Worker release")
+if "const APP_VERSION = '0.9.69';" in sw:
+    sw = replace_once(sw, "const APP_VERSION = '0.9.69';",
+                      "const APP_VERSION = '0.9.70';", "Service Worker release")
+elif "const APP_VERSION = '0.9.70';" not in sw:
+    raise SystemExit("Unexpected Service Worker release; expected 0.9.69 or 0.9.70.")
 # The live 0.9.69 site may already have the correct gzip pre-cache path.
 # Repair only the obsolete plain filename; never fail or rewrite an already-correct entry.
 plain_paths = list(re.finditer(r"""(['"])\./dictionary\.js\1""", sw))
@@ -56,21 +62,31 @@ sw_path.write_text(sw, encoding="utf-8")
 boot = need("boot.js").read_text(encoding="utf-8")
 if "dictionary.js.gz" not in boot:
     raise SystemExit("The published web bootstrap does not reference the gzip dictionary.")
-boot = replace_once(boot, "|| '0.9.69';", "|| '0.9.70';", "bootstrap fallback version")
+if "|| '0.9.69';" in boot:
+    boot = replace_once(boot, "|| '0.9.69';", "|| '0.9.70';", "bootstrap fallback version")
+elif "|| '0.9.70';" not in boot:
+    raise SystemExit("Unexpected bootstrap fallback version.")
 need("boot.js").write_text(boot, encoding="utf-8")
 
 app_path = need("app.js")
 app = app_path.read_text(encoding="utf-8")
-app = replace_once(app, "version:'0.9.69'", "version:'0.9.70'", "application metadata")
+if "version:'0.9.69'" in app:
+    app = replace_once(app, "version:'0.9.69'", "version:'0.9.70'", "application metadata")
+elif "version:'0.9.70'" not in app:
+    raise SystemExit("Unexpected application metadata version.")
 app_path.write_text(app, encoding="utf-8")
 
 html_path = need("index.html")
 html = html_path.read_text(encoding="utf-8")
-html = replace_once(html, 'content="0.9.69">', 'content="0.9.70">', "HTML release metadata")
-html = replace_once(html, "DWSS_AUTO_UPDATE_0_9_69", "DWSS_AUTO_UPDATE_0_9_70",
-                    "HTML update marker")
-html = replace_once(html, "版本 0.9.69 · 刚果金斯语翻译",
-                    "版本 0.9.70 · 刚果金斯语翻译", "visible footer version")
+for old_marker, new_marker, label in (
+    ('content="0.9.69">', 'content="0.9.70">', "HTML release metadata"),
+    ("DWSS_AUTO_UPDATE_0_9_69", "DWSS_AUTO_UPDATE_0_9_70", "HTML update marker"),
+    ("版本 0.9.69 · 刚果金斯语翻译", "版本 0.9.70 · 刚果金斯语翻译", "visible footer version"),
+):
+    if old_marker in html:
+        html = replace_once(html, old_marker, new_marker, label)
+    elif new_marker not in html:
+        raise SystemExit("Unexpected HTML release marker: " + label)
 # Use separate persistent dismissal keys for the web app and native Android APP.
 # A previous browser dismissal must never hide the announcement in Android.
 controller = r"""<script id="dwss-announcement-controller">
@@ -99,10 +115,12 @@ html, count = re.subn(
 if count != 1:
     raise SystemExit("Existing announcement controller was not found exactly once.")
 
-script_count = html.count("dwss-release=0.9.69")
-if script_count < 3:
-    raise SystemExit(f"Expected at least three versioned entry scripts, found {script_count}.")
-html = html.replace("dwss-release=0.9.69", "dwss-release=0.9.70")
+old_script_count = html.count("dwss-release=0.9.69")
+new_script_count = html.count("dwss-release=0.9.70")
+if old_script_count:
+    html = html.replace("dwss-release=0.9.69", "dwss-release=0.9.70")
+elif new_script_count < 3:
+    raise SystemExit(f"Expected at least three current versioned entry scripts, found {new_script_count}.")
 footer = '<span class="ownership-stamp">© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利</span>'
 if html.count(footer) != 1:
     raise SystemExit("The approved copyright footer text is missing or duplicated.")
