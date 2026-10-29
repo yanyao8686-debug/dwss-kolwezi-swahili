@@ -73,8 +73,13 @@ while ((cursor = manifest.indexOf('<activity', cursor)) >= 0) {
 }
 assert(launcherTag, 'launcher activity tag is present');
 assert(launcherTag.includes('android:label="@string/app_name"'), 'launcher activity label is forced to app_name');
+assert(launcherTag.includes('android:theme="@style/AppTheme.NoActionBar"'), 'launcher uses the normal no-action-bar theme');
+assert(!launcherTag.includes('AppTheme.NoActionBarLaunch'), 'native launch splash theme cannot remain over the webpage');
 
 const activity = fs.readFileSync(activityPath, 'utf8');
+assert(activity.includes('import android.view.Window;'));
+assert(activity.includes('requestWindowFeature(Window.FEATURE_NO_TITLE);'), 'no native title/action bar sits above the cover');
+assert(activity.includes('if (getActionBar() != null) getActionBar().hide();'), 'hide any remaining platform action bar');
 assert(activity.includes('https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/'));
 assert(activity.includes('ServiceWorkerWebSettings'));
 assert(activity.includes('serviceWorkerSettings.setCacheMode(WebSettings.LOAD_NO_CACHE)'), 'Service Worker network fetches bypass stale HTTP cache');
