@@ -1,0 +1,128 @@
+name: Deploy DWSS 0.9.72 daily notice and full cover fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0972-daily-announcement-cover.yml'
+      - 'scripts/fix_dwss_0972_daily_announcement_cover.py'
+      - 'scripts/test_dwss_0972_daily_announcement_cover.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download and verify live 0.9.71 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.71' public/VERSION.txt || { echo 'Expected 0.9.71 live website baseline'; cat public/VERSION.txt; exit 1; }
+          for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 8 --retry-delay 2 --max-time 60 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          gzip -t public/dictionary.js.gz
+          grep -Fq "const APP_VERSION = '0.9.71';" public/sw.js
+
+      - name: Apply full-cover and Lubumbashi daily notice repair
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: python3 scripts/fix_dwss_0972_daily_announcement_cover.py
+
+      - name: Run JavaScript, precache, cover, announcement and HTML checks
+        shell: bash
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          node scripts/test_dwss_0972_daily_announcement_cover.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip, json, re
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]
+              def handle_starttag(self,tag,attrs):
+                  values=dict(attrs)
+                  if "id" in values:self.ids.append(values["id"])
+          audit=Audit()
+          audit.feed(html)
+          duplicates={k:v for k,v in Counter(audit.ids).items() if v>1}
+          if duplicates:raise SystemExit("duplicate HTML IDs: "+str(duplicates))
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match:raise SystemExit("Service Worker precache URL list missing")
+          urls=re.findall(r"""['"]([^'"]+)['"]""",match.group(1))
+          missing=[u for u in urls if u not in ("./",".") and not (p/u.removeprefix("./")).is_file()]
+          if missing:raise SystemExit("Service Worker references missing files: "+str(missing))
+          if "./dictionary.js" in urls:raise SystemExit("Nonexistent dictionary.js must not be pre-cached")
+          if "./dictionary.js.gz" not in urls:raise SystemExit("Compressed dictionary must be pre-cached")
+          gzip.decompress((p/"dictionary.js.gz").read_bytes())
+          manifest=json.loads((p/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("id")!="./?app=dwss-kolwezi-swahili":raise SystemExit("PWA identity changed")
+          if manifest.get("display")!="standalone":raise SystemExit("PWA standalone mode changed")
+          if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("PWA app name changed")
+          if 'timeZone:\\'Africa/Lubumbashi\\'' not in html:raise SystemExit("Lubumbashi timezone daily rule missing")
+          if "object-fit:contain!important" not in html:raise SystemExit("Full-cover object-fit rule missing")
+          (p/".nojekyll").touch()
+          print(f"PASS: {len(urls)} pre-cache URLs exist; gzip dictionary, square cover, matcha notice and PWA identity verified.")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.72 daily notice and full cover fix
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live 0.9.72 website
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          TMP="$RUNNER_TEMP/dwss-live-0.9.72"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js pwa.js sw.js manifest.webmanifest dictionary-overrides.js shared-lexicon.js supabase.min.js cover.webp; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$TMP/dictionary.js.gz"
+          grep -Fq 'Version: 0.9.72' "$TMP/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.72';" "$TMP/sw.js"
+          grep -Fq "timeZone:'Africa/Lubumbashi'" "$TMP/index.html"
+          grep -Fq 'dwss:announcement-last-shown:' "$TMP/index.html"
+          grep -Fq 'background:#e0ebcf' "$TMP/index.html"
+          grep -Fq 'object-fit:contain!important' "$TMP/index.html"
+          grep -Fq 'scrollRestoration' "$TMP/index.html"
+          gzip -t "$TMP/dictionary.js.gz"
+          DWSS_PUBLIC_DIR="$TMP" node scripts/test_dwss_0972_daily_announcement_cover.cjs
+          echo 'PASS: live 0.9.72 daily announcement, matcha surfaces, full cover and release cache verified.'
