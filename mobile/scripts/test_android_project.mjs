@@ -86,7 +86,7 @@ assert(activity.includes('loadLatestDwss();'), 'every cold launch fetches the la
 assert(activity.includes('private boolean initialPagePositionSet = false;'), 'first page load scroll guard exists');
 assert(activity.includes('public void onPageFinished(WebView view, String url)'), 'WebView first page completion is observed');
 assert(activity.includes('view.scrollTo(0, 0);'), 'native launch resets scroll position to the cover top');
-assert(activity.includes('window.scrollTo(0,0)'), 'document scroll restoration is disabled on Android launch');
+assert(activity.includes('view.post(() -> view.scrollTo(0, 0));'), 'first page load is reset to the cover top after WebView layout');
 assert(!activity.includes('webView.restoreState(savedInstanceState)'), 'stale saved scroll offsets are not restored on cold launch');
 assert(activity.includes('ServiceWorkerController.getInstance()'));
 assert(activity.includes('setDomStorageEnabled(true)'));
