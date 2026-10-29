@@ -44,7 +44,7 @@ jobs:
           done
           gzip -t public/dictionary.js.gz
           grep -Fq "const APP_VERSION = '0.9.74';" public/sw.js
-          grep -Fq 'window.DWSSPronunciationSearch' public/pronunciation-search.js
+          grep -Fq 'DWSSPronunciationSearch=' public/pronunciation-search.js
 
       - name: Apply automatic pronunciation indexing for all new terms
         env:
