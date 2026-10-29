@@ -1,3 +1,4 @@
+// DWSS_ANDROID_WEB_PARITY_0970: keep native launches on the current, revalidated website release.
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
