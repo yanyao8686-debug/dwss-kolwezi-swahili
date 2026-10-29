@@ -53,8 +53,8 @@ sw_path.write_text(sw, encoding="utf-8")
 
 # The website boot script tries gzip first; keep Android's local dictionary.js fallback.
 boot = need("boot.js").read_text(encoding="utf-8")
-if "['./dictionary.js.gz', './dictionary.js']" not in boot:
-    raise SystemExit("Unexpected boot.js web dictionary fallback; refusing a blind patch.")
+if "isCapacitorLocalApp" not in boot or "./dictionary.js.gz" not in boot or "./dictionary.js" not in boot:
+    raise SystemExit("boot.js does not contain both website gzip and Android plain dictionary routes.")
 boot = replace_once(boot, "|| '0.9.69';", "|| '0.9.70';", "bootstrap fallback version")
 need("boot.js").write_text(boot, encoding="utf-8")
 
