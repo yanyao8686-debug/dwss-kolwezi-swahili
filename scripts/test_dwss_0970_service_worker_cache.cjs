@@ -18,7 +18,6 @@ assert(sw.includes("'./dictionary.js.gz'") || sw.includes('"./dictionary.js.gz"'
 assert(!sw.includes("'./dictionary.js',") && !sw.includes('"./dictionary.js",'), 'nonexistent plain dictionary must not be pre-cached');
 assert(boot.includes('./dictionary.js.gz'), 'website bootstrap loads its published compressed dictionary');
 assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
-assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
 
 const precache = sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
 assert(precache, 'pre-cache URL list exists');
