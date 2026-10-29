@@ -37,13 +37,13 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p public
           curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
-          grep -Eq '^Version: 0\\.9\\.(71|72)
+          grep -Eq '^Version: 0\.9\.(71|72)$' public/VERSION.txt || { echo 'Expected 0.9.71 or 0.9.72 live website baseline'; cat public/VERSION.txt; exit 1; }
           for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 8 --retry-delay 2 --max-time 60 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
             test -s "public/$file"
           done
           gzip -t public/dictionary.js.gz
-          grep -Eq "const APP_VERSION = '0\\.9\\.(71|72)';" public/sw.js
+          grep -Eq "const APP_VERSION = '0\.9\.(71|72)';" public/sw.js || { echo 'Expected a 0.9.71 or 0.9.72 Service Worker'; grep 'APP_VERSION' public/sw.js; exit 1; }
 
       - name: Apply full-cover and Lubumbashi daily notice repair
         env:
