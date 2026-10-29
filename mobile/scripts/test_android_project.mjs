@@ -83,6 +83,11 @@ assert(activity.includes('appendQueryParameter("dwss-native-app", "1")'), 'nativ
 assert(activity.includes('appendQueryParameter("dwss-native-version", nativeVersion)'), 'native app version is passed to the website');
 assert(activity.includes('headers.put("Cache-Control", "no-cache")'), 'native app navigation revalidates the latest HTML');
 assert(activity.includes('loadLatestDwss();'), 'every cold launch fetches the latest DWSS release');
+assert(activity.includes('private boolean initialPagePositionSet = false;'), 'first page load scroll guard exists');
+assert(activity.includes('public void onPageFinished(WebView view, String url)'), 'WebView first page completion is observed');
+assert(activity.includes('view.scrollTo(0, 0);'), 'native launch resets scroll position to the cover top');
+assert(activity.includes('window.scrollTo(0,0)'), 'document scroll restoration is disabled on Android launch');
+assert(!activity.includes('webView.restoreState(savedInstanceState)'), 'stale saved scroll offsets are not restored on cold launch');
 assert(activity.includes('ServiceWorkerController.getInstance()'));
 assert(activity.includes('setDomStorageEnabled(true)'));
 assert(activity.includes('MIXED_CONTENT_NEVER_ALLOW'));
