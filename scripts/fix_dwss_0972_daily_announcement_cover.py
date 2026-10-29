@@ -127,6 +127,12 @@ img = re.sub(r'\sdecoding="[^"]*"', '', img)
 img = img[:-1] + ' loading="eager" fetchpriority="high" decoding="sync">'
 html = html[:matches[0].start()] + img + html[matches[0].end():]
 
+# Invalidate versioned HTML script URLs so WebView and browsers do not retain v0.9.71 modules.
+versioned_count = html.count("dwss-release=0.9.71")
+if versioned_count < 3:
+    raise SystemExit("Expected at least three versioned application script URLs.")
+html = html.replace("dwss-release=0.9.71", "dwss-release=0.9.72")
+
 # Update the complete announcement theme without changing font family, size,
 # weight, line-height, or any announcement wording.
 match = re.search(r'<style id="dwss-announcement-style">[\s\S]*?</style>', html)
