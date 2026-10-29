@@ -2,7 +2,7 @@ name: Build Android APK after DWSS website release
 
 on:
   workflow_run:
-    workflows: ["Deploy DWSS 0.9.76 pronunciation screen cleanup"]
+    workflows: ["Deploy DWSS 0.9.77 pronunciation instruction frame"]
     branches: [main]
     types: [completed]
   workflow_dispatch:
