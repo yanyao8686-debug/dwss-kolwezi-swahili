@@ -115,13 +115,12 @@ assert(gradle.includes('versionCode '));
 assert(gradle.includes('versionName '));
 const expectedWebVersion = process.env.DWSS_WEB_VERSION;
 if (expectedWebVersion) {
-  const versionName = /versionName\s+["']([^"']+)["']/.exec(gradle)?.[1];
-  assert.equal(versionName, expectedWebVersion, 'Android native versionName must exactly match website release');
-  const [, major, minor, patch] = /^(\d+)\\.(\d+)\\.(\d+)$/.exec(expectedWebVersion) || [];
-  assert(major !== undefined, 'DWSS_WEB_VERSION uses semantic versioning');
-  const expectedCode = Number(major) * 1000000 + Number(minor) * 1000 + Number(patch);
-  const actualCode = Number(/versionCode\s+(\d+)/.exec(gradle)?.[1]);
-  assert.equal(actualCode, expectedCode, 'Android versionCode corresponds to the website release');
+  const versionParts = expectedWebVersion.split('.').map(Number);
+  assert.equal(versionParts.length, 3, 'DWSS_WEB_VERSION uses semantic versioning');
+  assert(versionParts.every(Number.isInteger), 'DWSS_WEB_VERSION has numeric components');
+  assert(gradle.includes('versionName "' + expectedWebVersion + '"') || gradle.includes("versionName '" + expectedWebVersion + "'"), 'Android native versionName must exactly match website release');
+  const expectedCode = versionParts[0] * 1000000 + versionParts[1] * 1000 + versionParts[2];
+  assert(gradle.includes('versionCode ' + expectedCode), 'Android versionCode corresponds to the website release');
 }
 
 for (const file of [

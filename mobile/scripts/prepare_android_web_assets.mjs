@@ -52,9 +52,10 @@ assert(worker.includes("'./dictionary.js'"), 'Android service worker precaches t
 assert(!worker.includes('dictionary.js.gz'), 'Android service worker does not request the removed gzip dictionary');
 
 const versionText = fs.readFileSync(path.join(root, 'VERSION.txt'), 'utf8');
-const versionMatch = /^Version: (\d+\\.\d+\\.\d+)$/m.exec(versionText);
-assert(versionMatch, 'website release version is present');
-const webVersion = versionMatch[1];
+const versionLine = versionText.split(/\r?\n/).find(line => line.startsWith('Version: '));
+const webVersion = versionLine ? versionLine.slice('Version: '.length).trim() : '';
+const versionParts = webVersion.split('.').map(Number);
+assert(versionParts.length === 3 && versionParts.every(Number.isInteger), 'website release version is present and valid');
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const workerSource = fs.readFileSync(serviceWorkerPath, 'utf8');

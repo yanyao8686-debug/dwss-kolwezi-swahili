@@ -7,9 +7,10 @@ import vm from 'node:vm';
 const root = path.resolve('www');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const versionText = read('VERSION.txt');
-const versionMatch = /^Version: (\d+\\.\d+\\.\d+)$/m.exec(versionText);
-assert(versionMatch, 'VERSION.txt contains a valid web version');
-const version = versionMatch[1];
+const versionLine = versionText.split(/\r?\n/).find(line => line.startsWith('Version: '));
+const version = versionLine ? versionLine.slice('Version: '.length).trim() : '';
+const versionParts = version.split('.').map(Number);
+assert(versionParts.length === 3 && versionParts.every(Number.isInteger), 'VERSION.txt contains a valid web version');
 
 const html = read('index.html');
 const app = read('app.js');
@@ -29,12 +30,14 @@ assert(fs.existsSync(path.join(root, 'hanzi-pinyin.js')));
 assert(fs.existsSync(path.join(root, 'pronunciation-search.js')));
 assert(fs.existsSync(path.join(root, 'dictionary.js')));
 
-const precache = sw.match(/const PRECACHE_URLS = \\[([\s\\S]*?)\\];/);
-assert(precache, 'Service Worker precache list exists');
+const precacheStart = sw.indexOf('const PRECACHE_URLS = [');
+const precacheEnd = sw.indexOf('];', precacheStart);
+assert(precacheStart >= 0 && precacheEnd > precacheStart, 'Service Worker precache list exists');
+const precache = {content: sw.slice(precacheStart, precacheEnd + 2)};
 for (const file of ['./dictionary.js', './hanzi-pinyin.js', './pronunciation-search.js']) {
-  assert(precache[1].includes("'" + file + "'") || precache[1].includes('"' + file + '"'), 'offline precache contains ' + file);
+  assert(precache.content.includes("'" + file + "'") || precache.content.includes('"' + file + '"'), 'offline precache contains ' + file);
 }
-assert(!precache[1].includes('dictionary.js.gz'), 'Android precache does not request removed gzip dictionary');
+assert(!precache.content.includes('dictionary.js.gz'), 'Android precache does not request removed gzip dictionary');
 
 const pinyinContext = {window:{}};
 vm.runInNewContext(read('hanzi-pinyin.js'), pinyinContext);
