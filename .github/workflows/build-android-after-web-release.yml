@@ -2,7 +2,7 @@ name: Build Android APK after DWSS website release
 
 on:
   workflow_run:
-    workflows: ["Deploy DWSS 0.9.71 service worker cache repair"]
+    workflows: ["Deploy DWSS 0.9.72 daily notice and full cover fix"]
     branches: [main]
     types: [completed]
   workflow_dispatch:
