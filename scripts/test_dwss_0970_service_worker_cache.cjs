@@ -14,15 +14,15 @@ const manifest = JSON.parse(read('manifest.webmanifest'));
 
 assert.match(version, /^Version: 0\.9\.70$/m);
 assert(sw.includes("const APP_VERSION = '0.9.70';"));
-assert(sw.includes("'./dictionary.js.gz'"), 'website dictionary gzip is pre-cached');
-assert(!sw.includes("'./dictionary.js',"), 'nonexistent plain dictionary must not be pre-cached');
+assert(/['"]\\.\\/dictionary\\.js\\.gz['"]/.test(sw), 'website dictionary gzip is pre-cached');
+assert(!/['"]\\.\\/dictionary\\.js['"]/.test(sw), 'nonexistent plain dictionary must not be pre-cached');
 assert.match(boot, /\['\.\/dictionary\.js\.gz', '\.\/dictionary\.js'\]/,
   'website loads gzip first; Android has a plain dictionary fallback');
 assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
 
 const precache = sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
 assert(precache, 'pre-cache URL list exists');
-const urls = [...precache[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+const urls = [...precache[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
 assert(urls.includes('./dictionary.js.gz'));
 for (const url of urls) {
   const local = path.join(root, url.replace(/^\.\//, ''));
