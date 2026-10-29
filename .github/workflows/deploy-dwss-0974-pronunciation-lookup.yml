@@ -1,0 +1,140 @@
+name: Deploy DWSS 0.9.74 pronunciation lookup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0974-pronunciation-lookup.yml'
+      - 'scripts/pronunciation-search.js'
+      - 'scripts/generate_hanzi_pinyin_map.py'
+      - 'scripts/fix_dwss_0974_pronunciation_lookup.py'
+      - 'scripts/test_dwss_0974_pronunciation_lookup.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download and validate the live 0.9.72 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.72' public/VERSION.txt || { echo 'Expected live website baseline 0.9.72'; cat public/VERSION.txt; exit 1; }
+          for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            echo "Fetching live asset: $file"
+            curl -fsSL --retry 8 --retry-delay 2 --max-time 90 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          gzip -t public/dictionary.js.gz
+          grep -Fq "const APP_VERSION = '0.9.72';" public/sw.js
+
+      - name: Generate offline CJK pinyin map and install search engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check Unidecode==1.4.0
+          DWSS_PUBLIC_DIR=public python3 scripts/generate_hanzi_pinyin_map.py
+          cp scripts/pronunciation-search.js public/pronunciation-search.js
+          test -s public/hanzi-pinyin.js
+          test -s public/pronunciation-search.js
+
+      - name: Apply DWSS 0.9.74 pronunciation lookup patch
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: python3 scripts/fix_dwss_0974_pronunciation_lookup.py
+
+      - name: Run JavaScript, phonetic, HTML and Service Worker regression checks
+        shell: bash
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js pronunciation-search.js hanzi-pinyin.js; do
+            node --check "public/$file"
+          done
+          node scripts/test_dwss_0974_pronunciation_lookup.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip, json, re
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  values=dict(attrs)
+                  if "id" in values:self.ids.append(values["id"])
+                  if tag=="button" and "data-tab" in values:self.tabs.append(values["data-tab"])
+          audit=Audit(); audit.feed(html)
+          duplicates={key:value for key,value in Counter(audit.ids).items() if value>1}
+          if duplicates:raise SystemExit("duplicate HTML IDs: "+str(duplicates))
+          if audit.tabs[:3]!=["maintenance","pronunciation","saved"]:raise SystemExit("navigation order is incorrect: "+str(audit.tabs))
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match:raise SystemExit("Service Worker precache array missing")
+          urls=re.findall(r"""['"]([^'"]+)['"]""",match.group(1))
+          missing=[u for u in urls if u not in ("./",".") and not (p/u.removeprefix("./")).is_file()]
+          if missing:raise SystemExit("Service Worker refers to missing assets: "+str(missing))
+          if "./dictionary.js" in urls:raise SystemExit("Nonexistent website dictionary.js must not be pre-cached")
+          for required in ("./dictionary.js.gz","./hanzi-pinyin.js","./pronunciation-search.js"):
+              if required not in urls:raise SystemExit("Missing required precache asset: "+required)
+          gzip.decompress((p/"dictionary.js.gz").read_bytes())
+          manifest=json.loads((p/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("id")!="./?app=dwss-kolwezi-swahili":raise SystemExit("PWA identity changed")
+          if manifest.get("display")!="standalone":raise SystemExit("PWA display mode changed")
+          if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("PWA name changed")
+          (p/".nojekyll").touch()
+          print(f"PASS: {len(urls)} precache URLs exist; dictionary gzip, pinyin map, lookup module, unique IDs and PWA identity verified.")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.74
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live 0.9.74 resources and pronunciation lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          TMP="$RUNNER_TEMP/dwss-live-0974"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js pwa.js sw.js manifest.webmanifest dictionary-overrides.js shared-lexicon.js supabase.min.js pronunciation-search.js hanzi-pinyin.js icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 45 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$TMP/dictionary.js.gz"
+          grep -Fq 'Version: 0.9.74' "$TMP/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.74';" "$TMP/sw.js"
+          grep -Fq 'data-tab="pronunciation"' "$TMP/index.html"
+          grep -Fq 'id="pronunciationSearch"' "$TMP/index.html"
+          grep -Fq 'window.DWSSPronunciationSearch' "$TMP/app.js"
+          grep -Fq 'window.DWSS_HANZI_PINYIN' "$TMP/hanzi-pinyin.js"
+          gzip -t "$TMP/dictionary.js.gz"
+          DWSS_PUBLIC_DIR="$TMP" node scripts/test_dwss_0974_pronunciation_lookup.cjs
+          echo 'PASS: live website has the 0.9.74 pronunciation tab, full CJK pinyin table and fuzzy homophone lookup.'
