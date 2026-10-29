@@ -1,0 +1,187 @@
+name: Build Android APK after DWSS website release
+
+on:
+  workflow_run:
+    workflows: ["Deploy DWSS*"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+  contents: read
+
+jobs:
+  prepare-web-assets:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/native-android-ios-capacitor
+      - name: Download current DWSS website resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p mobile/www
+          curl -fsSL --retry 5 --retry-delay 2 "$BASE/VERSION.txt" -o mobile/www/VERSION.txt
+          grep -q '^Version: ' mobile/www/VERSION.txt
+          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$f" -o "mobile/www/$f"
+            test -s "mobile/www/$f"
+          done
+          grep -q 'DWSS' mobile/www/index.html
+          file mobile/www/cover.jpg
+      - name: Prepare Android-compatible dictionary assets
+        working-directory: mobile
+        run: node scripts/prepare_android_web_assets.mjs
+      - id: version
+        name: Read and validate DWSS web release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^Version: //p' mobile/www/VERSION.txt | head -n1)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "app_version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dwss-web-assets-${{ steps.version.outputs.app_version }}
+          path: mobile/www/
+          if-no-files-found: error
+          retention-days: 3
+
+  android-apk:
+    needs: prepare-web-assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/native-android-ios-capacitor
+      - uses: actions/download-artifact@v4
+        with:
+          name: dwss-web-assets-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: mobile/www/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Android build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n1)
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+      - name: Generate launcher icon from official website cover
+        working-directory: mobile
+        run: python scripts/prepare_android_icons.py
+      - name: Install Capacitor and generate Android native project
+        working-directory: mobile
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add android
+          npx cap sync android
+      - name: Generate Android launcher and adaptive icons
+        working-directory: mobile
+        run: npx capacitor-assets generate --android --assetPath assets --iconBackgroundColor '#002658'
+      - name: Apply Android app name and version metadata
+        working-directory: mobile
+        env:
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
+        run: node scripts/configure_android.mjs
+      - name: Verify generated Android project configuration
+        working-directory: mobile
+        run: node scripts/test_android_project.mjs
+      - name: Build installable APK
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+      - name: Verify, rename and checksum APK
+        shell: bash
+        env:
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          APK='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          AAPT="$SDK_ROOT/build-tools/36.0.0/aapt"
+          APKSIGNER="$SDK_ROOT/build-tools/36.0.0/apksigner"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          BADGING=$("$AAPT" dump badging "$APK")
+          grep -F "package: name='com.dwss.kolwezi'" <<< "$BADGING"
+          grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
+          LABEL_LINES=$(echo "$BADGING" | grep '^application-label' || true)
+          test -n "$LABEL_LINES"
+          while IFS= read -r LABEL_LINE; do
+            if [[ "$LABEL_LINE" != *"刚果金斯语翻译"* ]]; then
+              echo "ERROR: stale localized Android launcher label: $LABEL_LINE"
+              exit 1
+            fi
+          done <<< "$LABEL_LINES"
+          RESOURCE_DUMP=$("$AAPT" dump resources "$APK")
+          if grep -Fq 'DWSS斯语助手' <<< "$RESOURCE_DUMP"; then
+            echo 'ERROR: old DWSS斯语助手 launcher resource remains in APK.'
+            exit 1
+          fi
+          if grep -Fq 'DWSS 科卢韦齐斯瓦西里语助手' <<< "$RESOURCE_DUMP"; then
+            echo 'ERROR: old long DWSS launcher resource remains in APK.'
+            exit 1
+          fi
+          unzip -t "$APK" >/dev/null
+          DEX_STRINGS=$(for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$'); do unzip -p "$APK" "$DEX" | strings; done)
+          grep -Fq 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/' <<< "$DEX_STRINGS"
+          grep -Fq 'ServiceWorkerController' <<< "$DEX_STRINGS"
+          grep -Fq 'setSupportMultipleWindows' <<< "$DEX_STRINGS"
+          if grep -Fq 'APP_HOST' <<< "$DEX_STRINGS"; then
+            echo 'ERROR: obsolete host-only external-browser routing remains in APK.'
+            exit 1
+          fi
+          echo "PASS: APK keeps HTTP/HTTPS navigation in the native WebView and enables the Service Worker shell."
+          grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
+          mkdir -p mobile/dist
+          OUTPUT="mobile/dist/刚果金斯语翻译-$DWSS_WEB_VERSION.apk"
+          cp "$APK" "$OUTPUT"
+          cat > mobile/dist/安装说明.txt <<'EOF'
+          应用名称：刚果金斯语翻译
+          安装方法：将 APK 发送到安卓手机，下载后点击文件安装。
+          如系统提示，请只对本次可信文件来源允许“安装未知应用”。
+          安装后打开应用；共享词库和跨设备同步需要联网。
+          请不要把此安装包发送到 iPhone；它是 Android APK。
+          EOF
+          (cd mobile/dist && sha256sum "$(basename "$OUTPUT")" > SHA256SUMS.txt)
+          ls -lh mobile/dist/
+          cat mobile/dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 刚果金斯语翻译-Android-APK-${{ needs.prepare-web-assets.outputs.app_version }}
+          path: |
+            mobile/dist/*.apk
+            mobile/dist/安装说明.txt
+            mobile/dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 90
+
+  summary:
+    if: always()
+    needs: [prepare-web-assets, android-apk]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Android build status
+        run: |
+          echo "Web assets: ${{ needs.prepare-web-assets.result }}"
+          echo "Android APK: ${{ needs.android-apk.result }}"
+          echo "This workflow intentionally does not build iOS."
