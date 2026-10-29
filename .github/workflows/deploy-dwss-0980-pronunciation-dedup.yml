@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.80 deduplicated pronunciation results
+name: Deploy DWSS Official Website
 
 on:
   push:
