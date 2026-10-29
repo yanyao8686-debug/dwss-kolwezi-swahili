@@ -28,7 +28,7 @@ jobs:
           mkdir -p mobile/www
           curl -fsSL --retry 5 --retry-delay 2 "$BASE/VERSION.txt" -o mobile/www/VERSION.txt
           grep -q '^Version: ' mobile/www/VERSION.txt
-          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz hanzi-pinyin.js pronunciation-search.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$f" -o "mobile/www/$f"
             test -s "mobile/www/$f"
           done
@@ -98,7 +98,7 @@ jobs:
         working-directory: mobile
         env:
           DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
-          DWSS_ANDROID_VERSION: 0.9.73
+          DWSS_ANDROID_VERSION: 0.9.74
         run: node scripts/configure_android.mjs
       - name: Verify generated Android project configuration
         working-directory: mobile
