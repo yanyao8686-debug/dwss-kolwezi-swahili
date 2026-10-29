@@ -14,8 +14,8 @@ const manifest = JSON.parse(read('manifest.webmanifest'));
 
 assert.match(version, /^Version: 0\.9\.70$/m);
 assert(sw.includes("const APP_VERSION = '0.9.70';"));
-assert(/['"]\\.\\/dictionary\\.js\\.gz['"]/.test(sw), 'website dictionary gzip is pre-cached');
-assert(!/['"]\\.\\/dictionary\\.js['"]/.test(sw), 'nonexistent plain dictionary must not be pre-cached');
+assert(sw.includes("'./dictionary.js.gz'") || sw.includes('"./dictionary.js.gz"'), 'website dictionary gzip is pre-cached');
+assert(!sw.includes("'./dictionary.js',") && !sw.includes('"./dictionary.js",'), 'nonexistent plain dictionary must not be pre-cached');
 assert(boot.includes('./dictionary.js.gz'), 'website bootstrap loads its published compressed dictionary');
 assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
 assert(boot.includes("|| '0.9.70';"), 'bootstrap fallback version is current');
