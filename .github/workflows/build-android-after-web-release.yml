@@ -1,10 +1,9 @@
 name: Build Android APK after DWSS website release
 
+# Website code is delivered to the Android WebView through HTTPS + Service Worker.
+# Rebuilding/reinstalling the APK for ordinary web releases is unnecessary.
+# Keep this workflow manual for deliberate native-shell rebuilds only.
 on:
-  workflow_run:
-    workflows: ["Deploy DWSS Official Website"]
-    branches: [main]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
