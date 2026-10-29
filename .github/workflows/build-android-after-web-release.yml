@@ -2,7 +2,7 @@ name: Build Android APK after DWSS website release
 
 on:
   workflow_run:
-    workflows: ["Deploy DWSS 0.9.74 pronunciation lookup"]
+    workflows: ["Deploy DWSS 0.9.75 automatic new-term pronunciation index"]
     branches: [main]
     types: [completed]
   workflow_dispatch:
