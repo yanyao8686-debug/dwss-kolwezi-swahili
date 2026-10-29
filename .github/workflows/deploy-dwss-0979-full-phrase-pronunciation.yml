@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy
+  group: dwss-pages-deploy-0979
   cancel-in-progress: true
 
 jobs:
