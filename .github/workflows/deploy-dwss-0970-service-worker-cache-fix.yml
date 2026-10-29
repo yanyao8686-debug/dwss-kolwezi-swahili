@@ -38,13 +38,18 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p public
           curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
-          grep -Fq 'Version: 0.9.69' public/VERSION.txt
+          echo "Downloaded live VERSION.txt:"
+          cat public/VERSION.txt | head -n 5
+          grep -Fq 'Version: 0.9.69' public/VERSION.txt || { echo 'ERROR: live website is not at the expected 0.9.69 baseline.'; exit 1; }
           for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            echo "Fetching live asset: $file"
             curl -fsSL --retry 8 --retry-delay 2 --max-time 60 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
-            test -s "public/$file"
+            test -s "public/$file" || { echo "ERROR: empty asset: $file"; exit 1; }
           done
           gzip -t public/dictionary.js.gz
-          grep -Fq "const APP_VERSION = '0.9.69';" public/sw.js
+          echo "Downloaded live Service Worker version:"
+          grep -E "APP_VERSION|dictionary\\.js" public/sw.js
+          grep -Fq "const APP_VERSION = '0.9.69';" public/sw.js || { echo 'ERROR: live Service Worker does not match release 0.9.69.'; exit 1; }
 
       - name: Repair Service Worker pre-cache and bump release
         env:
