@@ -2,7 +2,7 @@ name: Build Android APK after DWSS website release
 
 on:
   workflow_run:
-    workflows: ["Deploy DWSS 0.9.77 pronunciation instruction frame"]
+    workflows: ["Deploy DWSS Official Website"]
     branches: [main]
     types: [completed]
   workflow_dispatch:
@@ -37,6 +37,9 @@ jobs:
       - name: Prepare Android-compatible dictionary assets
         working-directory: mobile
         run: node scripts/prepare_android_web_assets.mjs
+      - name: Verify Android web assets and reverse pronunciation
+        working-directory: mobile
+        run: node scripts/test_android_web_assets.mjs
       - id: version
         name: Read and validate DWSS web release version
         shell: bash
@@ -103,6 +106,8 @@ jobs:
         run: node scripts/configure_android.mjs
       - name: Verify generated Android project configuration
         working-directory: mobile
+        env:
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
         run: node scripts/test_android_project.mjs
       - name: Build installable APK
         working-directory: mobile/android
@@ -121,6 +126,7 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           BADGING=$("$AAPT" dump badging "$APK")
           grep -F "package: name='com.dwss.kolwezi'" <<< "$BADGING"
+          grep -F "versionName='$DWSS_WEB_VERSION'" <<< "$BADGING"
           grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
           LABEL_LINES=$(echo "$BADGING" | grep '^application-label' || true)
           test -n "$LABEL_LINES"
