@@ -2,7 +2,7 @@ name: Build Android APK after DWSS website release
 
 on:
   workflow_run:
-    workflows: ["Deploy DWSS 0.9.72 daily notice and full cover fix"]
+    workflows: ["Deploy DWSS 0.9.74 pronunciation lookup"]
     branches: [main]
     types: [completed]
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
           mkdir -p mobile/www
           curl -fsSL --retry 5 --retry-delay 2 "$BASE/VERSION.txt" -o mobile/www/VERSION.txt
           grep -q '^Version: ' mobile/www/VERSION.txt
-          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+          for f in index.html boot.js app.js pwa.js sw.js dictionary-overrides.js shared-lexicon.js supabase.min.js dictionary.js.gz hanzi-pinyin.js pronunciation-search.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 5 --retry-delay 2 --max-time 60 "$BASE/$f" -o "mobile/www/$f"
             test -s "mobile/www/$f"
           done
