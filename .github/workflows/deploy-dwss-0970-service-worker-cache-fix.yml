@@ -1,12 +1,6 @@
 name: Deploy DWSS 0.9.70 service worker cache repair
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-dwss-0970-service-worker-cache-fix.yml'
-      - 'scripts/fix_dwss_0970_service_worker_cache.py'
-      - 'scripts/test_dwss_0970_service_worker_cache.cjs'
   workflow_dispatch:
 
 permissions:

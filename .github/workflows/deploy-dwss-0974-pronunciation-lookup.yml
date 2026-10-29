@@ -1,14 +1,6 @@
 name: Deploy DWSS 0.9.74 pronunciation lookup
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-dwss-0974-pronunciation-lookup.yml'
-      - 'scripts/pronunciation-search.js'
-      - 'scripts/generate_hanzi_pinyin_map.py'
-      - 'scripts/fix_dwss_0974_pronunciation_lookup.py'
-      - 'scripts/test_dwss_0974_pronunciation_lookup.cjs'
   workflow_dispatch:
 
 permissions:

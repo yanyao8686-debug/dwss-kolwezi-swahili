@@ -1,12 +1,6 @@
 name: Deploy DWSS 0.9.72 daily notice and full cover fix
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-dwss-0972-daily-announcement-cover.yml'
-      - 'scripts/fix_dwss_0972_daily_announcement_cover.py'
-      - 'scripts/test_dwss_0972_daily_announcement_cover.cjs'
   workflow_dispatch:
 
 permissions:

@@ -1,13 +1,6 @@
 name: Deploy DWSS 0.9.79 full-phrase pronunciation matching
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-dwss-0979-full-phrase-pronunciation.yml'
-      - 'scripts/pronunciation-search.js'
-      - 'scripts/fix_dwss_0979_full_phrase_pronunciation.py'
-      - 'scripts/test_dwss_0979_full_phrase_pronunciation.cjs'
   workflow_dispatch:
 
 permissions:
