@@ -90,7 +90,7 @@ jobs:
           if manifest.get("id")!="./?app=dwss-kolwezi-swahili":raise SystemExit("PWA identity changed")
           if manifest.get("display")!="standalone":raise SystemExit("PWA standalone mode changed")
           if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("PWA app name changed")
-          if 'timeZone:\\'Africa/Lubumbashi\\'' not in html:raise SystemExit("Lubumbashi timezone daily rule missing")
+          if "timeZone:'Africa/Lubumbashi'" not in html:raise SystemExit("Lubumbashi timezone daily rule missing")
           if "object-fit:contain!important" not in html:raise SystemExit("Full-cover object-fit rule missing")
           (p/".nojekyll").touch()
           print(f"PASS: {len(urls)} pre-cache URLs exist; gzip dictionary, square cover, matcha notice and PWA identity verified.")
