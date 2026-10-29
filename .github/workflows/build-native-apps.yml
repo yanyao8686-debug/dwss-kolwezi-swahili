@@ -1,4 +1,6 @@
 name: Build Android APK - 刚果金斯语翻译
+# Android APK packaging is separate from Pages deployment. Rebuild after each website release;
+# this workflow downloads the currently deployed website and reads its VERSION.txt at build time.
 
 on:
   push:
