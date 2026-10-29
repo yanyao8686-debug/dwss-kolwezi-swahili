@@ -10,7 +10,7 @@ const dictionaryPath = path.join(root, 'dictionary.js');
 const nativeBootPath = path.resolve('native/boot.js');
 const deployedBootPath = path.join(root, 'boot.js');
 
-for (const file of [gzipPath, nativeBootPath, path.join(root, 'index.html')]) {
+for (const file of [gzipPath, nativeBootPath, path.join(root, 'index.html'), path.join(root, 'hanzi-pinyin.js'), path.join(root, 'pronunciation-search.js'), path.join(root, 'app.js'), path.join(root, 'sw.js'), path.join(root, 'VERSION.txt'), path.join(root, 'manifest.webmanifest')]) {
   assert(fs.existsSync(file), 'required Android web asset exists: ' + file);
 }
 
@@ -30,7 +30,7 @@ const boot = fs.readFileSync(nativeBootPath, 'utf8');
 assert(boot.includes("location.hostname === 'localhost'"), 'Android local-host path detection exists');
 assert(boot.includes("'./dictionary.js'"), 'uncompressed Android dictionary path exists');
 assert(boot.includes("'./dictionary.js.gz'"), 'compressed PWA fallback path exists');
-assert(boot.includes("for (const src of ['./app.js', './dictionary-overrides.js', './pwa.js'])"), 'all application modules load after dictionary');
+assert(boot.includes("for (const src of ['./hanzi-pinyin.js', './pronunciation-search.js', './app.js', './dictionary-overrides.js', './pwa.js'])"), 'pinyin and pronunciation search load before the application');
 fs.writeFileSync(deployedBootPath, boot);
 
 // The Android WebView also installs the bundled service worker. Its precache
@@ -50,4 +50,26 @@ assert(installedBoot.includes("location.hostname === 'localhost'"), 'installed b
 const worker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 assert(worker.includes("'./dictionary.js'"), 'Android service worker precaches the uncompressed dictionary');
 assert(!worker.includes('dictionary.js.gz'), 'Android service worker does not request the removed gzip dictionary');
+
+const versionText = fs.readFileSync(path.join(root, 'VERSION.txt'), 'utf8');
+const versionMatch = /^Version: (\\d+\\.\\d+\\.\\d+)$/m.exec(versionText);
+assert(versionMatch, 'website release version is present');
+const webVersion = versionMatch[1];
+const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const workerSource = fs.readFileSync(serviceWorkerPath, 'utf8');
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+assert(indexHtml.includes('content="' + webVersion + '">'), 'HTML auto-update version matches VERSION.txt');
+assert(appSource.includes("version:'" + webVersion + "'"), 'application metadata matches VERSION.txt');
+assert(workerSource.includes("const APP_VERSION = '" + webVersion + "';"), 'Service Worker cache version matches VERSION.txt');
+assert(manifest.name === '刚果金斯语翻译', 'Android bundle keeps the official app name');
+assert(indexHtml.includes('id="pronunciationSearch"'), 'reverse pronunciation query input is present');
+assert(appSource.includes('function renderPronunciationLookup()'), 'reverse pronunciation query UI is present');
+assert(installedBoot.indexOf('./hanzi-pinyin.js') < installedBoot.indexOf('./pronunciation-search.js'), 'pinyin map loads before pronunciation search');
+assert(installedBoot.indexOf('./pronunciation-search.js') < installedBoot.indexOf('./app.js'), 'pronunciation engine loads before application UI');
+for (const asset of ['./hanzi-pinyin.js', './pronunciation-search.js']) {
+  assert(workerSource.includes("'" + asset + "'") || workerSource.includes('"' + asset + '"'), 'Service Worker keeps ' + asset);
+}
+console.log('PASS: Android source bundle matches website release ' + webVersion + ' and includes reverse-pronunciation modules.');
+
 console.log('PASS: generated uncompressed dictionary.js (' + dictionary.length + ' bytes) and installed Android-specific boot.js.');

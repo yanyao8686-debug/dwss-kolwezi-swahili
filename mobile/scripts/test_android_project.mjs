@@ -113,6 +113,16 @@ const gradle = fs.readFileSync(buildGradle, 'utf8');
 assert(gradle.includes('applicationId "com.dwss.kolwezi"') || gradle.includes("applicationId 'com.dwss.kolwezi'"));
 assert(gradle.includes('versionCode '));
 assert(gradle.includes('versionName '));
+const expectedWebVersion = process.env.DWSS_WEB_VERSION;
+if (expectedWebVersion) {
+  const versionName = /versionName\\s+["']([^"']+)["']/.exec(gradle)?.[1];
+  assert.equal(versionName, expectedWebVersion, 'Android native versionName must exactly match website release');
+  const [, major, minor, patch] = /^(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(expectedWebVersion) || [];
+  assert(major !== undefined, 'DWSS_WEB_VERSION uses semantic versioning');
+  const expectedCode = Number(major) * 1000000 + Number(minor) * 1000 + Number(patch);
+  const actualCode = Number(/versionCode\\s+(\\d+)/.exec(gradle)?.[1]);
+  assert.equal(actualCode, expectedCode, 'Android versionCode corresponds to the website release');
+}
 
 for (const file of [
   'android/app/src/main/res/mipmap-mdpi/ic_launcher.png',

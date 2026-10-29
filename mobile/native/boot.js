@@ -68,7 +68,7 @@
     });
     URL.revokeObjectURL(blobUrl);
 
-    for (const src of ['./app.js', './dictionary-overrides.js', './pwa.js']) {
+    for (const src of ['./hanzi-pinyin.js', './pronunciation-search.js', './app.js', './dictionary-overrides.js', './pwa.js']) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = src;
