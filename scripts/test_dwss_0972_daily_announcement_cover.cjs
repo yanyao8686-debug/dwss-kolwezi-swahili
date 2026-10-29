@@ -19,7 +19,7 @@ assert(!sw.includes("'./dictionary.js',") && !sw.includes('"./dictionary.js",'))
 assert(boot.includes('dictionary.js.gz'));
 assert(app.includes("version:'0.9.72'"));
 assert(html.includes('content="0.9.72">'));
-assert((html.match(/dwss-release=0\\.9\\.72/g) || []).length >= 3);
+assert((html.match(/dwss-release=0\.9\.72/g) || []).length >= 3);
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_72'));
 assert(html.includes('版本 0.9.72 · 刚果金斯语翻译'));
 assert(html.includes('loading="eager" fetchpriority="high" decoding="sync"'));
