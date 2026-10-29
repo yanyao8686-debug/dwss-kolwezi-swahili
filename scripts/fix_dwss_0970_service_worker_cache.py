@@ -86,7 +86,7 @@ controller = r"""<script id="dwss-announcement-controller">
 })();
 </script>"""
 html, count = re.subn(
-    r'<script id="dwss-announcement-controller">[\\s\\S]*?</script>',
+    r'<script id="dwss-announcement-controller">[\s\S]*?</script>',
     lambda _: controller,
     html,
     count=1
