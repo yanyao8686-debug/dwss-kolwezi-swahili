@@ -26,12 +26,12 @@ function props(body) {
   for (const item of body.split(';')) {
     const i = item.indexOf(':');
     if (i < 0) continue;
-    out[item.slice(0, i).trim().toLowerCase()] = item.slice(i + 1).replace(/\\s*!important\\s*$/i, '').trim();
+    out[item.slice(0, i).trim().toLowerCase()] = item.slice(i + 1).replace(/\s*!important\s*$/i, '').trim();
   }
   return out;
 }
 const footer = props(rule(html, '.ownership-stamp'));
-const styleBlock = html.match(/<style id="dwss-pronunciation-instruction-frame-0978">([\\s\\S]*?)<\\/style>/);
+const styleBlock = html.match(/<style id="dwss-pronunciation-instruction-frame-0978">([\s\S]*?)<\/style>/);
 assert(styleBlock, 'new pronunciation instruction CSS block exists');
 const instructionCss = props(rule(styleBlock[1], '.pronunciation-lookup-card .pronunciation-lookup-instruction'));
 assert.equal(instructionCss.border, footer.border, 'instruction border exactly matches footer border');
@@ -45,9 +45,9 @@ assert(!styleBlock[1].includes('border-radius:0'), 'old square corners are remov
 assert(html.includes('content="0.9.78">'));
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_78'));
 assert(html.includes('版本 0.9.78 · 刚果金斯语翻译'));
-assert((html.match(/dwss-release=0\\.9\\.78/g) || []).length >= 3);
-assert.equal((html.match(/dwss-release=0\\.9\\.77/g) || []).length, 0);
-assert.equal((version.match(/^Version: 0\\.9\\.78$/m) || []).length, 1);
+assert((html.match(/dwss-release=0\.9\.78/g) || []).length >= 3);
+assert.equal((html.match(/dwss-release=0\.9\.77/g) || []).length, 0);
+assert.equal((version.match(/^Version: 0\.9\.78$/m) || []).length, 1);
 assert(version.includes('0.9.78: Match the pronunciation explanation frame'));
 assert(sw.includes("const APP_VERSION = '0.9.78';"));
 assert(app.includes("version:'0.9.78'"));
