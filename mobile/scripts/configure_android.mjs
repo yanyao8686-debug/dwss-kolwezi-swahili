@@ -43,7 +43,8 @@ if (!foundDefaultAppName || !foundDefaultActivityTitle || patchedStringFiles ===
 }
 
 let gradleText = fs.readFileSync(gradle, 'utf8');
-const version = process.env.DWSS_WEB_VERSION || '0.9.63';
+const webReleaseVersion = process.env.DWSS_WEB_VERSION || '0.9.63';
+const version = process.env.DWSS_ANDROID_VERSION || webReleaseVersion;
 const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
 if (!match) throw new Error('Invalid web version: ' + version);
 const [, major, minor, patch] = match.map(Number);
