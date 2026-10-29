@@ -40,7 +40,7 @@ jobs:
           curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
           echo "Downloaded live VERSION.txt:"
           cat public/VERSION.txt | head -n 5
-          grep -Eq '^Version: 0\\.9\\.(69|70)$' public/VERSION.txt || { echo 'ERROR: live website is not at the expected 0.9.69/0.9.70 baseline.'; exit 1; }
+          grep -Eq '^Version: 0\.9\.(69|70)$' public/VERSION.txt || { echo 'ERROR: live website is not at the expected 0.9.69/0.9.70 baseline.'; exit 1; }
           for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             echo "Fetching live asset: $file"
             curl -fsSL --retry 8 --retry-delay 2 --max-time 60 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
