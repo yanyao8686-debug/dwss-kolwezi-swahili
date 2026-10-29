@@ -51,10 +51,11 @@ if re.search(r"""(['"])\./dictionary\.js\1""", sw) or not re.search(r"""(['"])\.
     raise SystemExit("Service Worker pre-cache dictionary path is still invalid.")
 sw_path.write_text(sw, encoding="utf-8")
 
-# The website boot script tries gzip first; keep Android's local dictionary.js fallback.
+# The published website bootstrap loads dictionary.js.gz directly.
+# The native Android package expands that source asset separately during APK packaging.
 boot = need("boot.js").read_text(encoding="utf-8")
-if "isCapacitorLocalApp" not in boot or "./dictionary.js.gz" not in boot or "./dictionary.js" not in boot:
-    raise SystemExit("boot.js does not contain both website gzip and Android plain dictionary routes.")
+if "dictionary.js.gz" not in boot:
+    raise SystemExit("The published web bootstrap does not reference the gzip dictionary.")
 boot = replace_once(boot, "|| '0.9.69';", "|| '0.9.70';", "bootstrap fallback version")
 need("boot.js").write_text(boot, encoding="utf-8")
 
