@@ -40,10 +40,14 @@ sw = replace_once(sw, "const APP_VERSION = '0.9.69';",
                   "const APP_VERSION = '0.9.70';", "Service Worker release")
 # The live 0.9.69 site may already have the correct gzip pre-cache path.
 # Repair only the obsolete plain filename; never fail or rewrite an already-correct entry.
-if "'./dictionary.js'," in sw:
-    sw = replace_once(sw, "'./dictionary.js',", "'./dictionary.js.gz',",
-                      "Service Worker dictionary pre-cache")
-if "'./dictionary.js'," in sw or "'./dictionary.js.gz'," not in sw:
+plain_paths = list(re.finditer(r"""(['"])\./dictionary\.js\1""", sw))
+if len(plain_paths) > 1:
+    raise SystemExit("Unexpected duplicate plain dictionary.js pre-cache paths.")
+if plain_paths:
+    match = plain_paths[0]
+    quote = match.group(1)
+    sw = sw[:match.start()] + quote + "./dictionary.js.gz" + quote + sw[match.end():]
+if re.search(r"""(['"])\./dictionary\.js\1""", sw) or not re.search(r"""(['"])\./dictionary\.js\.gz\1""", sw):
     raise SystemExit("Service Worker pre-cache dictionary path is still invalid.")
 sw_path.write_text(sw, encoding="utf-8")
 
