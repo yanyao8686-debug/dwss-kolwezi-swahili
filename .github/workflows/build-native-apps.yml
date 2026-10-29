@@ -98,10 +98,11 @@ jobs:
         working-directory: mobile
         env:
           DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
-          DWSS_ANDROID_VERSION: 0.9.74
         run: node scripts/configure_android.mjs
       - name: Verify generated Android project configuration
         working-directory: mobile
+        env:
+          DWSS_WEB_VERSION: ${{ needs.prepare-web-assets.outputs.app_version }}
         run: node scripts/test_android_project.mjs
       - name: Build installable APK
         working-directory: mobile/android
@@ -120,6 +121,7 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           BADGING=$("$AAPT" dump badging "$APK")
           grep -F "package: name='com.dwss.kolwezi'" <<< "$BADGING"
+          grep -F "versionName='$DWSS_WEB_VERSION'" <<< "$BADGING"
           grep -F "application-label:'刚果金斯语翻译'" <<< "$BADGING"
           LABEL_LINES=$(echo "$BADGING" | grep '^application-label' || true)
           test -n "$LABEL_LINES"
