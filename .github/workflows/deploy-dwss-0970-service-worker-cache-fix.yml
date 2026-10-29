@@ -1,0 +1,128 @@
+name: Deploy DWSS 0.9.70 service worker cache repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0970-service-worker-cache-fix.yml'
+      - 'scripts/fix_dwss_0970_service_worker_cache.py'
+      - 'scripts/test_dwss_0970_service_worker_cache.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download and validate current 0.9.69 website baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.69' public/VERSION.txt
+          for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 8 --retry-delay 2 --max-time 60 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          gzip -t public/dictionary.js.gz
+          grep -Fq "const APP_VERSION = '0.9.69';" public/sw.js
+
+      - name: Repair Service Worker pre-cache and bump release
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: python3 scripts/fix_dwss_0970_service_worker_cache.py
+
+      - name: Run source, cache, announcement and HTML regression tests
+        shell: bash
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          node scripts/test_dwss_0970_service_worker_cache.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip, json, re
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]
+              def handle_starttag(self,tag,attrs):
+                  values=dict(attrs)
+                  if "id" in values:self.ids.append(values["id"])
+          audit=Audit();audit.feed(html)
+          duplicates={key:value for key,value in Counter(audit.ids).items() if value>1}
+          if duplicates:raise SystemExit("duplicate HTML IDs: "+str(duplicates))
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match:raise SystemExit("Service Worker pre-cache list missing")
+          urls=re.findall(r"'([^']+)'",match.group(1))
+          missing=[url for url in urls if url not in ("./",".") and not (p/url.removeprefix("./")).is_file()]
+          if missing:raise SystemExit("Service Worker pre-cache references missing website assets: "+str(missing))
+          if "./dictionary.js" in urls:raise SystemExit("Nonexistent dictionary.js remains in website pre-cache")
+          if "./dictionary.js.gz" not in urls:raise SystemExit("Compressed website dictionary is not pre-cached")
+          gzip.decompress((p/"dictionary.js.gz").read_bytes())
+          manifest=json.loads((p/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("display")!="standalone":raise SystemExit("PWA standalone mode changed")
+          if manifest.get("id")!="./?app=dwss-kolwezi-swahili":raise SystemExit("PWA identity changed")
+          if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("PWA name mismatch")
+          (p/".nojekyll").touch()
+          print(f"PASS: {len(urls)} pre-cache URLs all exist; compressed dictionary, modal, footer and PWA identity verified.")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.70
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live 0.9.70 cache repair and footer
+        shell: bash
+        env:
+          DWSS_REPO_DIR: \${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          TMP="$RUNNER_TEMP/dwss-live-0.9.70"
+          mkdir -p "$TMP"
+          for file in VERSION.txt index.html app.js boot.js pwa.js sw.js manifest.webmanifest dictionary-overrides.js shared-lexicon.js supabase.min.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 30 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$TMP/dictionary.js.gz"
+          grep -Fq 'Version: 0.9.70' "$TMP/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.70';" "$TMP/sw.js"
+          grep -Fq "'./dictionary.js.gz'" "$TMP/sw.js"
+          if grep -Fq "'./dictionary.js'," "$TMP/sw.js"; then echo 'Invalid website dictionary.js pre-cache target'; exit 1; fi
+          grep -Fq 'dwss:announcement-dismissed:0.9.70' "$TMP/index.html"
+          grep -Fq '我已阅读，进入应用' "$TMP/index.html"
+          grep -Fq '© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利' "$TMP/index.html"
+          gzip -t "$TMP/dictionary.js.gz"
+          DWSS_PUBLIC_DIR="$TMP" node scripts/test_dwss_0970_service_worker_cache.cjs
+          echo 'PASS: live 0.9.70 Service Worker can pre-cache every website asset; announcement and approved footer are live.'
