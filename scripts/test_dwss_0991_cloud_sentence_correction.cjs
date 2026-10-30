@@ -40,7 +40,7 @@ assert.match(sw,/APP_VERSION = '0\.9\.91'/);
 assert.match(sw,/endsWith\('\.apk'\)/,'large APK downloads must bypass Service Worker cache');
 const precache=sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
 assert.ok(precache,'precache list exists');
-assert.doesNotMatch(precache[1]/\.apk/i,'APK must not be precached');
+assert.doesNotMatch(precache[1],/\.apk/i,'APK must not be precached');
 assert.match(precache[1],/dictionary-overrides\.js/);
 assert.match(boot,/dictionary-overrides\.js/);
 assert.equal(manifest.name,'刚果金斯语翻译');
