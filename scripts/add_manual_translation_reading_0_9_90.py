@@ -120,9 +120,9 @@ apk_css = """
 #dwss-apk-download .apk-note{margin:0;color:#929cac;font-size:9px;line-height:1.35}
 </style>
 """
-if html.count("</head>") != 0:
-    raise SystemExit("Unexpected head structure after style insertion.")
-# Insert APK styling in the already-opened document head before its existing style closure.
+if html.count("</head>") != 1:
+    raise SystemExit("Expected exactly one closing head tag after style insertion.")
+# Insert APK styling in the document head after the manual-editor style.
 head_end = html.find("</style>\n</head>")
 if head_end < 0:
     raise SystemExit("Could not locate the head style close for the APK download CSS.")
