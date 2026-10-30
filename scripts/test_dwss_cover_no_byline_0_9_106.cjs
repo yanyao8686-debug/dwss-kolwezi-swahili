@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=process.env.DWSS_PUBLIC_DIR||'public';
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+const version=fs.readFileSync(path.join(root,'VERSION.txt'),'utf8');
+assert.match(version,/^Version: 0\.9\.106$/m);
+assert.ok(html.includes('DWSS_AUTO_UPDATE_0_9_106'));
+assert.ok(sw.includes("const APP_VERSION = '0.9.106';"));
+assert.ok(html.includes('alt="DWSS 斯语品牌封面"'));
+assert.ok(!html.includes('alt="DWSS 斯语 陈谍 品牌封面"'));
+assert.ok(!html.includes('class="owner-cover-author">陈谍</span>'));
+assert.ok(html.includes('id="dwss-cover-hide-developer-byline-0106"'));
+assert.ok(html.includes('class="owner-cover-author-backdrop"'));
+assert.ok(html.includes('class="apk-cover-wrap"'));
+assert.ok(html.includes('DWSS 斯语应用封面'));
+for(const token of ['DWSS','斯语','德行四海','威震八方','© 2026 刚果金斯语翻译'])
+  assert.ok(html.includes(token),'preserved cover/site item: '+token);
+assert.ok(html.includes('由德威安全官陈谍匠心开发'),'copyright/developer ownership line must remain unchanged');
+console.log('PASS DWSS 0.9.106: cover byline hidden in both display sizes, branding and copyright preserved.');
