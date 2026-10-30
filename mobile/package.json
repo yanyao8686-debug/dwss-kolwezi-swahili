@@ -1,0 +1,20 @@
+{
+  "name": "dwss-native-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android application for 刚果金斯语翻译",
+  "scripts": {
+    "sync": "cap sync android",
+    "addAndroid": "cap add android",
+    "build:android": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/android": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/assets": "3.0.5",
+    "typescript": "^5.9.3"
+  }
+}
