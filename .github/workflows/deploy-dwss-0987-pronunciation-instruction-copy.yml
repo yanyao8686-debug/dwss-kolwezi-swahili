@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-dwss-0987-pronunciation-instruction-copy.yml'
-      - 'scripts/fix_dwss_0987_pronunciation_instruction_copy.py'
-      - 'scripts/test_dwss_0987_pronunciation_instruction_copy.cjs'
+      - 'scripts/fix_dwss_0988_frameless_pronunciation_instruction.py'
+      - 'scripts/test_dwss_0988_frameless_pronunciation_instruction.cjs'
   workflow_dispatch:
 
 permissions:
@@ -28,24 +28,24 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Download and validate live 0.9.86 baseline
+      - name: Download and validate live 0.9.87 baseline
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           mkdir -p public
           curl -fsSL --retry 8 --retry-delay 2 --max-time 45 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
-          grep -Fq 'Version: 0.9.86' public/VERSION.txt || { echo 'Expected live 0.9.86 baseline'; cat public/VERSION.txt; exit 1; }
+          grep -Fq 'Version: 0.9.87' public/VERSION.txt || { echo 'Expected live 0.9.87 baseline'; cat public/VERSION.txt; exit 1; }
           for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js hanzi-pinyin.js pronunciation-search.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
             curl -fsSL --retry 8 --retry-delay 2 --max-time 90 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
             test -s "public/$file"
           done
           gzip -t public/dictionary.js.gz
-          grep -Fq "const APP_VERSION = '0.9.86';" public/sw.js
+          grep -Fq "const APP_VERSION = '0.9.87';" public/sw.js
       - name: Replace only the pronunciation instruction sentence
         env:
           DWSS_PUBLIC_DIR: public
-        run: python3 scripts/fix_dwss_0987_pronunciation_instruction_copy.py
+        run: python3 scripts/fix_dwss_0988_frameless_pronunciation_instruction.py
       - name: Run syntax, exact-copy and feature-preservation tests
         shell: bash
         env:
@@ -55,7 +55,7 @@ jobs:
           for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js pronunciation-search.js hanzi-pinyin.js; do
             node --check "public/$file"
           done
-          node scripts/test_dwss_0987_pronunciation_instruction_copy.cjs
+          node scripts/test_dwss_0988_frameless_pronunciation_instruction.cjs
           python3 - <<'PY'
           from collections import Counter
           from html.parser import HTMLParser
@@ -90,10 +90,10 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
-      - name: Deploy DWSS 0.9.87
+      - name: Deploy DWSS 0.9.88
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify actual live 0.9.87 instruction and preserved behavior
+      - name: Verify actual live 0.9.88 instruction and preserved behavior
         shell: bash
         run: |
           set -euo pipefail
@@ -104,12 +104,12 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$LIVE/dictionary.js.gz"
-          grep -Fxq 'Version: 0.9.87' "$LIVE/VERSION.txt"
-          grep -Fq "const APP_VERSION = '0.9.87';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.88' "$LIVE/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.88';" "$LIVE/sw.js"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_87' "$LIVE/index.html"
           grep -Fq '输入听到却不懂意思的斯语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的斯语' "$LIVE/index.html"
-          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0987_pronunciation_instruction_copy.cjs
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0988_frameless_pronunciation_instruction.cjs
           node --check "$LIVE/pwa.js"
           node --check "$LIVE/sw.js"
           gzip -t "$LIVE/dictionary.js.gz"
-          echo 'PASS: live 0.9.87 displays the exact revised instruction while preserving all existing features.'
+          echo 'PASS: live 0.9.88 displays the exact revised instruction while preserving all existing features.'
