@@ -33,7 +33,7 @@ assert.match(shared,/pronunciation_aliases\.some\(alias/);
 assert.doesNotMatch(shared,/v\.pinyin_key && v\.pinyin_key === pinyinKey/,'local cache must not suppress same-sound alias submissions before server merge');
 assert.match(shared,/data\.retired_variant_id/);
 assert.match(boot,/dwss-pronunciation-controls\.js/);
-assert.match(sw,/APP_VERSION = '0\.9\.102'/);
+assert.ok(sw.includes("APP_VERSION = '"+liveVersion+"'"));
 assert.match(sw,/['"]\.\/dwss-pronunciation-controls\.js['"]/);
 const precache=(sw.match(/const PRECACHE_URLS = \[(.*?)\];/s)||[])[1]||'';
 assert.ok(precache.includes("'./dwss-pronunciation-controls.js'"));
