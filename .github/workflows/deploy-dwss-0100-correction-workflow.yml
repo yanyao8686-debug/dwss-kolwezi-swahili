@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.101 simplified pronunciation controls
+name: Deploy DWSS 0.9.102 inline pronunciation editing
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
       - 'scripts/dwss-pronunciation-controls.js'
       - 'scripts/simplify_dwss_0101_controls.py'
       - 'scripts/test_dwss_0101_controls.cjs'
+      - 'scripts/prepare_dwss_0102_inline_pronunciation.py.gz.b64'
+      - 'scripts/test_dwss_0102_inline_pronunciation.cjs'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0101
+  group: dwss-pages-deploy-0102
   cancel-in-progress: true
 
 jobs:
@@ -93,6 +95,21 @@ jobs:
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
           touch public/.nojekyll
 
+      - name: Apply DWSS 0.9.102 inline pronunciation editing
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d scripts/prepare_dwss_0102_inline_pronunciation.py.gz.b64 | gzip -d > scripts/prepare_dwss_0102_inline_pronunciation.py
+          python3 scripts/prepare_dwss_0102_inline_pronunciation.py
+          for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do
+            node --check "public/$file"
+          done
+          node --check scripts/test_dwss_0102_inline_pronunciation.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0102_inline_pronunciation.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -134,32 +151,34 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.101
+      - name: Deploy DWSS 0.9.102
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.101 and stable Android installer
+      - name: Verify live DWSS 0.9.102 and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0101"
+          LIVE="$RUNNER_TEMP/dwss-live-0102"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          grep -Fxq 'Version: 0.9.101' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_101' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.102' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_102' "$LIVE/index.html"
           ! grep -Fq '<div class="footer">' "$LIVE/index.html"
           grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
           grep -Fq 'id="translationOverrideHistoryDialog"' "$LIVE/index.html"
           grep -Fq 'DWSSDictionaryOverrides.updateTranslation' "$LIVE/app.js"
           grep -Fq 'translation-pronunciation-candidate-rail' "$LIVE/app.js"
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0101_controls.cjs
+          grep -Fq 'function dwssPinyinKeysNear' "$LIVE/app.js"
+          grep -Fq 'data.retired_variant_id' "$LIVE/shared-lexicon.js"
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0102_inline_pronunciation.cjs
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
-          echo 'PASS: live DWSS 0.9.101 exposes two pronunciation entry points while retaining primary correction, alternate readings, history, recovery, automatic sync, and the unchanged Android installer.'
+          echo 'PASS: live DWSS 0.9.102 edits directly in the pronunciation box, groups same/near sounds, shows distinct readings side by side, and keeps the unchanged Android installer.'
       - name: Record live-verified release marker
         if: success()
         shell: bash
@@ -168,6 +187,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.101\nLive Pages assets, correction UI, version marker, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.101.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.101.txt")"
-          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.101.txt" -f message="Record live-verified DWSS 0.9.101 release" -f content="$encoded" -f branch=main
+          printf 'DWSS 0.9.102\nLive Pages assets, correction UI, version marker, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.102.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.102.txt")"
+          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.102.txt" -f message="Record live-verified DWSS 0.9.102 release" -f content="$encoded" -f branch=main
