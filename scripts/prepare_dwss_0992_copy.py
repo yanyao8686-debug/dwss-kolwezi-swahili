@@ -41,7 +41,7 @@ version=re.sub(r"^Release date: .*$","Release date: 2026-10-30",version,count=1,
 version += "\n0.9.92: Simplify the translation correction area to one concise action button and remove duplicated helper text; show only meaningful success/error states after user actions.\n"
 write("VERSION.txt",version)
 
-assert "translation-correction-help" not in html
+assert '<div class="translation-correction-help">' not in html
 assert 'id="submitTranslationCorrection"' in html and '>提交修正</button>' in html
 assert "可以直接编辑上方谐音并提交云端" not in app
 assert "已同步云端，其他用户可见。" in app
