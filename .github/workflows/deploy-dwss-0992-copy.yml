@@ -1,0 +1,127 @@
+name: Deploy DWSS 0.9.92 concise pronunciation correction panel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0992-copy.yml'
+      - 'scripts/prepare_dwss_0992_copy.py'
+      - 'scripts/test_dwss_0992_copy.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0992
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download verified DWSS 0.9.91 Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 41028330968
+          path: .dwss-baseline
+
+      - name: Unpack and verify current website
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .dwss-baseline/artifact.tar
+          mkdir -p public
+          tar -xf .dwss-baseline/artifact.tar -C public
+          for file in index.html app.js boot.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js manifest.webmanifest VERSION.txt cover.webp DWSS-Android-0.9.80.apk; do
+            test -s "public/$file"
+          done
+          grep -Fxq 'Version: 0.9.91' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.91';" public/sw.js
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-0.9.80.apk >/dev/null
+
+      - name: Simplify correction panel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0992_copy.py
+          node --check public/app.js
+          node --check public/sw.js
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0992_copy.cjs
+          gzip -t public/dictionary.js.gz
+          touch public/.nojekyll
+
+      - name: Audit key existing application functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import json,re
+          root=Path("public")
+          html=(root/"index.html").read_text()
+          class Audit(HTMLParser):
+              def __init__(self): super().__init__();self.ids=[];self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  if tag=="button" and "data-tab" in a:self.tabs.append(a["data-tab"])
+          a=Audit();a.feed(html)
+          dup=[k for k,v in Counter(a.ids).items() if v>1]
+          if dup:raise SystemExit("Duplicate IDs: "+str(dup))
+          if a.tabs[:3] != ["maintenance","pronunciation","saved"]:raise SystemExit("Primary navigation changed")
+          for token in ('id="inputText"','id="resultReading"','id="translationCorrectionPanel"','id="dwss-apk-download"'):
+              if token not in html:raise SystemExit("Missing existing UI: "+token)
+          if 'id="installAppBtn"' in html:raise SystemExit("Obsolete install prompt reappeared")
+          sw=(root/"sw.js").read_text()
+          if "const APP_VERSION = '0.9.92';" not in sw:raise SystemExit("Service Worker version mismatch")
+          manifest=json.loads((root/"manifest.webmanifest").read_text())
+          if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("App identity changed")
+          if "dictionary-overrides.js" not in (root/"boot.js").read_text():raise SystemExit("Cloud pronunciation editor module missing from boot")
+          if "shared-lexicon.js" not in (root/"boot.js").read_text():raise SystemExit("Shared lexicon module missing from boot")
+          print("PASS: core page elements, navigation, cloud modules, PWA identity, and unique IDs.")
+          PY
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.92
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live copy and retained assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0992"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js sw.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          grep -Fxq 'Version: 0.9.92' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_92' "$LIVE/index.html"
+          grep -Fq 'id="submitTranslationCorrection"' "$LIVE/index.html"
+          grep -Fq '>提交修正</button>' "$LIVE/index.html"
+          ! grep -Fq 'translation-correction-help' "$LIVE/index.html"
+          grep -Fq '已同步云端，其他用户可见。' "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.92';" "$LIVE/sw.js"
+          echo 'PASS: live DWSS 0.9.92 concise correction panel verified.'
