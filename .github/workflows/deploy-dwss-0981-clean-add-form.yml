@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.81 clean add-word form
+name: Deploy DWSS 0.9.81 clean add-word form and cache refresh
 
 on:
   push:
