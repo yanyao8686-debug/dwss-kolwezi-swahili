@@ -51,7 +51,7 @@ if sw.count(marker) != 1:
 sw = sw.replace(marker, marker + "\n  './dwss-pronunciation-controls.js',", 1)
 write("sw.js", sw)
 
-source = Path("scripts/dwss-pronunciation-controls.js").read_text(encoding="utf-8")
+source = Path("scripts/dwss-pronunciation-controls-0101.js").read_text(encoding="utf-8")
 (root / "dwss-pronunciation-controls.js").write_text(source, encoding="utf-8")
 
 version = read("VERSION.txt")
