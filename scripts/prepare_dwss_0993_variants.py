@@ -189,7 +189,6 @@ new_submit=r'''async function submitTranslationCorrection(){
  }
 }'''
 app=app[:start]+new_submit+app[end:]
-app=once(app,"button.textContent='提交修正'","button.textContent='提交读音候选'","restore candidate submit button label")
 write("app.js",app)
 
 shared=read("shared-lexicon.js")
