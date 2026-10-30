@@ -1,0 +1,144 @@
+name: Deploy DWSS 0.9.98 move copyright box below cover
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0998-move-copyright.yml'
+      - 'scripts/prepare_dwss_0998_move_copyright.py'
+      - 'scripts/test_dwss_0998_move_copyright.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0998
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download verified DWSS 0.9.97 Pages baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 41055681548
+          path: .dwss-baseline
+
+      - name: Unpack and verify the current complete website
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .dwss-baseline/artifact.tar
+          mkdir -p public
+          tar -xf .dwss-baseline/artifact.tar -C public
+          for file in index.html app.js pwa.js sw.js boot.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest VERSION.txt cover.webp DWSS-Android-Installer.apk; do
+            test -s "public/$file"
+          done
+          grep -Fxq 'Version: 0.9.97' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.97';" public/sw.js
+          grep -Fq 'class="cover-frame"' public/index.html
+          grep -Fq 'class="status-strip"' public/index.html
+          grep -Fq '<div class="footer">版本 0.9.97 · 刚果金斯语翻译' public/index.html
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+
+      - name: Move the complete copyright box below the cover image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0998_move_copyright.py
+          for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          node --check scripts/test_dwss_0998_move_copyright.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0998_move_copyright.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
+      - name: Audit surrounding layout and preserve app features
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import json,re
+          root=Path("public")
+          html=(root/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):super().__init__();self.ids=[];self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  if tag=="button" and "data-tab" in a:self.tabs.append(a["data-tab"])
+          audit=Audit();audit.feed(html)
+          duplicate=[k for k,v in Counter(audit.ids).items() if v>1]
+          if duplicate:raise SystemExit("Duplicate IDs: "+str(duplicate))
+          if audit.tabs[:3] != ["maintenance","pronunciation","saved"]:raise SystemExit("Primary navigation changed")
+          for token in ('class="cover-frame"','class="ownership-banner"','class="status-strip"','id="inputText"','id="resultReading"','id="translationPronunciationCandidates"','id="dwss-apk-download"'):
+              if token not in html:raise SystemExit("Missing page element: "+token)
+          if 'id="installAppBtn"' in html:raise SystemExit("Obsolete top install prompt returned")
+          sw=(root/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match:raise SystemExit("Service Worker precache missing")
+          urls=re.findall(r"""['"]([^'"]+)['"]""",match.group(1))
+          for asset in ("./dictionary.js.gz","./pwa.js","./shared-lexicon.js","./app.js"):
+              if asset not in urls:raise SystemExit("Offline asset missing: "+asset)
+          if any(x.lower().endswith(".apk") for x in urls):raise SystemExit("APK must not be precached")
+          manifest=json.loads((root/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("name")!="刚果金斯语翻译" or manifest.get("display")!="standalone":
+              raise SystemExit("PWA identity changed")
+          print("PASS: copyright placement, unique IDs, navigation, PWA identity, offline assets, translation UI and one-time installer.")
+          PY
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.98
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live copyright location and unchanged original footer
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0998"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js pwa.js sw.js manifest.webmanifest; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          grep -Fxq 'Version: 0.9.98' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_98' "$LIVE/index.html"
+          grep -Fq 'class="cover-frame"' "$LIVE/index.html"
+          grep -Fq 'class="ownership-banner"' "$LIVE/index.html"
+          grep -Fq 'class="status-strip"' "$LIVE/index.html"
+          grep -Fq '© 2026 刚果金斯语翻译/ 该应用由德威安全官陈谍匠心开发 · 保留所有权利' "$LIVE/index.html"
+          grep -Fq '<div class="footer">版本 0.9.98 · 刚果金斯语翻译</div>' "$LIVE/index.html"
+          ! grep -Fq 'ownership-stamp' "$LIVE/index.html" || test "$(grep -o 'class="ownership-stamp"' "$LIVE/index.html" | wc -l)" -eq 1
+          grep -Fq 'id="dwss-apk-download"' "$LIVE/index.html"
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0998_move_copyright.cjs
+          node --check "$LIVE/app.js"
+          node --check "$LIVE/pwa.js"
+          node --check "$LIVE/sw.js"
+          echo 'PASS: live DWSS 0.9.98 copyright box is below the cover, absent from the original footer, and all other key UI is preserved.'
