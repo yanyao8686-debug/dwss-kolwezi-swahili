@@ -28,6 +28,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -1406,6 +1407,91 @@ jobs:
           node --check public/sw.js
           node --check public/app.js
           node scripts/test_auto_update_0_9_44.cjs
+      - name: Download verified Android APK 0.9.80
+        id: download_android_apk
+        uses: actions/download-artifact@v4
+        with:
+          name: 刚果金斯语翻译-Android-APK-0.9.80
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 40924384743
+          path: .dwss-android-artifact
+      - name: Remove PWA install prompt and add compact Android download
+        id: android_download_ui
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find .dwss-android-artifact -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          printf '%s  %s\n' '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5' "$APK" | sha256sum -c -
+          test "$(stat -c%s "$APK")" -eq 5806530
+          cp "$APK" public/DWSS-Android-0.9.80.apk
+          unzip -t public/DWSS-Android-0.9.80.apk >/dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          page = Path("public/index.html")
+          html = page.read_text(encoding="utf-8")
+
+          html, removed = re.subn(
+              r'<button\\b(?=[^>]*\\bid=["\\']installAppBtn["\\'])[^>]*>.*?</button>',
+              "",
+              html,
+              count=1,
+              flags=re.S,
+          )
+          if removed != 1 or 'id="installAppBtn"' in html:
+              raise SystemExit("The obsolete PWA install button was not removed exactly once")
+
+          style = """
+          #dwss-apk-download{max-width:320px;margin:14px auto 26px;padding:12px 14px 13px;border:1px solid #dfe6ee;border-radius:20px;background:rgba(255,255,255,.88);box-shadow:0 6px 18px rgba(20,42,82,.055);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+          #dwss-apk-download .apk-cover{display:block;width:74px;height:74px;object-fit:cover;border-radius:15px;box-shadow:0 3px 10px rgba(0,35,85,.16)}
+          #dwss-apk-download .apk-title{margin:0;color:#17395e;font-size:13px;line-height:1.35;font-weight:750}
+          #dwss-apk-download .apk-meta{margin:0;color:#78869a;font-size:10px;line-height:1.4}
+          #dwss-apk-download .apk-download-btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;width:min(220px,100%);box-sizing:border-box;margin-top:2px;padding:9px 16px;border:1px solid #d5b45f;border-radius:999px;background:linear-gradient(135deg,#f7e8bd,#e9cf89);color:#5d351d;text-decoration:none;font-size:12px;font-weight:750;box-shadow:0 3px 9px rgba(155,120,39,.11)}
+          #dwss-apk-download .apk-download-btn:focus-visible{outline:3px solid rgba(207,169,77,.35);outline-offset:3px}
+          #dwss-apk-download .apk-note{margin:0;color:#929cac;font-size:9px;line-height:1.35}
+          """
+          if 'id="dwss-apk-download-style"' in html:
+              raise SystemExit("Android download style already exists; refusing to duplicate it")
+          if html.count("</head>") != 1:
+              raise SystemExit("Expected one closing head tag")
+          html = html.replace("</head>", f'<style id="dwss-apk-download-style">{style}</style>\\n</head>', 1)
+
+          block = """
+          <section id="dwss-apk-download" aria-label="安卓 APP 下载">
+            <img class="apk-cover" src="./cover.webp" alt="DWSS 斯语应用封面" width="74" height="74" loading="lazy" decoding="async">
+            <p class="apk-title">刚果金斯语翻译 · 安卓 APP</p>
+            <p class="apk-meta">版本 0.9.80 · 约 5.81 MB</p>
+            <a class="apk-download-btn" href="./DWSS-Android-0.9.80.apk" download="刚果金斯语翻译-0.9.80.apk">下载并安装安卓 APP</a>
+            <p class="apk-note">仅适用于 Android 手机</p>
+          </section>
+          """
+          footers = list(re.finditer(r'<div class="footer">.*?</div>', html, flags=re.S))
+          if len(footers) != 1:
+              raise SystemExit(f"Expected one page footer, found {len(footers)}")
+          if 'id="dwss-apk-download"' in html:
+              raise SystemExit("Android download panel already exists; refusing to duplicate it")
+          pos = footers[0].end()
+          html = html[:pos] + "\\n" + block + html[pos:]
+
+          required = [
+              'id="dwss-apk-download"',
+              'src="./cover.webp"',
+              'href="./DWSS-Android-0.9.80.apk"',
+              "版本 0.9.80",
+              "5.81 MB",
+          ]
+          if any(token not in html for token in required):
+              raise SystemExit("Android download panel failed its content checks")
+          if html.index('id="dwss-apk-download"') < html.index('<div class="footer">'):
+              raise SystemExit("Android download panel is not at the bottom of the page")
+          page.write_text(html, encoding="utf-8")
+          print("PASS: removed the old install prompt and added the compact verified APK download panel")
+          PY
+          test -s public/DWSS-Android-0.9.80.apk
+          test "$(sha256sum public/DWSS-Android-0.9.80.apk | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
       - name: Upload Pages artifact
         id: upload_artifact
         uses: actions/upload-pages-artifact@v4
