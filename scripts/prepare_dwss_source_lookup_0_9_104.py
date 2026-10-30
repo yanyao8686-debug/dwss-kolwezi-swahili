@@ -2,6 +2,10 @@ from pathlib import Path
 import sys,re
 root=Path(sys.argv[1] if len(sys.argv)>1 else "public")
 p=root/"app.js"; app=p.read_text(encoding="utf-8")
+old_norm = r"""const norm = s => String(s || '').normalize('NFKC').replace(/[\s　]+/g,'').replace(/[，。！？；：、,.!?;:（）()“”"']/g,'').toLowerCase();"""
+new_norm = r"""const norm = s => String(s || '').normalize('NFKC').replace(/[\s　]+/g,'').replace(/[，。！？；：、,.!?;:（）()“”\"'‘’/／…⋯—–\-·+＋=＝【】\[\]{}<>《》]/g,'').toLowerCase();"""
+if old_norm in app: app=app.replace(old_norm,new_norm,1)
+elif new_norm not in app: raise SystemExit("original normalizer not found")
 # Normalization and actual input-span consumption must discard exactly the same characters.
 s=app.index("function normalizedInputSpan(input,index,target){")
 e=app.index("\nfunction lookupLocalAt",s)
