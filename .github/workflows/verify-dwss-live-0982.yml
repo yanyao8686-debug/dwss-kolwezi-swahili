@@ -1,0 +1,54 @@
+name: Verify live DWSS 0.9.82 clean add-word form
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-dwss-live-0982.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout regression test
+        uses: actions/checkout@v4
+      - name: Verify actual GitHub Pages response after cache propagation
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          TMP="$RUNNER_TEMP/dwss-live-0982-verify"
+          mkdir -p "$TMP"
+          FOUND=0
+          for attempt in {1..10}; do
+            curl -fsSL --retry 2 --retry-delay 2 --max-time 30 "$BASE/VERSION.txt?verify=$GITHUB_SHA-$attempt" -o "$TMP/VERSION.txt"
+            if grep -Fxq 'Version: 0.9.82' "$TMP/VERSION.txt"; then FOUND=1; break; fi
+            echo "Live VERSION.txt is not 0.9.82 yet (attempt $attempt):"
+            head -n 5 "$TMP/VERSION.txt"
+            sleep 4
+          done
+          if [[ "$FOUND" != 1 ]]; then
+            echo 'ERROR: the live site did not serve version 0.9.82 after cache retries.'
+            exit 1
+          fi
+          for file in index.html app.js boot.js sw.js manifest.webmanifest; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$TMP/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$TMP/dictionary.js.gz"
+          echo 'LIVE VERSION:'
+          cat "$TMP/VERSION.txt"
+          echo 'LIVE FORM MARKUP:'
+          grep -n -A8 -B2 'compact-add-form' "$TMP/index.html"
+          echo 'LIVE SW VERSION:'
+          grep -n 'APP_VERSION' "$TMP/sw.js" | head -1
+          grep -n 'newVariantNote\|听到的地区或场景\|若这个中文意思已经收录\|新变体先待确认' "$TMP/index.html" "$TMP/app.js" && { echo 'ERROR: removed field is still present'; exit 1; } || true
+          grep -Fq "const APP_VERSION = '0.9.82';" "$TMP/sw.js"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_82' "$TMP/index.html"
+          DWSS_PUBLIC_DIR="$TMP" node scripts/test_dwss_0982_remove_variant_context.cjs
+          node --check "$TMP/app.js"
+          gzip -t "$TMP/dictionary.js.gz"
+          echo 'PASS: actual live site is 0.9.82, the red-circled fields are absent, and pronunciation-variant saving remains wired.'
