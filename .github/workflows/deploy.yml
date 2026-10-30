@@ -1434,13 +1434,8 @@ jobs:
           page = Path("public/index.html")
           html = page.read_text(encoding="utf-8")
 
-          html, removed = re.subn(
-              r'<button\\b(?=[^>]*\\bid=["\\']installAppBtn["\\'])[^>]*>.*?</button>',
-              "",
-              html,
-              count=1,
-              flags=re.S,
-          )
+          pattern = r"""<button\b(?=[^>]*\bid=["']installAppBtn["'])[^>]*>.*?</button>"""
+          html, removed = re.subn(pattern, "", html, count=1, flags=re.S)
           if removed != 1 or 'id="installAppBtn"' in html:
               raise SystemExit("The obsolete PWA install button was not removed exactly once")
 
@@ -1457,7 +1452,7 @@ jobs:
               raise SystemExit("Android download style already exists; refusing to duplicate it")
           if html.count("</head>") != 1:
               raise SystemExit("Expected one closing head tag")
-          html = html.replace("</head>", f'<style id="dwss-apk-download-style">{style}</style>\\n</head>', 1)
+          html = html.replace("</head>", f'<style id="dwss-apk-download-style">{style}</style>\n</head>', 1)
 
           block = """
           <section id="dwss-apk-download" aria-label="安卓 APP 下载">
@@ -1474,7 +1469,7 @@ jobs:
           if 'id="dwss-apk-download"' in html:
               raise SystemExit("Android download panel already exists; refusing to duplicate it")
           pos = footers[0].end()
-          html = html[:pos] + "\\n" + block + html[pos:]
+          html = html[:pos] + "\n" + block + html[pos:]
 
           required = [
               'id="dwss-apk-download"',
