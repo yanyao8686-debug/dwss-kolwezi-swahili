@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.104 exhaustive source lookup
+name: Deploy DWSS 0.9.106 cover byline removal
 
 on:
   push:
@@ -16,6 +16,8 @@ on:
       - 'scripts/test_dwss_source_lookup_0_9_104.cjs'
       - 'scripts/prepare_dwss_source_review_0_9_105.py.gz.b64'
       - 'scripts/test_dwss_source_review_0_9_105.cjs'
+      - 'scripts/prepare_dwss_cover_no_byline_0_9_106.py'
+      - 'scripts/test_dwss_cover_no_byline_0_9_106.cjs'
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0104-exhaustive-source-lookup
+  group: dwss-pages-deploy-0106-cover-byline-removal
   cancel-in-progress: true
 
 jobs:
@@ -342,6 +344,16 @@ jobs:
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0102_inline_pronunciation.cjs
           gzip -t public/dictionary.js.gz
 
+      - name: Apply DWSS 0.9.106 cover byline removal
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_cover_no_byline_0_9_106.py public
+          node --check scripts/test_dwss_cover_no_byline_0_9_106.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_cover_no_byline_0_9_106.cjs
+          sed -i "s/'0.9.105']/'0.9.105','0.9.106']/" scripts/test_dwss_0102_inline_pronunciation.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0102_inline_pronunciation.cjs
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -383,30 +395,30 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.105
+      - name: Deploy DWSS 0.9.106
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.105 and stable Android installer
+      - name: Verify live DWSS 0.9.106 and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0105"
+          LIVE="$RUNNER_TEMP/dwss-live-0106"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          grep -Fxq 'Version: 0.9.105' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_105' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.106' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_106' "$LIVE/index.html"
           ! grep -Fq '<div class="footer">' "$LIVE/index.html"
           grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
           grep -Fq 'id="translationOverrideHistoryDialog"' "$LIVE/index.html"
           grep -Fq 'dictionaryApi.updateTranslation(payload)' "$LIVE/app.js"
           grep -Fq 'SOURCE_HEADWORD_ALIASES' "$LIVE/app.js"
           grep -Fq 'normalizedInputSpan' "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.105';" "$LIVE/sw.js"
+          grep -Fq "const APP_VERSION = '0.9.106';" "$LIVE/sw.js"
           gzip -cd "$LIVE/dictionary.js.gz" | grep -Fq '"zh":"行","variants":[{"reading":"马累谢"'
           grep -Fq 'translation-pronunciation-candidate-rail' "$LIVE/app.js"
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
@@ -415,7 +427,8 @@ jobs:
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0102_inline_pronunciation.cjs
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_source_review_0_9_105.cjs
-          echo 'PASS: live DWSS 0.9.105 verifies source aliases, punctuation, three flagged PDF source rows, suspect-reading suppression, and unchanged Android installer.'
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_cover_no_byline_0_9_106.cjs
+          echo 'PASS: live DWSS 0.9.106 verifies source lookup, no visible developer byline on either cover size, retained DWSS branding/copyright, and unchanged Android installer.'
       - name: Record live-verified release marker
         if: success()
         shell: bash
@@ -424,6 +437,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.105\nLive Pages assets, original-source lookup regression, three PDF source warnings, withheld suspect readings, canonical aliases, and unchanged Android APK SHA-256 were verified by the deployment workflow. The complete 2,282-row source fixture was exhaustively matched locally before release.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.105.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.105.txt")"
-          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.105.txt" -f message="Record live-verified DWSS 0.9.105 source review safeguards" -f content="$encoded" -f branch=main
+          printf 'DWSS 0.9.106\nLive Pages assets, original-source lookup regression, three PDF source warnings, visible developer byline removed from main cover and Android thumbnail, retained DWSS title/globe/mottos/copyright, and unchanged Android APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.106.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.106.txt")"
+          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.106.txt" -f message="Record live-verified DWSS 0.9.106 cover byline removal" -f content="$encoded" -f branch=main
