@@ -125,43 +125,28 @@ Deno.serve(async (req: Request) => {
     }
 
     const client = getDb();
-    const baseQuery = () => client.from("shared_pronunciation_variants").select("*")
-      .eq("normalized_chinese", normalized);
-
-    const byPinyin = await baseQuery().eq("pinyin_key", pinyinKey).limit(1);
-    if (byPinyin.error) throw new Error("检查重复发音失败");
-    if (byPinyin.data?.[0]) return respond({ ok: true, duplicate: true, variant: byPinyin.data[0] });
-
-    const normalizedReading = normalize(pronunciation);
-    const byReading = await baseQuery().eq("normalized_pronunciation", normalizedReading).limit(1);
-    if (byReading.error) throw new Error("检查重复发音失败");
-    if (byReading.data?.[0]) return respond({ ok: true, duplicate: true, variant: byReading.data[0] });
-
-    const insert = await client.from("shared_pronunciation_variants")
-      .insert({
-        client_submit_id: clientSubmitId,
-        chinese_text: chinese,
-        pronunciation_cn: pronunciation,
-        pinyin_key: pinyinKey,
-        dialect,
-        source_note: sourceNote || null,
-        status: "pending",
-        source_kind: sourceKind,
-        contributor_id: null,
-        reviewed_at: null,
-        reviewed_by: null,
-        review_note: null
-      })
-      .select("*").single();
-
-    if (insert.error) {
-      if (insert.error.code === "23505") {
-        const duplicate = await baseQuery().eq("pinyin_key", pinyinKey).limit(1);
-        if (!duplicate.error && duplicate.data?.[0]) return respond({ ok: true, duplicate: true, variant: duplicate.data[0] });
-      }
-      throw new Error("保存共享发音失败");
+    const { data: resolved, error } = await client.rpc("dwss_resolve_pronunciation_variant", {
+      p_client_submit_id: clientSubmitId,
+      p_chinese_text: chinese,
+      p_pronunciation_cn: pronunciation,
+      p_pinyin_key: pinyinKey,
+      p_dialect: dialect,
+      p_source_note: sourceNote || null,
+      p_source_kind: sourceKind
+    });
+    if (error) {
+      console.error("[DWSS] pronunciation cluster RPC failed:", error);
+      throw new Error("保存或合并共享读音失败");
     }
-    return respond({ ok: true, duplicate: false, variant: insert.data });
+    if (!resolved || resolved.ok !== true || !resolved.variant) {
+      throw new Error("服务器没有返回合并后的读音记录");
+    }
+    return respond({
+      ok: true,
+      duplicate: !!resolved.duplicate,
+      merged: !!resolved.merged,
+      variant: resolved.variant
+    });
   } catch (error) {
     console.error("[DWSS] pronunciation variant submission failed:", error);
     return respond({ ok: false, code: "SERVER_ERROR", error: "发音变体暂时无法提交，请联网后重试；原有词条不会被修改。" }, 503);
