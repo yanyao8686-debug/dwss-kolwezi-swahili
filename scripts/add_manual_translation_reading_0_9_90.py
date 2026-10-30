@@ -122,11 +122,11 @@ apk_css = """
 """
 if html.count("</head>") != 1:
     raise SystemExit("Expected exactly one closing head tag after style insertion.")
-# Insert APK styling in the document head after the manual-editor style.
-head_end = html.find("</style>\n</head>")
-if head_end < 0:
-    raise SystemExit("Could not locate the head style close for the APK download CSS.")
-html = html[:head_end + len("</style>")] + "\n" + apk_css + html[head_end + len("</style>"):]
+# Insert APK styling immediately before the single closing head tag.
+head_end = html.find("</head>")
+if head_end < 0 or html.count("</head>") != 1:
+    raise SystemExit("Could not locate the unique closing head tag for the APK download CSS.")
+html = html[:head_end] + "\n" + apk_css + "\n" + html[head_end:]
 
 # Advance resource cache-busting metadata. All prior components remain unchanged.
 html = once(html, 'content="0.9.89">', 'content="0.9.90">', "HTML release metadata")
