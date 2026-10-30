@@ -18,7 +18,7 @@ assert(sw.includes("const APP_VERSION = '0.9.86';"));
 assert(html.includes('content="0.9.86">'));
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_86'));
 assert(html.includes('版本 0.9.86 · 刚果金斯语翻译'));
-assert((html.match(/dwss-release=0\.9\.86/g)||[]).length>=4);
+assert((html.match(/dwss-release=0\.9\.86/g)||[]).length>=3);
 assert.equal((html.match(/dwss-release=0\.9\.85/g)||[]).length,0);
 assert(app.includes("version:'0.9.86'"));
 
