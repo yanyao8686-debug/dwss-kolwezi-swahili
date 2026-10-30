@@ -131,7 +131,7 @@ jobs:
           grep -Fxq 'Version: 0.9.93' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_93' "$LIVE/index.html"
           grep -Fq 'id="translationPronunciationCandidates"' "$LIVE/index.html"
-          grep -Fq 'source_kind:"translation"' "$LIVE/app.js"
+          grep -Fq "source_kind:'translation'" "$LIVE/app.js"
           grep -Fq 'submitPronunciationVariant' "$LIVE/app.js"
           grep -Fq 'source_kind: sourceKind' "$LIVE/shared-lexicon.js"
           grep -Fq "const APP_VERSION = '0.9.93';" "$LIVE/sw.js"
