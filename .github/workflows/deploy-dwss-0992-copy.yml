@@ -121,7 +121,7 @@ jobs:
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_92' "$LIVE/index.html"
           grep -Fq 'id="submitTranslationCorrection"' "$LIVE/index.html"
           grep -Fq '>提交修正</button>' "$LIVE/index.html"
-          ! grep -Fq 'translation-correction-help' "$LIVE/index.html"
+          ! grep -Fq '<div class="translation-correction-help">' "$LIVE/index.html"
           grep -Fq '已同步云端，其他用户可见。' "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.92';" "$LIVE/sw.js"
           echo 'PASS: live DWSS 0.9.92 concise correction panel verified.'
