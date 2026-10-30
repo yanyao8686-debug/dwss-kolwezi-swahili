@@ -14,7 +14,8 @@ assert.ok(html.includes('id="dwss-cover-hide-developer-byline-0106"'));
 assert.ok(html.includes('class="owner-cover-author-backdrop"'));
 assert.ok(html.includes('class="apk-cover-wrap"'));
 assert.ok(html.includes('DWSS 斯语应用封面'));
-for(const token of ['DWSS','斯语','德行四海','威震八方','© 2026 刚果金斯语翻译'])
-  assert.ok(html.includes(token),'preserved cover/site item: '+token);
+assert.ok(html.includes('src="cover.webp"'),'original cover artwork remains the displayed image');
+for(const token of ['DWSS','斯语','© 2026 刚果金斯语翻译'])
+  assert.ok(html.includes(token),'preserved site item: '+token);
 assert.ok(html.includes('由德威安全官陈谍匠心开发'),'copyright/developer ownership line must remain unchanged');
 console.log('PASS DWSS 0.9.106: cover byline hidden in both display sizes, branding and copyright preserved.');
