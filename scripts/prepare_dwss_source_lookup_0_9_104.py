@@ -56,9 +56,10 @@ for(const [k,o] of owners){
  matchEntries.push({item:o.item,matchKey:o.alias,normalized:k,alternatives});
 }
 keys=matchEntries.sort((a,b)=>b.normalized.length-a.normalized.length);"""
-pattern="""pat=r"map=new Map\\(all\\.map\\(x=>\\[norm\\(x\\.zh\\),x\\]\\)\\);\\s*const matchEntries=\\[\\];.*?keys=matchEntries\\.sort\\(\\(a,b\\)=>b\\.normalized\\.length-a\\.normalized\\.length\\);"
-app,n=re.subn(pat,new_block,app,count=1,flags=re.S)
-if n!=1 and "const owners=new Map();" not in app: raise SystemExit("0.9.103 source alias index block not found")
+if old_block in app:
+ app=app.replace(old_block,new_block,1)
+elif "const owners=new Map();" not in app:
+ raise SystemExit("0.9.103 source alias index block not found")
 # Local matcher carries alternative headwords for cases where one short word belongs to two source entries.
 s=app.index("function lookupLocalAt(input,index){");e=app.index("\nfunction preferredFrenchPronunciationVariants",s)
 app=app[:s]+"""function lookupLocalAt(input,index){
