@@ -1,0 +1,146 @@
+name: Deploy DWSS 0.9.100 corrected shared-pronunciation workflow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0100-correction-workflow.yml'
+      - 'scripts/prepare_dwss_0100_correction_workflow.py.gz.b64'
+      - 'scripts/test_dwss_0100_correction_workflow.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0100
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download verified DWSS 0.9.98 Pages baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 41057608836
+          path: .dwss-baseline
+
+      - name: Unpack and verify complete baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .dwss-baseline/artifact.tar
+          mkdir -p public
+          tar -xf .dwss-baseline/artifact.tar -C public
+          for file in index.html app.js pwa.js sw.js boot.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js manifest.webmanifest VERSION.txt cover.webp DWSS-Android-Installer.apk; do
+            test -s "public/$file"
+          done
+          grep -Fxq 'Version: 0.9.98' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.98';" public/sw.js
+          grep -Fq '<div class="footer">版本 0.9.98 · 刚果金斯语翻译</div>' public/index.html
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+
+      - name: Reconstruct verified 0.9.99 compact-installer baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0999_compact_apk_card.py
+
+      - name: Apply DWSS 0.9.100 correction workflow and horizontal candidate rail
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d scripts/prepare_dwss_0100_correction_workflow.py.gz.b64 | gzip -d > scripts/prepare_dwss_0100_correction_workflow.py
+          python3 scripts/prepare_dwss_0100_correction_workflow.py
+          for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js; do
+            node --check "public/$file"
+          done
+          node --check scripts/test_dwss_0100_correction_workflow.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0100_correction_workflow.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
+      - name: Audit core UI, assets, and release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import json,re
+          root=Path('public')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          class Audit(HTMLParser):
+              def __init__(self): super().__init__(); self.ids=[]; self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if 'id' in a:self.ids.append(a['id'])
+                  if tag=='button' and 'data-tab' in a:self.tabs.append(a['data-tab'])
+          audit=Audit(); audit.feed(html)
+          duplicates=[k for k,v in Counter(audit.ids).items() if v>1]
+          if duplicates: raise SystemExit('Duplicate IDs: '+str(duplicates))
+          if audit.tabs[:3] != ['maintenance','pronunciation','saved']: raise SystemExit('Primary navigation changed')
+          for token in ('id="inputText"','id="resultReading"','id="submitTranslationCorrection"','id="viewTranslationCorrectionHistory"','id="viewWithdrawnVariants"','id="translationPronunciationCandidates"','id="sharedVariantEditorDialog"','id="sharedVariantHistoryDialog"','id="translationOverrideHistoryDialog"','id="dwss-apk-download"'):
+              if token not in html: raise SystemExit('Missing core element: '+token)
+          if '<div class="footer">' in html: raise SystemExit('Removed footer version line reappeared')
+          sw=(root/'sw.js').read_text(encoding='utf-8')
+          match=re.search(r'const PRECACHE_URLS = \[(.*?)\];',sw,re.S)
+          if not match: raise SystemExit('Service Worker precache missing')
+          urls=re.findall(r"""['\"]([^'\"]+)['\"]""",match.group(1))
+          for asset in ('./dictionary.js.gz','./shared-lexicon.js','./dictionary-overrides.js','./app.js'):
+              if asset not in urls: raise SystemExit('Offline asset missing: '+asset)
+          if any(x.lower().endswith('.apk') for x in urls): raise SystemExit('APK must not be precached')
+          manifest=json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
+          if manifest.get('name')!='刚果金斯语翻译' or manifest.get('display')!='standalone': raise SystemExit('PWA identity changed')
+          print('PASS: unique IDs, correction and history UI, horizontal candidate rail, offline assets and PWA identity.')
+          PY
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.100
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.100 and stable Android installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0100"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js pwa.js sw.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
+          grep -Fxq 'Version: 0.9.100' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_100' "$LIVE/index.html"
+          ! grep -Fq '<div class="footer">' "$LIVE/index.html"
+          grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
+          grep -Fq 'id="translationOverrideHistoryDialog"' "$LIVE/index.html"
+          grep -Fq 'DWSSDictionaryOverrides.updateTranslation' "$LIVE/app.js"
+          grep -Fq 'translation-pronunciation-candidate-rail' "$LIVE/app.js"
+          test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0100_correction_workflow.cjs
+          for file in app.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "$LIVE/$file"; done
+          echo 'PASS: live DWSS 0.9.100 replaces the primary correction, retains alternate variants and history, and keeps the existing APK unchanged.'
