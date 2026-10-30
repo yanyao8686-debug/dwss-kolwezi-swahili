@@ -73,9 +73,9 @@ assert.equal(manifest.name,'刚果金斯语翻译');
 
 // Verify the tab placeholder is a disabled temporary shell element; the
 // real button is moved into its exact slot after JavaScript initialization.
-assert(app.includes("clearSlot.replaceWith(clearButton)"));
-assert(app.includes("clearButton.textContent='清空信息'"));
-assert(app.includes("clearButton.setAttribute('aria-label','清空当前中文输入和翻译结果')"));
+assert(html.includes("clearSlot.replaceWith(clearButton)"));
+assert(html.includes("clearButton.textContent='清空信息'"));
+assert(html.includes("clearButton.setAttribute('aria-label','清空当前中文输入和翻译结果')"));
 
 console.log('PASS: the first HTML paint already gives all four nav items a stable 52px/48px height.');
 console.log('PASS: the clear placeholder is horizontally styled, no-wrap, and disabled until initialization.');
