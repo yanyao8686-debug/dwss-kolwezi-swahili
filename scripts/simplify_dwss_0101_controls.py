@@ -30,7 +30,7 @@ html = html.replace("dwss-release=0.9.100", "dwss-release=0.9.101")
 html = html.replace('<span id="apkWebVersion">0.9.100</span>', '<span id="apkWebVersion">0.9.101</span>')
 if html.count("</head>") != 1:
     raise SystemExit("Expected exactly one closing head tag")
-html = html.replace("</head>", '<!-- DWSS 0.9.101 compact pronunciation controls -->\\n</head>', 1)
+html = html.replace("</head>", '<!-- DWSS 0.9.101 compact pronunciation controls -->\n</head>', 1)
 write("index.html", html)
 
 app = read("app.js")
@@ -48,7 +48,7 @@ sw = once(sw, "const APP_VERSION = '0.9.100';", "const APP_VERSION = '0.9.101';"
 marker = "  './pronunciation-search.js',"
 if sw.count(marker) != 1:
     raise SystemExit("Expected one pronunciation-search precache entry")
-sw = sw.replace(marker, marker + "\\n  './dwss-pronunciation-controls.js',", 1)
+sw = sw.replace(marker, marker + "\n  './dwss-pronunciation-controls.js',", 1)
 write("sw.js", sw)
 
 source = Path("scripts/dwss-pronunciation-controls.js").read_text(encoding="utf-8")
@@ -56,7 +56,7 @@ source = Path("scripts/dwss-pronunciation-controls.js").read_text(encoding="utf-
 
 version = read("VERSION.txt")
 version = once(version, "Version: 0.9.100", "Version: 0.9.101", "VERSION file")
-version += "\\n0.9.101: Consolidate pronunciation maintenance into two visible entries: 管理读音 and 历史记录. Main-reading correction, alternate-reading addition, edit history, withdrawn-reading recovery, restore actions, server synchronization, and Android/web parity keep their original handlers and data paths.\\n"
+version += "\n0.9.101: Consolidate pronunciation maintenance into two visible entries: 管理读音 and 历史记录. Main-reading correction, alternate-reading addition, edit history, withdrawn-reading recovery, restore actions, server synchronization, and Android/web parity keep their original handlers and data paths.\n"
 write("VERSION.txt", version)
 
 # Validate the final assets before deployment.
