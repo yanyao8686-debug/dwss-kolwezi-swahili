@@ -1,0 +1,114 @@
+name: Deploy DWSS 0.9.83 explicit announcement dismissal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0983-announcement-dismissal.yml'
+      - 'scripts/fix_dwss_0983_announcement_dismissal.py'
+      - 'scripts/test_dwss_0983_announcement_dismissal.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0983
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Download and validate live 0.9.82 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 45 "$BASE/VERSION.txt?baseline=$GITHUB_SHA" -o public/VERSION.txt
+          grep -Fq 'Version: 0.9.82' public/VERSION.txt || { echo 'Expected live 0.9.82 baseline'; cat public/VERSION.txt; exit 1; }
+          for file in index.html app.js boot.js pwa.js sw.js dictionary.js.gz dictionary-overrides.js shared-lexicon.js supabase.min.js hanzi-pinyin.js pronunciation-search.js manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png favicon-32.png cover.webp cover.jpg COPYRIGHT_AND_LICENSE.txt _headers; do
+            curl -fsSL --retry 8 --retry-delay 2 --max-time 90 "$BASE/$file?baseline=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          gzip -t public/dictionary.js.gz
+          grep -Fq "const APP_VERSION = '0.9.82';" public/sw.js
+      - name: Apply explicit-dismissal announcement controller
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: python3 scripts/fix_dwss_0983_announcement_dismissal.py
+      - name: Run syntax, announcement lifecycle and clean-form regressions
+        shell: bash
+        env:
+          DWSS_PUBLIC_DIR: public
+        run: |
+          set -euo pipefail
+          for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js pronunciation-search.js hanzi-pinyin.js; do
+            node --check "public/$file"
+          done
+          node scripts/test_dwss_0983_announcement_dismissal.cjs
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip,json,re
+          p=Path("public")
+          html=(p/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):super().__init__();self.ids=[];self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a:self.ids.append(a["id"])
+                  if tag=="button" and "data-tab" in a:self.tabs.append(a["data-tab"])
+          audit=Audit();audit.feed(html)
+          dup={k:v for k,v in Counter(audit.ids).items() if v>1}
+          if dup:raise SystemExit("Duplicate HTML IDs: "+str(dup))
+          if audit.tabs[:3]!=["maintenance","pronunciation","saved"]:raise SystemExit("Navigation changed: "+str(audit.tabs))
+          sw=(p/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match:raise SystemExit("Service Worker precache list missing")
+          urls=re.findall(r"""['"]([^'"]+)['"]""",match.group(1))
+          for asset in ("./dictionary.js.gz","./hanzi-pinyin.js","./pronunciation-search.js","./shared-lexicon.js"):
+              if asset not in urls or not (p/asset.removeprefix("./")).is_file():raise SystemExit("Missing offline asset "+asset)
+          if "./dictionary.js" in urls:raise SystemExit("Web PWA must use dictionary.js.gz")
+          gzip.decompress((p/"dictionary.js.gz").read_bytes())
+          manifest=json.loads((p/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("id")!="./?app=dwss-kolwezi-swahili" or manifest.get("display")!="standalone" or manifest.get("name")!="刚果金斯语翻译":raise SystemExit("PWA identity changed")
+          if "newVariantNote" in html or "听到的地区或场景" in html:raise SystemExit("Clean add-word form regressed")
+          (p/".nojekyll").touch()
+          print(f"PASS: {len(urls)} offline assets; unique IDs, PWA identity and 0.9.82 clean form verified.")
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy DWSS 0.9.83
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live 0.9.83 announcement lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0983"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js boot.js sw.js manifest.webmanifest; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$LIVE/dictionary.js.gz"
+          grep -Fxq 'Version: 0.9.83' "$LIVE/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.83';" "$LIVE/sw.js"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_83' "$LIVE/index.html"
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0983_announcement_dismissal.cjs
+          node --check "$LIVE/app.js"
+          gzip -t "$LIVE/dictionary.js.gz"
+          echo 'PASS: live 0.9.83 announcement stays open until explicit confirmation; the cleaned form is preserved.'
