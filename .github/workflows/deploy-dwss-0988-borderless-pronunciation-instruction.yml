@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-dwss-0988-borderless-pronunciation-instruction.yml'
-      - 'scripts/fix_dwss_0988_borderless_pronunciation_instruction.py'
-      - 'scripts/test_dwss_0988_borderless_pronunciation_instruction.cjs'
+      - 'scripts/fix_dwss_0989_reference_typography.py'
+      - 'scripts/test_dwss_0989_reference_typography.cjs'
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Download and validate live 0.9.87 baseline
+      - name: Download and validate live 0.9.88 baseline
         shell: bash
         run: |
           set -euo pipefail
@@ -42,10 +42,10 @@ jobs:
           done
           gzip -t public/dictionary.js.gz
           grep -Fq "const APP_VERSION = '0.9.87';" public/sw.js
-      - name: Remove frame from pronunciation instruction only
+      - name: Remove frame from pronunciation instruction only      - name: Apply reference typography and remove instruction frame
         env:
           DWSS_PUBLIC_DIR: public
-        run: python3 scripts/fix_dwss_0988_borderless_pronunciation_instruction.py
+        run: python3 scripts/fix_dwss_0989_large_navy_pronunciation_instruction.py
       - name: Run syntax, target styling and feature-preservation tests
         shell: bash
         env:
@@ -55,7 +55,7 @@ jobs:
           for file in app.js boot.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js pronunciation-search.js hanzi-pinyin.js; do
             node --check "public/$file"
           done
-          node scripts/test_dwss_0988_borderless_pronunciation_instruction.cjs
+          node scripts/test_dwss_0989_reference_typography.cjs
           python3 - <<'PY'
           from collections import Counter
           from html.parser import HTMLParser
@@ -90,10 +90,10 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
-      - name: Deploy DWSS 0.9.88
+      - name: Deploy DWSS 0.9.89
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify actual live 0.9.88 borderless instruction
+      - name: Verify actual live 0.9.89 reference typography instruction
         shell: bash
         run: |
           set -euo pipefail
@@ -104,11 +104,11 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$LIVE/dictionary.js.gz"
-          grep -Fxq 'Version: 0.9.88' "$LIVE/VERSION.txt"
-          grep -Fq "const APP_VERSION = '0.9.88';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.89' "$LIVE/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.89';" "$LIVE/sw.js"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_88' "$LIVE/index.html"
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0988_borderless_pronunciation_instruction.cjs
           node --check "$LIVE/pwa.js"
           node --check "$LIVE/sw.js"
           gzip -t "$LIVE/dictionary.js.gz"
-          echo 'PASS: live 0.9.88 instruction uses #173b78/14px with no border.'
+          echo 'PASS: live 0.9.89 instruction uses #173b78/14px with no border.'
