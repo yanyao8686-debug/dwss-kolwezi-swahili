@@ -71,7 +71,7 @@ app=app[:s]+"""function lookupLocalAt(input,index){
  for(const entry of keys){const item=entry.item,k=entry.matchKey;if(!item||!k)continue;const origin=localOrigin(item);if(!origin)continue;const r=ranks[origin];if(r>rank)continue;const n=normalizedInputSpan(input,index,k);if(!n)continue;if(r<rank||(r===rank&&entry.normalized.length>keyLen)){found=item;entryFound=entry;len=n;rank=r;keyLen=entry.normalized.length;}}
  return found?{item:found,length:len,origin:localOrigin(found),alternatives:(entryFound.alternatives||[]).map(x=>x.zh)}:null;
 }"""+app[e:]
-app=app.replace("const isPunct=ch=>/[\\s，。！？；：、,.!?;:\\-—（）()“”\\\"'‘’]/.test(ch);","const isPunct=ch=>!norm(ch);")
+app=re.sub(r"const isPunct=ch=>/[^\\n]*?\\.test\\(ch\\);","const isPunct=ch=>!norm(ch);",app)
 # Original records explicitly marked 法 become French fallbacks, never falsely labeled local Swahili.
 s=app.index("function preferredFrenchPronunciationVariants(item){");e=app.index("\nfunction lookupFrenchPronunciationAt",s)
 app=app[:s]+"""function preferredFrenchPronunciationVariants(item){
