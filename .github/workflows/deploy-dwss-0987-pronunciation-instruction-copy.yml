@@ -106,8 +106,12 @@ jobs:
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$LIVE/dictionary.js.gz"
           grep -Fxq 'Version: 0.9.88' "$LIVE/VERSION.txt"
           grep -Fq "const APP_VERSION = '0.9.88';" "$LIVE/sw.js"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_87' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_88' "$LIVE/index.html"
           grep -Fq '输入听到却不懂意思的斯语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的斯语' "$LIVE/index.html"
+          grep -Fq 'color:#173b78!important' "$LIVE/index.html"
+          grep -Fq 'font-size:clamp(18px,5vw,38px)!important' "$LIVE/index.html"
+          grep -Fq 'border:none!important' "$LIVE/index.html"
+          grep -Fq 'dwss-pronunciation-instruction-style-0988' "$LIVE/index.html"
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0988_frameless_pronunciation_instruction.cjs
           node --check "$LIVE/pwa.js"
           node --check "$LIVE/sw.js"
