@@ -1,0 +1,3 @@
+DWSS 0.9.105
+Live Pages assets, original-source lookup regression, three PDF source warnings, withheld suspect readings, canonical aliases, and unchanged Android APK SHA-256 were verified by the deployment workflow. The complete 2,282-row source fixture was exhaustively matched locally before release.
+Commit: 1fb2708841eb30edcd9b70457d0218bb40436524
