@@ -129,11 +129,12 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-0.9.80.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-0.9.80.apk"
           grep -Fxq 'Version: 0.9.97' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_97' "$LIVE/index.html"
           grep -Fq '<span id="apkWebVersion">0.9.97</span>' "$LIVE/index.html"
           grep -Fq '首次安装一次即可；联网后软件自动更新，无需重新下载 APK' "$LIVE/index.html"
-          grep -Fq 'const installerVersion = $(.apkWebVersion)' "$LIVE/pwa.js" || grep -Fq "const installerVersion = $('apkWebVersion')" "$LIVE/pwa.js"
+          grep -Fq 'apkWebVersion' "$LIVE/pwa.js"
           grep -Fq 'installerVersion.textContent = match[1]' "$LIVE/pwa.js"
           test "$(stat -c%s "$LIVE/DWSS-Android-Installer.apk")" -eq 5806530
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
