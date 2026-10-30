@@ -95,7 +95,7 @@ jobs:
           manifest=json.loads((root/"manifest.webmanifest").read_text())
           if manifest.get("name")!="刚果金斯语翻译":raise SystemExit("App identity changed")
           if "dictionary-overrides.js" not in (root/"boot.js").read_text():raise SystemExit("Cloud pronunciation editor module missing from boot")
-          if "shared-lexicon.js" not in (root/"boot.js").read_text():raise SystemExit("Shared lexicon module missing from boot")
+          if "./shared-lexicon.js" not in html:raise SystemExit("Shared lexicon script missing from page")
           print("PASS: core page elements, navigation, cloud modules, PWA identity, and unique IDs.")
           PY
 
