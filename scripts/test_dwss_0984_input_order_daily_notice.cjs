@@ -7,7 +7,7 @@ const vm=require('node:vm');
 const root=process.env.DWSS_PUBLIC_DIR||'public';
 const read=n=>fs.readFileSync(path.join(root,n),'utf8');
 const html=read('index.html'),app=read('app.js'),boot=read('boot.js'),sw=read('sw.js');
-const version=read('VERSION.txt'),manifest=JSON.parse(read('manifest.webmanifest');
+const version=read('VERSION.txt'),manifest=JSON.parse(read('manifest.webmanifest'));
 
 assert.match(version,/^Version: 0\.9\.84$/m);
 assert(sw.includes("const APP_VERSION = '0.9.84';"));
