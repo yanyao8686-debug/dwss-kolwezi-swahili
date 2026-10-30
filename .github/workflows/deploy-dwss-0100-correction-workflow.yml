@@ -23,7 +23,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0102
+  group: dwss-pages-deploy-0104-exhaustive-source-lookup
   cancel-in-progress: true
 
 jobs:
@@ -371,7 +371,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.102 and stable Android installer
+      - name: Verify live DWSS 0.9.104 and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
