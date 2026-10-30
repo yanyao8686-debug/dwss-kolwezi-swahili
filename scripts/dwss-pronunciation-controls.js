@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const normalizeLabel = value => String(value || '').replace(/[\\s\\u00a0]+/g, '').trim();
+  const normalizeLabel = value => String(value || '').replace(/[\s\u00a0]+/g, '').trim();
   const panel = $('translationCorrectionPanel');
   const saveMain = $('submitTranslationCorrection');
   const restoreMain = $('restoreTranslationCorrection');
