@@ -89,7 +89,7 @@ assert.equal(storage.writes.length,0,'opening the announcement must not write di
 // Backdrop and Escape are not close actions; no handler exists for either.
 assert.equal(first.overlay.listeners.click,undefined);
 assert.equal(first.document.listeners.keydown,undefined);
-assert.equal(first.button.listeners.click instanceof Function,true);
+assert.equal(typeof first.button.listeners.click,'function');
 
 // An automatic page reload before the close button is pressed must show it again.
 const afterReload=runController(storage,'web');
