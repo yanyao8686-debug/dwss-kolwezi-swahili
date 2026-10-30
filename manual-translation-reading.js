@@ -230,6 +230,8 @@
 
   input.addEventListener('input', () => {
     if (editor.hidden === false && currentKey() !== editingKey) closeEditor();
+    tools.hidden = true;
+    state.hidden = true;
     showStatus('', '');
     window.setTimeout(applySavedCorrection, 760);
   });
