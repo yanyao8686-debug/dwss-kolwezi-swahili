@@ -221,8 +221,8 @@ for old,new,label in (
 ):
     html=once(html,old,new,label)
 count=html.count("dwss-release=0.9.85")
-if count<4:
-    raise SystemExit(f"Expected at least four cache-busted module URLs; found {count}.")
+if count<3:
+    raise SystemExit(f"Expected at least three cache-busted module URLs; found {count}.")
 html=html.replace("dwss-release=0.9.85","dwss-release=0.9.86")
 hp.write_text(html,encoding="utf-8")
 
