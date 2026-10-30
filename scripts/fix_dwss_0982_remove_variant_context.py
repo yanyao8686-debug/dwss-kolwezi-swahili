@@ -40,7 +40,7 @@ hp.write_text(html,encoding="utf-8")
 
 ap=need("app.js")
 app=ap.read_text(encoding="utf-8")
-app=once(app,"variantNote:$('newVariantNote')?$('newVariantNote').value.trim():'',","variantNote:'',","variant note binding")
+app=once(app,"variantNote:$('newVariantNote')?$('newVariantNote').value.trim():''};","variantNote:'',","variant note binding")
 if "newVariantNote" in app:raise SystemExit("JavaScript still references removed input.")
 if "submitPronunciationVariant" not in app or "source_note:d.variantNote||''" not in app:
     raise SystemExit("Pronunciation variant API contract changed unexpectedly.")
