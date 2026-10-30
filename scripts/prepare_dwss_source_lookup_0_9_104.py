@@ -87,7 +87,7 @@ a="segments.push({type:'local',zh:input.slice(i,i+foundLen),canonical:found.zh,r
 b="segments.push({type:'local',zh:input.slice(i,i+foundLen),canonical:found.zh,reading:duplicate?'':selected.reading,duplicate,latin,source:selected.source||'原始资料',variants:[selected],item:found,alternatives:localMatch.alternatives||[]});"
 if a in app: app=app.replace(a,b,1)
 a="const detailParts=[];if(s.source)detailParts.push('斯语来源：'+s.source);"
-b="const detailParts=[];if(s.source)detailParts.push('斯语来源：'+s.source);if(s.alternatives&&s.alternatives.length)detailParts.push('此输入还有其他原始词头：'+s.alternatives.join('、')+'；当前显示首个匹配，请结合语境确认。');"
+b="const detailParts=[];if(s.source)detailParts.push('斯语来源：'+s.source);if(s.alternatives&&s.alternatives.length)detailParts.push('此输入在原始词库中还有其他对应词头：'+s.alternatives.join('、')+'；当前显示首个匹配，请结合语境确认。');"
 if a in app: app=app.replace(a,b,1)
 # Keep original French source labels visible in the translation detail.
 old_french="segments.push({type:'frenchFallback',zh:input.slice(i,i+frenchMatch.length),canonical:frenchMatch.key,reading:frenchMatch.readings.join(VARIANT_SEPARATOR),source:frenchMatch.source,item:frenchMatch.item});"
