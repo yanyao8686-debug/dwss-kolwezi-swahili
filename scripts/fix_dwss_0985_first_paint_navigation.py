@@ -132,7 +132,7 @@ if "newVariantNote" in html or "听到的地区或场景" in html:
     raise SystemExit("Previously cleaned add-word form regressed.")
 for required in (
     'id="pronunciationSearch"',
-    'id="pronunciation-lookup-card"',
+    'class="card pronunciation-lookup-card"',
     'id="dwss-announcement-controller"',
     "timeZone:'Africa/Lubumbashi'"
 ):
