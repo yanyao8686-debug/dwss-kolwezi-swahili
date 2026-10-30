@@ -1,0 +1,172 @@
+name: Deploy DWSS 0.9.90 manual translation reading editor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0990-manual-translation-reading.yml'
+      - 'manual-translation-reading.js'
+      - 'scripts/add_manual_translation_reading_0_9_90.py'
+      - 'scripts/test_manual_translation_reading_0_9_90.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0990
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # Re-use the last known-good complete 0.9.89 Pages artifact. This avoids
+      # rebuilding from the obsolete 0.6.4 source archive or downgrading features.
+      - name: Download verified DWSS 0.9.89 website baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 41014892894
+          path: .dwss-baseline
+
+      - name: Unpack and verify website baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .dwss-baseline/artifact.tar
+          mkdir -p public
+          tar -xf .dwss-baseline/artifact.tar -C public
+          test -s public/index.html
+          test -s public/app.js
+          test -s public/boot.js
+          test -s public/sw.js
+          test -s public/VERSION.txt
+          grep -Fq 'Version: 0.9.89' public/VERSION.txt
+          grep -Fq "const APP_VERSION = '0.9.89';" public/sw.js
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_89' public/index.html
+          gzip -t public/dictionary.js.gz
+
+      - name: Download previously verified Android APK 0.9.80
+        uses: actions/download-artifact@v4
+        with:
+          name: 刚果金斯语翻译-Android-APK-0.9.80
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 40924384743
+          path: .dwss-android-artifact
+
+      - name: Install manual reading editor and restore compact APK download card
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find .dwss-android-artifact -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          printf '%s  %s\n' '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5' "$APK" | sha256sum -c -
+          test "$(stat -c%s "$APK")" -eq 5806530
+          DWSS_PUBLIC_DIR=public DWSS_APK_SOURCE="$APK" python3 scripts/add_manual_translation_reading_0_9_90.py
+          node --check public/manual-translation-reading.js
+          node --check public/boot.js
+          node --check public/app.js
+          node --check public/pwa.js
+          node --check public/sw.js
+          DWSS_PUBLIC_DIR=public node scripts/test_manual_translation_reading_0_9_90.cjs
+
+      - name: Audit HTML, offline assets and preserved application identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import gzip, json, re
+
+          root=Path("public")
+          html=(root/"index.html").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.tabs=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if "id" in a: self.ids.append(a["id"])
+                  if tag=="button" and "data-tab" in a: self.tabs.append(a["data-tab"])
+          audit=Audit(); audit.feed(html)
+          duplicates=[k for k,v in Counter(audit.ids).items() if v>1]
+          if duplicates: raise SystemExit("Duplicate HTML IDs: "+str(duplicates))
+          if audit.tabs[:3] != ["maintenance","pronunciation","saved"]:
+              raise SystemExit("Primary navigation changed: "+str(audit.tabs))
+          if 'id="resultReading"' not in html or 'id="manualReadingEdit"' not in html:
+              raise SystemExit("Main translation or manual editor controls are missing")
+          if 'id="installAppBtn"' in html:
+              raise SystemExit("Obsolete top install button remains")
+          if 'id="dwss-apk-download"' not in html:
+              raise SystemExit("Compact Android APK footer card is missing")
+          sw=(root/"sw.js").read_text(encoding="utf-8")
+          match=re.search(r"const PRECACHE_URLS = \[(.*?)\];",sw,re.S)
+          if not match: raise SystemExit("Service Worker precache array missing")
+          urls=re.findall(r"""['"]([^'"]+)['"]""",match.group(1))
+          for asset in ("./manual-translation-reading.js","./dictionary.js.gz","./shared-lexicon.js"):
+              if asset not in urls or not (root/asset.removeprefix("./")).is_file():
+                  raise SystemExit("Missing offline asset "+asset)
+          if any(url.lower().endswith(".apk") for url in urls):
+              raise SystemExit("Large APK must not be added to the precache")
+          gzip.decompress((root/"dictionary.js.gz").read_bytes())
+          manifest=json.loads((root/"manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("name")!="刚果金斯语翻译" or manifest.get("display")!="standalone":
+              raise SystemExit("PWA identity or launch mode changed")
+          print(f"PASS: {len(urls)} offline assets, unique IDs, navigation, PWA identity and download UI.")
+          PY
+          test -s public/DWSS-Android-0.9.80.apk
+          test "$(sha256sum public/DWSS-Android-0.9.80.apk | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          touch public/.nojekyll
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.90
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify actual live 0.9.90 site and APK download
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0990"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js boot.js pwa.js sw.js manual-translation-reading.js manifest.webmanifest; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/dictionary.js.gz?verify=$GITHUB_SHA" -o "$LIVE/dictionary.js.gz"
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-0.9.80.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-0.9.80.apk"
+          grep -Fxq 'Version: 0.9.90' "$LIVE/VERSION.txt"
+          grep -Fq "const APP_VERSION = '0.9.90';" "$LIVE/sw.js"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_90' "$LIVE/index.html"
+          grep -Fq 'id="manualReadingEdit"' "$LIVE/index.html"
+          grep -Fq 'id="dwss-apk-download"' "$LIVE/index.html"
+          ! grep -Fq 'id="installAppBtn"' "$LIVE/index.html"
+          grep -Fq "'./manual-translation-reading.js'" "$LIVE/boot.js"
+          test "$(stat -c%s "$LIVE/DWSS-Android-0.9.80.apk")" -eq 5806530
+          test "$(sha256sum "$LIVE/DWSS-Android-0.9.80.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_manual_translation_reading_0_9_90.cjs
+          node --check "$LIVE/manual-translation-reading.js"
+          node --check "$LIVE/boot.js"
+          node --check "$LIVE/sw.js"
+          gzip -t "$LIVE/dictionary.js.gz"
+          echo 'PASS: live DWSS 0.9.90 manual correction, offline asset, compact APK card and direct APK bytes verified.'
