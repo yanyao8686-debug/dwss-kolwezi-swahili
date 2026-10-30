@@ -143,7 +143,20 @@
     withdrawnHistory.click();
   });
 
-  // Hide obsolete duplicate launchers by label, but keep the underlying dialogs and submit buttons intact.
+  // Keep the original submit handler; simplify only the text shown to users.
+  const simplifiedVariantLabel = '添加其他读音';
+  otherReadingDialog.querySelectorAll('h1,h2,h3,h4,button').forEach(element => {
+    if (normalizeLabel(element.textContent) === '新增为另一种当地读音') {
+      element.textContent = simplifiedVariantLabel;
+    }
+  });
+  [$('sharedVariantHistoryDialog'), $('translationOverrideHistoryDialog')].forEach(dialog => {
+    if (!dialog) return;
+    dialog.querySelectorAll('h1,h2,h3,h4').forEach(heading => {
+      if (normalizeLabel(heading.textContent) === '修改历史') heading.textContent = '修改记录';
+    });
+  });
+  // Hide obsolete duplicate launchers elsewhere; retain their handlers for the compact entries.
   document.querySelectorAll('button').forEach(button => {
     if (button.closest('#sharedVariantEditorDialog')) return;
     if (normalizeLabel(button.textContent) === '新增为另一种当地读音') {
