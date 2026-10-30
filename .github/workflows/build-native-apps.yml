@@ -1,13 +1,9 @@
 name: Build Android APK - 刚果金斯语翻译
-# Android APK packaging is separate from Pages deployment. Rebuild after each website release;
-# this workflow downloads the currently deployed website and reads its VERSION.txt at build time.
+# Build the Android shell only for an intentional native-shell release.
+# Ordinary web UI, dictionary, and pronunciation updates are delivered in-app by
+# the hosted PWA + Service Worker and must never trigger a new APK for users.
 
 on:
-  push:
-    branches: [feat/native-android-ios-capacitor]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/build-native-apps.yml'
   workflow_dispatch:
 
 permissions:
