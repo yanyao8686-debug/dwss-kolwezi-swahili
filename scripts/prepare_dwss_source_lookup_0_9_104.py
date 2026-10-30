@@ -26,16 +26,39 @@ helper="""function sourceHeadwordAliases(item){
 """
 if "function sourceHeadwordAliases(item)" not in app: app=app.replace("function rebuild(){",helper+"function rebuild(){",1)
 # Recreate alias lookup entries, retaining ambiguous alternatives rather than discarding them.
-pat=r"all=\[\.\.\.grouped\.values\(\)\];\s*map=new Map\(all\.map\(x=>\[norm\(x\.zh\),x\]\)\);\s*keys=\[\.\.\.all\]\.sort\(\(a,b\)=>norm\(b\.zh\)\.length-norm\(a\.zh\)\.length\);"
-block="""all=[...grouped.values()];map=new Map(all.map(x=>[norm(x.zh),x]));
-const matchEntries=all.map(item=>({item,matchKey:item.zh,normalized:norm(item.zh)}));all.forEach(x=>x.aliases=[]);
-const owners=new Map();for(const item of all)for(const alias of sourceHeadwordAliases(item)){const k=norm(alias);if(!k||map.has(k))continue;if(!owners.has(k))owners.set(k,{alias,item,items:[item]});else if(!owners.get(k).item===item)owners.get(k).items.push(item);}
-for(const [k,o] of owners){if(map.has(k))continue;const alternatives=o.items.slice(1);map.set(k,o.item);o.item.aliases.push(o.alias);matchEntries.push({item:o.item,matchKey:o.alias,normalized:k,alternatives});}
+old_block="""map=new Map(all.map(x=>[norm(x.zh),x]));
+const matchEntries=[];
+for(const item of all){
+ item.aliases=[];
+ const canonicalKey=norm(item.zh);
+ matchEntries.push({item,matchKey:item.zh,normalized:canonicalKey});
+ for(const alias of (SOURCE_HEADWORD_ALIAS_INDEX.get(canonicalKey)||[])){
+  const aliasKey=norm(alias);
+  if(!aliasKey||map.has(aliasKey))continue;
+  map.set(aliasKey,item);
+  item.aliases.push(alias);
+  matchEntries.push({item,matchKey:alias,normalized:aliasKey});
+ }
+}
 keys=matchEntries.sort((a,b)=>b.normalized.length-a.normalized.length);"""
-# handle collisions correctly if second item is distinct
-block=block.replace("else if(!owners.get(k).item===item)","else if(!owners.get(k).items.includes(item))")
-app,n=re.subn(pat,block,app,count=1)
-if n!=1 and "const owners=new Map();" not in app: raise SystemExit("dictionary index block not found")
+new_block="""map=new Map(all.map(x=>[norm(x.zh),x]));
+const matchEntries=[];
+for(const item of all){item.aliases=[];matchEntries.push({item,matchKey:item.zh,normalized:norm(item.zh)});}
+const owners=new Map();
+for(const item of all)for(const alias of sourceHeadwordAliases(item)){
+ const k=norm(alias);if(!k||map.has(k))continue;
+ if(!owners.has(k))owners.set(k,{alias,item,items:[item]});
+ else if(!owners.get(k).items.includes(item))owners.get(k).items.push(item);
+}
+for(const [k,o] of owners){
+ if(map.has(k))continue;
+ const alternatives=o.items.slice(1);map.set(k,o.item);o.item.aliases.push(o.alias);
+ matchEntries.push({item:o.item,matchKey:o.alias,normalized:k,alternatives});
+}
+keys=matchEntries.sort((a,b)=>b.normalized.length-a.normalized.length);"""
+pattern="""pat=r"map=new Map\\(all\\.map\\(x=>\\[norm\\(x\\.zh\\),x\\]\\)\\);\\s*const matchEntries=\\[\\];.*?keys=matchEntries\\.sort\\(\\(a,b\\)=>b\\.normalized\\.length-a\\.normalized\\.length\\);"
+app,n=re.subn(pat,new_block,app,count=1,flags=re.S)
+if n!=1 and "const owners=new Map();" not in app: raise SystemExit("0.9.103 source alias index block not found")
 # Local matcher carries alternative headwords for cases where one short word belongs to two source entries.
 s=app.index("function lookupLocalAt(input,index){");e=app.index("\nfunction preferredFrenchPronunciationVariants",s)
 app=app[:s]+"""function lookupLocalAt(input,index){
