@@ -86,7 +86,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const raw = await req.text();
-    if (raw.length > 6000) return respond({ ok: false, code: "TOO_LARGE", error: "提交内容过长。" }, 413);
+    if (raw.length > 50000) return respond({ ok: false, code: "TOO_LARGE", error: "提交内容过长。" }, 413);
     const body = JSON.parse(raw);
     const chinese = String(body?.chinese_text || "").trim();
     const pronunciation = String(body?.pronunciation_cn || "").trim();
