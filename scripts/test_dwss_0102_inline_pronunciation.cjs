@@ -7,7 +7,7 @@ const root=process.env.DWSS_PUBLIC_DIR||'public';
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 const html=read('index.html'),app=read('app.js'),shared=read('shared-lexicon.js'),controls=read('dwss-pronunciation-controls.js'),boot=read('boot.js'),sw=read('sw.js'),version=read('VERSION.txt');
 const liveVersion=(version.match(/^Version: ([0-9.]+)$/m)||[])[1];
-assert.ok(['0.9.102','0.9.103'].includes(liveVersion),'unexpected app version: '+liveVersion);
+assert.ok(['0.9.102','0.9.103','0.9.104'].includes(liveVersion),'unexpected app version: '+liveVersion);
 const versionToken=liveVersion.replace(/\./g,'_');
 assert.ok(html.includes('DWSS_AUTO_UPDATE_'+versionToken));
 assert.ok(html.includes('content="'+liveVersion+'"'));
