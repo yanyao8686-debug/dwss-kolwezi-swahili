@@ -70,7 +70,7 @@ manual_css = """
 .manual-reading-state{font-size:10px;color:#68816f;line-height:1.4}
 .manual-reading-editor{margin:8px 0 5px;padding:11px 12px;border:1px solid #e5d39a;border-radius:13px;background:#fffaf0}
 .manual-reading-editor label{display:block;margin:0 0 6px;color:#665027;font-size:12px;font-weight:750}
-.manual-reading-editor textarea{display:block;width:100%;min-height:72px;box-sizing:border-box;padding:9px 10px;border:1px solid #d9bd72;border-radius:10px;background:#fff4ce;color:#2d3748;font:600 16px/1.5 inherit;resize:vertical}
+.manual-reading-editor textarea{display:block;width:100%;min-height:72px;box-sizing:border-box;padding:9px 10px;border:1px solid #d9bd72;border-radius:10px;background:#fff4ce;color:#2d3748;font-family:inherit;font-size:16px;font-weight:600;line-height:1.5;resize:vertical}
 .manual-reading-editor textarea:focus{outline:2px solid rgba(186,143,52,.25);border-color:#b88d2e}
 .manual-reading-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .manual-reading-actions button{min-height:32px}
