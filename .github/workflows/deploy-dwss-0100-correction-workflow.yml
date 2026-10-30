@@ -170,7 +170,4 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
           printf 'DWSS 0.9.101\nLive Pages assets, correction UI, version marker, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.101.txt"
           encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.101.txt")"
-          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.101.txt" \\
-            -f message='Record live-verified DWSS 0.9.101 release' \\
-            -f content="$encoded" \\
-            -f branch=main
+          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.101.txt" -f message="Record live-verified DWSS 0.9.101 release" -f content="$encoded" -f branch=main
