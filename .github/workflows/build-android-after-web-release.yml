@@ -1,4 +1,4 @@
-name: Build Android APK after DWSS website release
+name: Build Android APK - native shell changes only
 
 # Website code is delivered to the Android WebView through HTTPS + Service Worker.
 # Rebuilding/reinstalling the APK for ordinary web releases is unnecessary.
