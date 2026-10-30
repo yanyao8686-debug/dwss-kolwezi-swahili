@@ -46,8 +46,8 @@ new_style='''<style id="dwss-pronunciation-instruction-style-0989">
  border-radius:0!important;
  box-shadow:none!important;
  background:transparent!important;
- color:#173b78!important;
- font-size:clamp(18px,5vw,38px)!important;
+ color:var(--muted)!important;
+ font-size:13px!important;
  font-weight:700!important;
  letter-spacing:.3px!important;
  line-height:1.75!important;
