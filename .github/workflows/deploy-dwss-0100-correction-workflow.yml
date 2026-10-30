@@ -353,7 +353,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.102
+      - name: Deploy DWSS 0.9.103
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -362,9 +362,9 @@ jobs:
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0102"
+          LIVE="$RUNNER_TEMP/dwss-live-0103"
           mkdir -p "$LIVE"
-          for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js; do
+          for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
