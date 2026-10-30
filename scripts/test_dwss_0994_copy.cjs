@@ -1,0 +1,35 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const root=process.env.DWSS_PUBLIC_DIR||'public';
+const read=name=>fs.readFileSync(path.join(root,name),'utf8');
+const html=read('index.html'),app=read('app.js'),sw=read('sw.js'),version=read('VERSION.txt');
+assert.match(version,/^Version: 0\.9\.94$/m);
+assert.match(html,/DWSS_AUTO_UPDATE_0_9_94/);
+assert.match(html,/content="0\.9\.94"/);
+assert.match(html,/<button class="primary mini" id="submitTranslationCorrection" type="button">提交修正并同步所有用户<\/button>/);
+assert.match(html,/<p class="translation-correction-hint">认为翻译结果错误可自行修改输入框内翻译结果<\/p>/);
+assert.ok(html.indexOf('id="submitTranslationCorrection"')<html.indexOf('class="translation-correction-hint"'),
+  'helper line must be placed below the button');
+assert.match(html,/\.translation-correction-actions\{display:flex;flex-direction:column;align-items:center;justify-content:center/);
+assert.match(html,/#submitTranslationCorrection\{[^}]*margin-inline:auto/);
+assert.match(html,/id="translationPronunciationCandidates"/);
+assert.match(html,/id="translationPronunciationCandidateList"/);
+assert.match(html,/id="dwss-apk-download"/);
+assert.doesNotMatch(html,/id="installAppBtn"/);
+assert.match(app,/button\.textContent='提交修正并同步所有用户'/,
+  'button label must remain correct after a successful/failed async submit');
+assert.match(app,/submitPronunciationVariant/,'shared pronunciation candidate logic is preserved');
+assert.match(app,/相同拼音的读音已存在/,'same-sound de-duplication remains intact');
+assert.match(app,/原始读音未被覆盖/,'original reading remains preserved');
+assert.match(sw,/APP_VERSION = '0\.9\.94'/);
+const precache=sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
+assert.ok(precache,'service worker precache manifest exists');
+assert.match(precache[1],/shared-lexicon\.js/);
+assert.match(precache[1],/app\.js/);
+assert.doesNotMatch(precache[1],/\.apk/i,'APK must not be precached');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);
+const duplicates=ids.filter((id,i)=>ids.indexOf(id)!==i);
+assert.deepEqual([...new Set(duplicates)],[],'no duplicate HTML ids');
+console.log('PASS DWSS 0.9.94: button label, centered alignment, helper line placement, candidate sync, PWA cache and retained page features.');
