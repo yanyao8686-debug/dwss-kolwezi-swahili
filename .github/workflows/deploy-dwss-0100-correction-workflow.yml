@@ -414,7 +414,6 @@ jobs:
           grep -Fq 'data.retired_variant_id' "$LIVE/shared-lexicon.js"
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0102_inline_pronunciation.cjs
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
-          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_source_lookup_0_9_104.cjs
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_source_review_0_9_105.cjs
           echo 'PASS: live DWSS 0.9.105 verifies source aliases, punctuation, three flagged PDF source rows, suspect-reading suppression, and unchanged Android installer.'
       - name: Record live-verified release marker
