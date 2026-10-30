@@ -14,7 +14,7 @@ assert.match(html,/id="translationPronunciationCandidateList"/);
 assert.match(html,/>提交读音候选<\/button>/);
 assert.doesNotMatch(html,/<div class="translation-correction-help">/);
 assert.match(app,/function renderTranslationPronunciationCandidates\(/);
-assert.match(app,/status==='common'\?0:status==='confirmed'\?1:status==='pending'\?2/);
+assert.match(app,/const rank=\{common:0,confirmed:1,pending:2,original:3\}/);
 assert.match(app,/source_kind:'translation'/);
 assert.match(app,/toSyllables\(reading,true\)\.join\(' '\)/);
 assert.match(app,/submitPronunciationVariant/);
