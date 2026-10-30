@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.103 original-source lookup repair
+name: Deploy DWSS 0.9.104 exhaustive source lookup
 
 on:
   push:
@@ -12,6 +12,8 @@ on:
       - 'scripts/test_dwss_0101_controls.cjs'
       - 'scripts/prepare_dwss_0102_inline_pronunciation.py.gz.b64'
       - 'scripts/test_dwss_0102_inline_pronunciation.cjs'
+      - 'scripts/prepare_dwss_source_lookup_0_9_104.py'
+      - 'scripts/test_dwss_source_lookup_0_9_104.cjs'
   workflow_dispatch:
 
 permissions:
@@ -312,6 +314,18 @@ jobs:
           console.log('PASS DWSS 0.9.103 source audit smoke test: original reading, missing PDF term, aliases, canonical correction key and runtime version.');
           NODE
 
+      - name: Apply DWSS 0.9.104 exhaustive source lookup repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_source_lookup_0_9_104.py public
+          node --check public/app.js
+          node --check public/sw.js
+          node --check scripts/test_dwss_source_lookup_0_9_104.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_source_lookup_0_9_104.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0102_inline_pronunciation.cjs
+          gzip -t public/dictionary.js.gz
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -353,7 +367,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.103
+      - name: Deploy DWSS 0.9.104
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -362,21 +376,21 @@ jobs:
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0103"
+          LIVE="$RUNNER_TEMP/dwss-live-0104"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          grep -Fxq 'Version: 0.9.103' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_103' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.104' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_104' "$LIVE/index.html"
           ! grep -Fq '<div class="footer">' "$LIVE/index.html"
           grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
           grep -Fq 'id="translationOverrideHistoryDialog"' "$LIVE/index.html"
           grep -Fq 'dictionaryApi.updateTranslation(payload)' "$LIVE/app.js"
           grep -Fq 'SOURCE_HEADWORD_ALIASES' "$LIVE/app.js"
           grep -Fq 'normalizedInputSpan' "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.103';" "$LIVE/sw.js"
+          grep -Fq "const APP_VERSION = '0.9.104';" "$LIVE/sw.js"
           gzip -cd "$LIVE/dictionary.js.gz" | grep -Fq '"zh":"行","variants":[{"reading":"马累谢"'
           grep -Fq 'translation-pronunciation-candidate-rail' "$LIVE/app.js"
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
@@ -384,7 +398,8 @@ jobs:
           grep -Fq 'data.retired_variant_id' "$LIVE/shared-lexicon.js"
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0102_inline_pronunciation.cjs
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
-          echo 'PASS: live DWSS 0.9.103 verifies source headword aliases, canonical cloud corrections, restored PDF term, grouped pronunciations and unchanged Android installer.'
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_source_lookup_0_9_104.cjs
+          echo 'PASS: live DWSS 0.9.104 verifies all built-in headwords, punctuation, source aliases, French fallbacks and unchanged Android installer.'
       - name: Record live-verified release marker
         if: success()
         shell: bash
@@ -393,6 +408,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.103\nLive Pages assets, original-source aliases, restored PDF headword, canonical shared corrections, version marker, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.103.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.103.txt")"
-          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.103.txt" -f message="Record live-verified DWSS 0.9.103 source lookup repair" -f content="$encoded" -f branch=main
+          printf 'DWSS 0.9.104\nLive Pages assets, exhaustive built-in headword lookup, punctuation consumption, source aliases, French fallbacks, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.104.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.104.txt")"
+          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.104.txt" -f message="Record live-verified DWSS 0.9.104 exhaustive source lookup" -f content="$encoded" -f branch=main
