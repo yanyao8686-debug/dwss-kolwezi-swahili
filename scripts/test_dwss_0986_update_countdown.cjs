@@ -55,7 +55,7 @@ assert(pwa.includes("worker.state === 'installed' && navigator.serviceWorker.con
 assert(pwa.includes("if (worker.state === 'redundant' && hadControllerAtBoot)"),
   'failed/redundant update is handled');
 
-assert(pwa.includes("if (!navigator.onLine) return"));
+assert(pwa.includes("if (!updateServiceReady || !registration || !navigator.onLine) return"));
 assert(pwa.includes("setState('自动更新暂不可用', 'pwa-state-warn'") ||
        pwa.includes("setState('暂时无法连接更新服务', 'pwa-state-warn'"));
 assert(pwa.includes("controllerchange"));
