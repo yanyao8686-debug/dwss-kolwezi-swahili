@@ -16,7 +16,7 @@ for name in ("VERSION.txt","sw.js","index.html","app.js","boot.js","pwa.js","dic
 hp=need("index.html"); html=hp.read_text(encoding="utf-8")
 target="输入听到却不懂意思的斯语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的斯语"
 if html.count(target)!=1: raise SystemExit("Expected exact pronunciation instruction once.")
-old=re.compile(r'<style id="dwss-pronunciation-instruction-frame-0978">[\\s\\S]*?</style>')
+old=re.compile(r'<style id="dwss-pronunciation-instruction-frame-0978">[\s\S]*?</style>')
 if len(old.findall(html))!=1: raise SystemExit("Expected existing framed instruction style exactly once.")
 css='''<style id="dwss-pronunciation-instruction-style-0988">
 .pronunciation-lookup-card .pronunciation-lookup-instruction{
