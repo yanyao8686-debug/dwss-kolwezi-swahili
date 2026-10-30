@@ -11,7 +11,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -144,3 +144,17 @@ jobs:
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0100_correction_workflow.cjs
           for file in app.js pwa.js sw.js shared-lexicon.js dictionary-overrides.js; do node --check "$LIVE/$file"; done
           echo 'PASS: live DWSS 0.9.100 replaces the primary correction, retains alternate variants and history, and keeps the existing APK unchanged.'
+      - name: Record live-verified release marker
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dwss-release-proof"
+          printf 'DWSS 0.9.100\nLive Pages assets, correction UI, version marker, and unchanged APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.100.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.100.txt")"
+          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.100.txt" \\
+            -f message='Record live-verified DWSS 0.9.100 release' \\
+            -f content="$encoded" \\
+            -f branch=main
