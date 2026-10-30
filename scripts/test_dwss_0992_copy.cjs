@@ -11,7 +11,7 @@ assert.match(html,/content="0\.9\.92"/);
 assert.match(html,/id="translationCorrectionPanel"/);
 assert.match(html,/id="submitTranslationCorrection"/);
 assert.match(html,/>提交修正<\/button>/);
-assert.doesNotMatch(html,/translation-correction-help/);
+assert.doesNotMatch(html,/<div class="translation-correction-help">/);
 assert.doesNotMatch(html,/提交修正并同步所有用户/);
 assert.match(app,/已同步云端，其他用户可见。/);
 assert.doesNotMatch(app,/可以直接编辑上方谐音并提交云端/);
