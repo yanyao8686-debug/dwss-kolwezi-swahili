@@ -89,6 +89,13 @@ if a in app: app=app.replace(a,b,1)
 a="const detailParts=[];if(s.source)detailParts.push('斯语来源：'+s.source);"
 b="const detailParts=[];if(s.source)detailParts.push('斯语来源：'+s.source);if(s.alternatives&&s.alternatives.length)detailParts.push('此输入还有其他原始词头：'+s.alternatives.join('、')+'；当前显示首个匹配，请结合语境确认。');"
 if a in app: app=app.replace(a,b,1)
+# Keep original French source labels visible in the translation detail.
+old_french="segments.push({type:'frenchFallback',zh:input.slice(i,i+frenchMatch.length),canonical:frenchMatch.key,reading:frenchMatch.readings.join(VARIANT_SEPARATOR),source:frenchMatch.source,item:frenchMatch.item});"
+new_french="segments.push({type:'frenchFallback',zh:input.slice(i,i+frenchMatch.length),canonical:frenchMatch.key,reading:frenchMatch.readings.join(VARIANT_SEPARATOR),source:frenchMatch.source,sourceFrenchMarker:frenchMatch.variants.some(v=>v.sourceFrenchMarker),item:frenchMatch.item});"
+if old_french in app: app=app.replace(old_french,new_french,1)
+old_render="if(s.type==='frenchFallback')return `<div class=\"seg\"><div class=\"zh\">${esc(s.zh)}</div><div class=\"rd\">法语替代：${esc(s.reading)}<div class=\"src\">当地斯语词库没有对应词条，使用“添加新词”中录入的法语中文谐音</div></div></div>`;"
+new_render="if(s.type==='frenchFallback')return `<div class=\"seg\"><div class=\"zh\">${esc(s.zh)}</div><div class=\"rd\">法语替代：${esc(s.reading)}<div class=\"src\">${s.sourceFrenchMarker?'原始资料明确标注为法语，并非当地斯瓦希里语。':'当地斯语词库没有对应词条，使用已录入的法语中文谐音。'}</div></div></div>`;"
+if old_render in app: app=app.replace(old_render,new_render,1)
 app=app.replace("version:'0.9.103'","version:'0.9.104'",1);p.write_text(app,encoding="utf-8")
 idx=root/"index.html";h=idx.read_text(encoding="utf-8").replace('content="0.9.103"><!-- DWSS_AUTO_UPDATE_0_9_103 -->','content="0.9.104"><!-- DWSS_AUTO_UPDATE_0_9_104 -->',1).replace('id="apkWebVersion">0.9.103</span>','id="apkWebVersion">0.9.104</span>').replace('dwss-release=0.9.103','dwss-release=0.9.104');idx.write_text(h,encoding="utf-8")
 sw=root/"sw.js";w=sw.read_text(encoding="utf-8").replace("const APP_VERSION = '0.9.103';","const APP_VERSION = '0.9.104';");sw.write_text(w,encoding="utf-8")
