@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=process.env.DWSS_PUBLIC_DIR||'public',read=n=>fs.readFileSync(path.join(root,n),'utf8');
+const h=read('index.html'),a=read('app.js'),b=read('boot.js'),p=read('pwa.js'),s=read('sw.js'),v=read('VERSION.txt'),m=JSON.parse(read('manifest.webmanifest'));
+const phrase='输入听到却不懂意思的斯语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的斯语';
+assert.match(v,/^Version: 0\.9\.89$/m);assert(s.includes("const APP_VERSION = '0.9.89';"));
+assert(h.includes('content="0.9.89">')&&h.includes('DWSS_AUTO_UPDATE_0_9_89'));
+assert(h.includes('版本 0.9.89 · 刚果金斯语翻译'));assert((h.match(/dwss-release=0\.9\.89/g)||[]).length>=3);
+assert(a.includes("version:'0.9.89'"));assert.equal(h.split(phrase).length-1,1);
+assert(h.includes('dwss-pronunciation-instruction-style-0989'));
+assert(h.includes('color:var(--muted)!important'));assert(h.includes('font-size:13px!important'));
+assert(h.includes('border:none!important')&&h.includes('border-width:0!important'));
+assert(h.includes('outline:none!important')&&h.includes('border-radius:0!important')&&h.includes('box-shadow:none!important'));
+assert(h.includes('background:transparent!important'));
+assert(h.indexOf('<input id="pronunciationSearch"')<h.indexOf('<div class="pronunciation-lookup-instruction" role="note">'));
+assert(p.includes('const UPDATE_COUNTDOWN_SECONDS = 5;'));
+assert(p.includes("setState('更新倒计时 ' + remaining, 'pwa-state-warn'"));
+assert(p.includes("setState('自动更新完毕', 'pwa-state-ok'"));
+assert(p.includes("setState('自动更新已开启', 'pwa-state-ok'"));
+assert(h.includes("timeZone:'Africa/Lubumbashi'")&&h.includes('dwss-announcement-controller'));
+assert.equal(m.id,'./?app=dwss-kolwezi-swahili');assert.equal(m.display,'standalone');assert.equal(m.name,'刚果金斯语翻译');
+assert(b.indexOf('./hanzi-pinyin.js')<b.indexOf('./pronunciation-search.js'));
+assert(b.indexOf('./pronunciation-search.js')<b.indexOf('./app.js'));
+console.log('PASS: exact muted 13px text style, borderless instruction, input order and PWA/announcement/update regression checks.');
