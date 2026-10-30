@@ -171,7 +171,7 @@ jobs:
           ! grep -Fq '<div class="footer">' "$LIVE/index.html"
           grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
           grep -Fq 'id="translationOverrideHistoryDialog"' "$LIVE/index.html"
-          grep -Fq 'DWSSDictionaryOverrides.updateTranslation' "$LIVE/app.js"
+          grep -Fq 'dictionaryApi.updateTranslation(payload)' "$LIVE/app.js"
           grep -Fq 'translation-pronunciation-candidate-rail' "$LIVE/app.js"
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           grep -Fq 'function dwssPinyinKeysNear' "$LIVE/app.js"
