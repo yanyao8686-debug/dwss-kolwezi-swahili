@@ -24,8 +24,8 @@ on:
       - 'scripts/test_dwss_0109_compact_pronunciation_actions.cjs'
       - 'scripts/prepare_dwss_0110_remove_more_reading_controls.py'
       - 'scripts/test_dwss_0110_remove_more_reading_controls.cjs'
-      - 'scripts/prepare_dwss_0111_professional_visual_refresh.py.gz.b64'
-      - 'scripts/test_dwss_0111_professional_visual_refresh.cjs.gz.b64'
+      - 'scripts/prepare_dwss_0111_professional_visual_refresh.py.gz'
+      - 'scripts/test_dwss_0111_professional_visual_refresh.cjs.gz'
   workflow_dispatch:
 
 permissions:
@@ -417,8 +417,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 -d scripts/prepare_dwss_0111_professional_visual_refresh.py.gz.b64 | gzip -dc > scripts/prepare_dwss_0111_professional_visual_refresh.py
-          base64 -d scripts/test_dwss_0111_professional_visual_refresh.cjs.gz.b64 | gzip -dc > scripts/test_dwss_0111_professional_visual_refresh.cjs
+          gzip -dc scripts/prepare_dwss_0111_professional_visual_refresh.py.gz > scripts/prepare_dwss_0111_professional_visual_refresh.py
+          gzip -dc scripts/test_dwss_0111_professional_visual_refresh.cjs.gz > scripts/test_dwss_0111_professional_visual_refresh.cjs
           python3 scripts/prepare_dwss_0111_professional_visual_refresh.py public
           node --check public/app.js
           node --check public/sw.js
@@ -500,7 +500,7 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          base64 -d scripts/test_dwss_0111_professional_visual_refresh.cjs.gz.b64 | gzip -dc > "$RUNNER_TEMP/test_dwss_0111_professional_visual_refresh.cjs"
+          gzip -dc scripts/test_dwss_0111_professional_visual_refresh.cjs.gz > "$RUNNER_TEMP/test_dwss_0111_professional_visual_refresh.cjs"
           grep -Fxq 'Version: 0.9.111' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_111' "$LIVE/index.html"
           grep -Fq '<style id="dwss-professional-visual-0111">' "$LIVE/index.html"
