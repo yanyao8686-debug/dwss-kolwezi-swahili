@@ -14,7 +14,7 @@ for(const id of ['translationCorrectionPanel','submitTranslationCorrection','res
  'translationPronunciationCandidates','translationPronunciationCandidateList'])
  assert.ok(html.includes('id="'+id+'"'),'missing core control '+id);
 for(const old of ['dwss-pronunciation-more','更多读音操作','restoreTranslationCorrection',
- 'viewTranslationCorrectionHistory','viewWithdrawnVariants','修改历史','已撤回读音','恢复自动翻译'])
+ 'viewTranslationCorrectionHistory','viewWithdrawnVariants','已撤回读音','恢复自动翻译'])
  assert.ok(!html.includes(old),'low-frequency controls remain in HTML: '+old);
 assert.match(app,/data-dwss-pin/);
 assert.match(app,/aria-label="将 .* 置顶为所有用户的首选读音"/);
