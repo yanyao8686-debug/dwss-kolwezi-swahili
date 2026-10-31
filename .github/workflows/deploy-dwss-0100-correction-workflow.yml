@@ -600,7 +600,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
           printf 'DWSS 0.9.114\nCompleted main-page translations are saved automatically only in the current device localStorage when the user leaves the input or closes the app; live typing previews do not save partial fragments. Local history search and up to 200 recent unique entries are available. No translation history is sent to Supabase. The DWSS cover and Android installer remain byte-identical to the prior release.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.114.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.113.txt")"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.114.txt")"
           proof_path=".release-verification/0.9.114.txt"
           existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$existing_sha" ]; then
