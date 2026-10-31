@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.111 DWSS Professional visual refresh
+name: Deploy DWSS 0.9.112 approved button layout refinements
 
 on:
   push:
@@ -26,6 +26,8 @@ on:
       - 'scripts/test_dwss_0110_remove_more_reading_controls.cjs'
       - 'scripts/prepare_dwss_0111_professional_visual_refresh.py.gz'
       - 'scripts/test_dwss_0111_professional_visual_refresh.cjs.gz'
+      - 'scripts/prepare_dwss_0112_button_layout.py.gz.b64'
+      - 'scripts/test_dwss_0112_button_layout.cjs.gz.b64'
   workflow_dispatch:
 
 permissions:
@@ -428,6 +430,21 @@ jobs:
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
           touch public/.nojekyll
 
+      - name: Apply DWSS 0.9.112 six approved button layout refinements
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d scripts/prepare_dwss_0112_button_layout.py.gz.b64 | gzip -dc > scripts/prepare_dwss_0112_button_layout.py
+          base64 -d scripts/test_dwss_0112_button_layout.cjs.gz.b64 | gzip -dc > scripts/test_dwss_0112_button_layout.cjs
+          python3 scripts/prepare_dwss_0112_button_layout.py public
+          node --check public/app.js
+          node --check public/sw.js
+          node --check scripts/test_dwss_0112_button_layout.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0112_button_layout.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -467,6 +484,16 @@ jobs:
               raise SystemExit('Browser theme color does not match DWSS Professional palette')
           if 'DWSS_AUTO_UPDATE_0_9_111' not in html or "APP_VERSION = '0.9.111'" not in sw:
               raise SystemExit('DWSS 0.9.111 cache/version markers do not match')
+          button_layer=re.search(r'<style id="dwss-button-layout-0112">(.*?)</style>',html,re.S)
+          if not button_layer: raise SystemExit('DWSS 0.9.112 button layout layer missing')
+          for token in ('nav.tabs>.nav-clear-action','.translation-pronunciation-pin','#copyReading','.dict-edit-actions button','.pronunciation-editor-restore','#pronunciation .pronunciation-maintenance-entry'):
+              if token not in button_layer.group(1): raise SystemExit('Missing approved button layout selector: '+token)
+          for token in ('id="copyReading"','设为首选',"clearButton.textContent='清空输入';",'id="pronunciationResults"','id="openPublicPronunciationEditor"','class="pronunciation-editor-restore"'):
+              if token not in html: raise SystemExit('Missing approved UI detail: '+token)
+          if html.index('id="openPublicPronunciationEditor"') < html.index('id="pronunciationResults"'):
+              raise SystemExit('Pronunciation maintenance entry must follow lookup results')
+          if 'DWSS_AUTO_UPDATE_0_9_112' not in html or "APP_VERSION = '0.9.112'" not in sw:
+              raise SystemExit('DWSS 0.9.112 cache/version markers do not match')
           if '<div class="footer">' in html: raise SystemExit('Removed footer version line reappeared')
           match=re.search(r'const PRECACHE_URLS = \[(.*?)\];',sw,re.S)
           if not match: raise SystemExit('Service Worker precache missing')
@@ -485,38 +512,38 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.111
+      - name: Deploy DWSS 0.9.112
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.111 Professional visual refresh, unchanged cover and stable Android installer
+      - name: Verify live DWSS 0.9.112 button layout, unchanged cover and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0111"
+          LIVE="$RUNNER_TEMP/dwss-live-0112"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz cover.webp; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          gzip -dc scripts/test_dwss_0111_professional_visual_refresh.cjs.gz > "$RUNNER_TEMP/test_dwss_0111_professional_visual_refresh.cjs"
-          grep -Fxq 'Version: 0.9.111' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_111' "$LIVE/index.html"
-          grep -Fq '<style id="dwss-professional-visual-0111">' "$LIVE/index.html"
-          grep -Fq '<meta name="theme-color" content="#123657">' "$LIVE/index.html"
-          grep -Fq "const APP_VERSION = '0.9.111';" "$LIVE/sw.js"
-          grep -Fq 'id="inputText"' "$LIVE/index.html"
-          grep -Fq 'id="resultReading"' "$LIVE/index.html"
-          grep -Fq 'id="translationPronunciationCandidates"' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.112' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_112' "$LIVE/index.html"
+          grep -Fq '<style id="dwss-button-layout-0112">' "$LIVE/index.html"
+          grep -Fq 'id="copyReading"' "$LIVE/index.html"
+          grep -Fq '设为首选' "$LIVE/index.html"
+          grep -Fq "clearButton.textContent='清空输入';" "$LIVE/index.html"
+          grep -Fq 'id="pronunciationResults"' "$LIVE/index.html"
+          grep -Fq 'id="openPublicPronunciationEditor"' "$LIVE/index.html"
           grep -Fq 'data-dwss-pin' "$LIVE/app.js"
+          grep -Fq "button.textContent='设为首选';" "$LIVE/app.js"
           grep -Fq 'pinQuickTranslationPrimary' "$LIVE/shared-lexicon.js"
-          grep -Fq 'submitQuickTranslationTerm' "$LIVE/app.js"
+          grep -Fq "copyText($('resultReading').value,'copyReading'" "$LIVE/app.js"
           test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
-          DWSS_PUBLIC_DIR="$LIVE" node "$RUNNER_TEMP/test_dwss_0111_professional_visual_refresh.cjs"
-          echo 'PASS: live DWSS 0.9.111 Professional visual system is active; translation, shared pin and sync remain; top cover image/markup and native Android installer are unchanged.'
+          for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js pronunciation-search.js; do node --check "$LIVE/$file"; done
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0112_button_layout.cjs
+          echo 'PASS: live DWSS 0.9.112 six approved button refinements are active; original handlers, shared primary pin, translation data, top cover and Android installer are unchanged.'
 
       - name: Record live-verified release marker
         if: success()
@@ -526,12 +553,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.111\nLive Pages assets and DWSS 0.9.111 Professional visual system were verified: warm-ivory input and soft-amber result surfaces, navy buttons, mist-gray page background, champagne accents, unified borders/radii/type and balanced spacing. Translation, pronunciation candidates, cloud sync and per-reading pin remain intact. Top cover artwork and cover-section markup are byte-identical; native Android APK SHA-256 is unchanged.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.111.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.111.txt")"
-          proof_path=".release-verification/0.9.111.txt"
+          printf 'DWSS 0.9.112\nLive Pages assets and DWSS 0.9.112 Professional visual system were verified: warm-ivory input and soft-amber result surfaces, navy buttons, mist-gray page background, champagne accents, unified borders/radii/type and balanced spacing. Translation, pronunciation candidates, cloud sync and per-reading pin remain intact. Top cover artwork and cover-section markup are byte-identical; native Android APK SHA-256 is unchanged.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.112.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.112.txt")"
+          proof_path=".release-verification/0.9.112.txt"
           existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$existing_sha" ]; then
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.111 DWSS Professional visual refresh" -f content="$encoded" -f branch=main -f sha="$existing_sha"
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.112 approved button layout refinements" -f content="$encoded" -f branch=main -f sha="$existing_sha"
           else
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.111 remove low-frequency reading controls" -f content="$encoded" -f branch=main
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.112 approved button layout refinements" -f content="$encoded" -f branch=main
           fi
