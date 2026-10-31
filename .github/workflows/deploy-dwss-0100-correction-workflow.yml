@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.108 unified main editor
+name: Deploy DWSS 0.9.110 remove low-frequency reading controls
 
 on:
   push:
@@ -22,6 +22,8 @@ on:
       - 'scripts/test_dwss_0108_unified_main_editor.cjs'
       - 'scripts/prepare_dwss_0109_compact_pronunciation_actions.py.gz.b64'
       - 'scripts/test_dwss_0109_compact_pronunciation_actions.cjs'
+      - 'scripts/prepare_dwss_0110_remove_more_reading_controls.py'
+      - 'scripts/test_dwss_0110_remove_more_reading_controls.cjs'
   workflow_dispatch:
 
 permissions:
@@ -395,6 +397,20 @@ jobs:
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
           touch public/.nojekyll
 
+      - name: Apply DWSS 0.9.110 remove More Reading Actions UI and preserve pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0110_remove_more_reading_controls.py public
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/sw.js
+          node --check scripts/test_dwss_0110_remove_more_reading_controls.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0110_remove_more_reading_controls.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -416,8 +432,10 @@ jobs:
           duplicates=[k for k,v in Counter(audit.ids).items() if v>1]
           if duplicates: raise SystemExit('Duplicate IDs: '+str(duplicates))
           if audit.tabs[:2] != ['pronunciation','saved']: raise SystemExit('Primary navigation changed')
-          for token in ('id="inputText"','id="translationCorrectionPanel"','id="dwss-pronunciation-more"','id="translationActionNotice"','id="resultReading"','id="submitTranslationCorrection"','id="viewTranslationCorrectionHistory"','id="viewWithdrawnVariants"','id="translationPronunciationCandidates"','id="sharedVariantEditorDialog"','id="sharedVariantHistoryDialog"','id="translationOverrideHistoryDialog"','id="dwss-apk-download"'):
+          for token in ('id="inputText"','id="translationCorrectionPanel"','id="translationPronunciationCandidates"','id="translationActionNotice"','id="resultReading"','id="submitTranslationCorrection"','id="translationPronunciationCandidates"','id="sharedVariantEditorDialog"','id="sharedVariantHistoryDialog"','id="translationOverrideHistoryDialog"','id="dwss-apk-download"'):
               if token not in html: raise SystemExit('Missing core element: '+token)
+          for token in ('id="restoreTranslationCorrection"','id="viewTranslationCorrectionHistory"','id="viewWithdrawnVariants"','更多读音操作'):
+              if token in html: raise SystemExit('Obsolete pronunciation-management UI remains: '+token)
           if '<div class="footer">' in html: raise SystemExit('Removed footer version line reappeared')
           sw=(root/'sw.js').read_text(encoding='utf-8')
           match=re.search(r'const PRECACHE_URLS = \[(.*?)\];',sw,re.S)
@@ -437,39 +455,45 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.109
+      - name: Deploy DWSS 0.9.110
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.109 compact pronunciation controls, cover and Android installer
+      - name: Verify live DWSS 0.9.110 no management strip, preserved pin and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0109"
+          LIVE="$RUNNER_TEMP/dwss-live-0110"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz cover.webp; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          grep -Fxq 'Version: 0.9.109' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_109' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.110' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_110' "$LIVE/index.html"
           ! grep -Fq '<div class="footer">' "$LIVE/index.html"
           grep -Fq 'id="translationCorrectionPanel"' "$LIVE/index.html"
-          grep -Fq 'id="dwss-pronunciation-more"' "$LIVE/index.html"
-          grep -Fq '<summary>更多读音操作</summary>' "$LIVE/index.html"
-          grep -Fq '修改上方读音后点“保存并同步”；其他读音会列在下方，点“置顶”即可设为全体首选。' "$LIVE/index.html"
-          ! grep -Fq '<p class="translation-pronunciation-candidates-help">' "$LIVE/index.html"
-          grep -Fq "const APP_VERSION = '0.9.109';" "$LIVE/sw.js"
-          grep -Fq 'DWSSSharedLexicon' "$LIVE/app.js"
+          grep -Fq 'id="submitTranslationCorrection"' "$LIVE/index.html"
+          grep -Fq 'id="translationPronunciationCandidates"' "$LIVE/index.html"
+          ! grep -Fq 'dwss-pronunciation-more' "$LIVE/index.html"
+          ! grep -Fq '更多读音操作' "$LIVE/index.html"
+          ! grep -Fq 'id="viewTranslationCorrectionHistory"' "$LIVE/index.html"
+          ! grep -Fq 'id="viewWithdrawnVariants"' "$LIVE/index.html"
+          ! grep -Fq 'id="restoreTranslationCorrection"' "$LIVE/index.html"
+          grep -Fq "const APP_VERSION = '0.9.110';" "$LIVE/sw.js"
           grep -Fq 'data-dwss-pin' "$LIVE/app.js"
+          grep -Fq 'pinQuickTranslationPrimary' "$LIVE/shared-lexicon.js"
+          grep -Fq 'dwss-edit-dictionary-pronunciation' "$LIVE/shared-lexicon.js"
+          grep -Fq 'await submitTranslationCorrection()' "$LIVE/app.js"
+          grep -Fq 'submitQuickTranslationTerm' "$LIVE/app.js"
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
-          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0109_compact_pronunciation_actions.cjs
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0110_remove_more_reading_controls.cjs
           test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           ! grep -Fq 'dwss-cover-hide-developer-byline-0106' "$LIVE/index.html"
           grep -Fq 'class="owner-cover-author">陈谍</span>' "$LIVE/index.html"
-          echo 'PASS: live DWSS 0.9.109 has one main save action, one collapsed More Actions disclosure, concise combined help text, retained history/recovery handlers, original cover and unchanged Android APK.'
+          echo 'PASS: live DWSS 0.9.110 removes the whole More Reading Actions area while preserving candidate choices, cloud pin-to-primary, history data, original cover and unchanged Android installer.'
 
       - name: Record live-verified release marker
         if: success()
@@ -479,12 +503,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.109\nLive Pages assets and DWSS 0.9.109 interface were verified: only Save & Sync remains in the main action row; restore-auto, correction history and withdrawn readings are grouped in one collapsed disclosure; duplicate help is combined into one concise instruction; candidate pinning, cloud sync, revision conflict checks, original cover and Android APK SHA-256 remain intact.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.109.txt"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.109.txt")"
-          proof_path=".release-verification/0.9.109.txt"
+          printf 'DWSS 0.9.110\nLive Pages assets and DWSS 0.9.110 were verified: the More Pronunciation Actions heading, container and restore/history/withdrawn-reading buttons are removed from the main page; candidate choices and per-reading pin-to-primary remain, cloud revision safeguards and historical records are retained, original cover is preserved, and Android APK SHA-256 is unchanged.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.110.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.110.txt")"
+          proof_path=".release-verification/0.9.110.txt"
           existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$existing_sha" ]; then
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.109 compact pronunciation controls" -f content="$encoded" -f branch=main -f sha="$existing_sha"
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.110 remove low-frequency reading controls" -f content="$encoded" -f branch=main -f sha="$existing_sha"
           else
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.109 compact pronunciation controls" -f content="$encoded" -f branch=main
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.110 remove low-frequency reading controls" -f content="$encoded" -f branch=main
           fi
