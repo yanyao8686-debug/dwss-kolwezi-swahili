@@ -1,0 +1,3 @@
+DWSS 0.9.113
+The result-heading “复制谐音” button and adjacent gray status pill were removed, along with implicit click-to-copy on the editable result textarea. The internal result-state target, translation correction/save-and-sync, other-reading candidates, backup-copy action, all unrelated approved 0.9.112 controls, shared lexicon and sync behavior remain intact. The DWSS cover and Android installer are byte-identical to 0.9.112.
+Commit: 9cf52ddcfc8a39e787226c16db47407a0c4b578f
