@@ -439,6 +439,7 @@ jobs:
           import json,re
           root=Path('public')
           html=(root/'index.html').read_text(encoding='utf-8')
+          sw=(root/'sw.js').read_text(encoding='utf-8')
           class Audit(HTMLParser):
               def __init__(self): super().__init__(); self.ids=[]; self.tabs=[]
               def handle_starttag(self,tag,attrs):
@@ -467,7 +468,6 @@ jobs:
           if 'DWSS_AUTO_UPDATE_0_9_111' not in html or "APP_VERSION = '0.9.111'" not in sw:
               raise SystemExit('DWSS 0.9.111 cache/version markers do not match')
           if '<div class="footer">' in html: raise SystemExit('Removed footer version line reappeared')
-          sw=(root/'sw.js').read_text(encoding='utf-8')
           match=re.search(r'const PRECACHE_URLS = \[(.*?)\];',sw,re.S)
           if not match: raise SystemExit('Service Worker precache missing')
           urls=re.findall(r"""['\"]([^'\"]+)['\"]""",match.group(1))
