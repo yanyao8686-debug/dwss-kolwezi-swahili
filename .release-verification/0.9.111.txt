@@ -1,0 +1,3 @@
+DWSS 0.9.111
+Live Pages assets and DWSS 0.9.111 Professional visual system were verified: warm-ivory input and soft-amber result surfaces, navy buttons, mist-gray page background, champagne accents, unified borders/radii/type and balanced spacing. Translation, pronunciation candidates, cloud sync and per-reading pin remain intact. Top cover artwork and cover-section markup are byte-identical; native Android APK SHA-256 is unchanged.
+Commit: fae53346721fc91154d1b5d73866b646d5059573
