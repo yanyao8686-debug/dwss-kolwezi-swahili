@@ -448,6 +448,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.107\nLive Pages assets, original-source lookup regression, three PDF source warnings, three-action navigation, no typing/manual-translate auto-navigation, contextual per-word add, automatic return/retranslation after successful save, original cover bytes/markup preserved, and unchanged Android APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.106.txt"
+          printf 'DWSS 0.9.107\nLive Pages assets, original-source lookup regression, three PDF source warnings, three-action navigation, no typing/manual-translate auto-navigation, contextual per-word add, automatic return/retranslation after successful save, original cover bytes/markup preserved, and unchanged Android APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.107.txt"
           encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.106.txt")"
           gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.107.txt" -f message="Record live-verified DWSS 0.9.107 contextual add flow" -f content="$encoded" -f branch=main
