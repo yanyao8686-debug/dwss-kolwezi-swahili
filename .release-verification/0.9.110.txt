@@ -1,0 +1,3 @@
+DWSS 0.9.110
+Live Pages assets and DWSS 0.9.110 were verified: the More Pronunciation Actions heading, container and restore/history/withdrawn-reading buttons are removed from the main page; candidate choices and per-reading pin-to-primary remain, cloud revision safeguards and historical records are retained, original cover is preserved, and Android APK SHA-256 is unchanged.
+Commit: 6f77bd08c73b2809f3a39fff794185a4c075b7da
