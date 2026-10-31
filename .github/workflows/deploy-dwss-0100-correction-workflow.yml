@@ -435,7 +435,7 @@ jobs:
         run: |
           set -euo pipefail
           gzip -dc scripts/prepare_dwss_0112_button_layout.py.gz.b64 > scripts/prepare_dwss_0112_button_layout.py
-          gzip -dc scripts/test_dwss_0112_button_layout.cjs.gz.b64 > scripts/test_dwss_0112_button_layout.cjs
+          base64 -d scripts/test_dwss_0112_button_layout.cjs.gz.b64 | gzip -dc > scripts/test_dwss_0112_button_layout.cjs
           python3 scripts/prepare_dwss_0112_button_layout.py public
           node --check public/app.js
           node --check public/sw.js
