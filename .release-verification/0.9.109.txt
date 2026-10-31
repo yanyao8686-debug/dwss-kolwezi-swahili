@@ -1,0 +1,3 @@
+DWSS 0.9.109
+Live Pages assets and DWSS 0.9.109 interface were verified: only Save & Sync remains in the main action row; restore-auto, correction history and withdrawn readings are grouped in one collapsed disclosure; duplicate help is combined into one concise instruction; candidate pinning, cloud sync, revision conflict checks, original cover and Android APK SHA-256 remain intact.
+Commit: 1edac99bc8679a07eb12e3dac75c1a16c06ee12f
