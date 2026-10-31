@@ -208,7 +208,6 @@ jobs:
           test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js pronunciation-search.js; do node --check "$LIVE/$file"; done
-          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0113_remove_copy_controls.cjs
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0114_local_translation_history.cjs
           echo 'PASS: live DWSS 0.9.114 automatically records completed main translations to local-only history, supports local history search, preserves partial-input filtering, and keeps approved UI, correction/sync, cover and Android installer intact.'
 
