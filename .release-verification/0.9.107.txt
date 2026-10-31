@@ -1,0 +1,4 @@
+DWSS 0.9.107
+Live Pages deployment completed successfully. Live verification passed for the three-action navigation, no auto-navigation while typing or manually translating, per-word contextual add, preservation of the original sentence, return/retranslation after successful save, original cover artwork/markup hash, source dictionary safeguards, and unchanged Android APK SHA-256.
+Workflow run: https://github.com/yanyao8686-debug/dwss-kolwezi-swahili/actions/runs/41178546510
+Deploy commit: 8e62ae2929f8b8372b7d3aba2b4c0ad1926c4f59
