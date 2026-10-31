@@ -1,0 +1,3 @@
+DWSS 0.9.114
+Completed main-page translations are saved automatically only in the current device localStorage when the user leaves the input or closes the app; live typing previews do not save partial fragments. Local history search and up to 200 recent unique entries are available. No translation history is sent to Supabase. The DWSS cover and Android installer remain byte-identical to the prior release.
+Commit: 9c5ea83118685cea89924e3c79ca39c38a8b6eac
