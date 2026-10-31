@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.113 remove result copy controls
+name: Deploy DWSS 0.9.114 local-only translation history
 
 on:
   push:
@@ -30,6 +30,8 @@ on:
       - 'scripts/test_dwss_0112_button_layout.cjs.gz.b64'
       - 'scripts/prepare_dwss_0113_remove_copy_controls.py'
       - 'scripts/test_dwss_0113_remove_copy_controls.cjs'
+      - 'scripts/prepare_dwss_0114_local_translation_history.py'
+      - 'scripts/test_dwss_0114_local_translation_history.cjs'
   workflow_dispatch:
 
 permissions:
@@ -39,7 +41,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0107-contextual-add
+  group: dwss-pages-deploy-0114-local-history
   cancel-in-progress: true
 
 jobs:
@@ -460,6 +462,19 @@ jobs:
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
           touch public/.nojekyll
 
+      - name: Apply DWSS 0.9.114 local-only translation history capture and search
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0114_local_translation_history.py public
+          node --check public/app.js
+          node --check public/sw.js
+          node --check scripts/test_dwss_0114_local_translation_history.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0114_local_translation_history.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
       - name: Audit core UI, assets, and release identity
         shell: bash
         run: |
@@ -497,13 +512,13 @@ jobs:
               raise SystemExit('PWA theme colors do not match DWSS Professional palette')
           if '<meta name="theme-color" content="#123657">' not in html:
               raise SystemExit('Browser theme color does not match DWSS Professional palette')
-          if 'DWSS_AUTO_UPDATE_0_9_113' not in html or "APP_VERSION = '0.9.113'" not in sw:
-              raise SystemExit('DWSS 0.9.111 cache/version markers do not match')
+          if 'DWSS_AUTO_UPDATE_0_9_114' not in html or "APP_VERSION = '0.9.114'" not in sw:
+              raise SystemExit('DWSS 0.9.114 cache/version markers do not match')
           button_layer=re.search(r'<style id="dwss-button-layout-0112">(.*?)</style>',html,re.S)
           if not button_layer: raise SystemExit('DWSS 0.9.112 button layout layer missing')
           for token in ('nav.tabs>.nav-clear-action','.translation-pronunciation-pin','.dict-edit-actions button','.pronunciation-editor-restore','#pronunciation .pronunciation-maintenance-entry'):
               if token not in button_layer.group(1): raise SystemExit('Missing approved button layout selector: '+token)
-          for token in ('id="resultState" hidden aria-hidden="true"','id="resultReading"','id="translationCorrectionPanel"','id="submitTranslationCorrection"','设为首选',"clearButton.textContent='清空输入';",'id="pronunciationResults"','id="openPublicPronunciationEditor"','class="pronunciation-editor-restore"'):
+          for token in ('id="historySearch"','历史记录只保存在当前设备，不会上传云端','id="resultState" hidden aria-hidden="true"','id="resultReading"','id="translationCorrectionPanel"','id="submitTranslationCorrection"','设为首选',"clearButton.textContent='清空输入';",'id="pronunciationResults"','id="openPublicPronunciationEditor"','class="pronunciation-editor-restore"'):
               if token not in html: raise SystemExit('Missing approved UI detail: '+token)
           for token in ('id="copyReading"','复制谐音','.result-title-actions','#copyReading','dwssCopyBound','navigator.clipboard.writeText(value)'):
               if token in html: raise SystemExit('Removed result-copy UI or click-to-copy code remains: '+token)
@@ -511,7 +526,7 @@ jobs:
           if "$('copyReading')" in app: raise SystemExit('Removed copyReading event binding remains in app.js')
           if html.index('id="openPublicPronunciationEditor"') < html.index('id="pronunciationResults"'):
               raise SystemExit('Pronunciation maintenance entry must follow lookup results')
-          if 'DWSS_AUTO_UPDATE_0_9_113' not in html or "APP_VERSION = '0.9.113'" not in sw:
+          if 'DWSS_AUTO_UPDATE_0_9_114' not in html or "APP_VERSION = '0.9.114'" not in sw:
               raise SystemExit('DWSS 0.9.112 cache/version markers do not match')
           if '<div class="footer">' in html: raise SystemExit('Removed footer version line reappeared')
           match=re.search(r'const PRECACHE_URLS = \[(.*?)\];',sw,re.S)
@@ -531,27 +546,29 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.113
+      - name: Deploy DWSS 0.9.114
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live DWSS 0.9.113 copy-control removal, unchanged cover and stable Android installer
+      - name: Verify live DWSS 0.9.114 local-only history, unchanged cover and stable Android installer
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0113"
+          LIVE="$RUNNER_TEMP/dwss-live-0114"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz cover.webp; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
-          grep -Fxq 'Version: 0.9.113' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_113' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.114' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_114' "$LIVE/index.html"
           grep -Fq '<style id="dwss-button-layout-0112">' "$LIVE/index.html"
           grep -Fq '<h2>斯语翻译中文谐音：</h2>' "$LIVE/index.html"
           grep -Fq '<span id="resultState" hidden aria-hidden="true"></span>' "$LIVE/index.html"
           grep -Fq 'id="resultReading"' "$LIVE/index.html"
+          grep -Fq 'id="historySearch"' "$LIVE/index.html"
+          grep -Fq '历史记录只保存在当前设备，不会上传云端' "$LIVE/index.html"
           grep -Fq 'id="translationCorrectionPanel"' "$LIVE/index.html"
           grep -Fq 'id="submitTranslationCorrection"' "$LIVE/index.html"
           ! grep -Fq 'id="copyReading"' "$LIVE/index.html"
@@ -571,7 +588,8 @@ jobs:
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           for file in app.js pwa.js sw.js boot.js shared-lexicon.js dictionary-overrides.js dwss-pronunciation-controls.js pronunciation-search.js; do node --check "$LIVE/$file"; done
           DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0113_remove_copy_controls.cjs
-          echo 'PASS: live DWSS 0.9.113 removes both result-heading controls and implicit reading click-to-copy; normal editing, backup copy, correction/sync, all other approved UI, cover and Android installer are preserved.'
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0114_local_translation_history.cjs
+          echo 'PASS: live DWSS 0.9.114 automatically records completed main translations to local-only history, supports local history search, preserves partial-input filtering, and keeps approved UI, correction/sync, cover and Android installer intact.'
 
       - name: Record live-verified release marker
         if: success()
@@ -581,12 +599,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
-          printf 'DWSS 0.9.113\nThe result-heading “复制谐音” button and adjacent gray status pill were removed, along with implicit click-to-copy on the editable result textarea. The internal result-state target, translation correction/save-and-sync, other-reading candidates, backup-copy action, all unrelated approved 0.9.112 controls, shared lexicon and sync behavior remain intact. The DWSS cover and Android installer are byte-identical to 0.9.112.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.113.txt"
+          printf 'DWSS 0.9.114\nCompleted main-page translations are saved automatically only in the current device localStorage when the user leaves the input or closes the app; live typing previews do not save partial fragments. Local history search and up to 200 recent unique entries are available. No translation history is sent to Supabase. The DWSS cover and Android installer remain byte-identical to the prior release.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.114.txt"
           encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.113.txt")"
-          proof_path=".release-verification/0.9.113.txt"
+          proof_path=".release-verification/0.9.114.txt"
           existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$existing_sha" ]; then
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.113 result copy-control removal" -f content="$encoded" -f branch=main -f sha="$existing_sha"
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.114 local-only translation history" -f content="$encoded" -f branch=main -f sha="$existing_sha"
           else
-            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.113 result copy-control removal" -f content="$encoded" -f branch=main
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.114 local-only translation history" -f content="$encoded" -f branch=main
           fi
