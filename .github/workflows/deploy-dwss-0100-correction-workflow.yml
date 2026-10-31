@@ -482,7 +482,7 @@ jobs:
               raise SystemExit('PWA theme colors do not match DWSS Professional palette')
           if '<meta name="theme-color" content="#123657">' not in html:
               raise SystemExit('Browser theme color does not match DWSS Professional palette')
-          if 'DWSS_AUTO_UPDATE_0_9_111' not in html or "APP_VERSION = '0.9.111'" not in sw:
+          if 'DWSS_AUTO_UPDATE_0_9_112' not in html or "APP_VERSION = '0.9.112'" not in sw:
               raise SystemExit('DWSS 0.9.111 cache/version markers do not match')
           button_layer=re.search(r'<style id="dwss-button-layout-0112">(.*?)</style>',html,re.S)
           if not button_layer: raise SystemExit('DWSS 0.9.112 button layout layer missing')
