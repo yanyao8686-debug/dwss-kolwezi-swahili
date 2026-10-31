@@ -29,6 +29,7 @@ assert(app.includes("allHistory.filter(phrase=>norm(phrase).includes(historyQuer
 assert(app.includes('没有找到匹配的本机历史记录。'), 'empty search feedback missing');
 assert(app.includes("$('clearHistory').addEventListener('click'"), 'clear local history feature removed');
 assert(app.includes("$('inputText').value=b.dataset.use;switchTab('translate');renderTranslation();"), 're-query action removed');
+assert(app.includes("$('inputText').value='请稍等，我去叫他';renderTranslation({recordHistory:false});"), 'startup example phrase is incorrectly recorded as a user translation');
 
 // No translation-history cloud table/API has been introduced.
 const saveStart = app.indexOf('function saveRecent(raw)');
