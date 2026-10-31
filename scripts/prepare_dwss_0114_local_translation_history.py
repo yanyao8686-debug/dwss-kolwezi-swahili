@@ -109,6 +109,11 @@ old_history_binding = "$('clearHistory').addEventListener('click',()=>{if(!safeR
 new_history_binding = "$('historySearch').addEventListener('input',()=>renderSaved());$('clearHistory').addEventListener('click',()=>{if(!safeRemove('sw_history'))return;renderSaved();});"
 app = replace_once(app, old_history_binding, new_history_binding, "local history search event binding")
 
+# Do not pollute a user's history with the example phrase auto-filled at app startup.
+old_startup = "$('inputText').value='请稍等，我去叫他';renderTranslation();"
+new_startup = "$('inputText').value='请稍等，我去叫他';renderTranslation({recordHistory:false});"
+app = replace_once(app, old_startup, new_startup, "startup example must not be stored as user history")
+
 # Version/cache identifiers change so browsers and Android WebView receive the fix.
 if html.count(OLD) < 4:
     raise SystemExit(f"index.html version markers incomplete: found {html.count(OLD)} occurrences of {OLD}")
