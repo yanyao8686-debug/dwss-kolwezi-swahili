@@ -450,4 +450,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dwss-release-proof"
           printf 'DWSS 0.9.107\nLive Pages assets, original-source lookup regression, three PDF source warnings, three-action navigation, no typing/manual-translate auto-navigation, contextual per-word add, automatic return/retranslation after successful save, original cover bytes/markup preserved, and unchanged Android APK SHA-256 were verified by the deployment workflow.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.107.txt"
           encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.107.txt")"
-          gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/.release-verification/0.9.107.txt" -f message="Record live-verified DWSS 0.9.107 contextual add flow" -f content="$encoded" -f branch=main
+          proof_path=".release-verification/0.9.107.txt"
+          existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$existing_sha" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Refresh live-verified DWSS 0.9.107 contextual add flow" -f content="$encoded" -f branch=main -f sha="$existing_sha"
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.107 contextual add flow" -f content="$encoded" -f branch=main
+          fi
