@@ -1,0 +1,169 @@
+name: Deploy DWSS 0.9.115 result hint correction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0115-result-hint.yml'
+      - 'scripts/prepare_dwss_0115_result_hint.py'
+      - 'scripts/test_dwss_0115_result_hint.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0115-result-hint
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Mirror verified live DWSS 0.9.114 site and apply the single requested copy change
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0115_result_hint.py
+          node --check public/app.js
+          node --check public/sw.js
+          node --check public/pwa.js
+          node --check public/boot.js
+          node --check public/pronunciation-search.js
+          node --check public/dwss-pronunciation-controls.js
+          node --check scripts/test_dwss_0115_result_hint.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0115_result_hint.cjs
+          gzip -t public/dictionary.js.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          touch public/.nojekyll
+
+      - name: Audit that the translation result field and approved core controls remain intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import json, re
+          root = Path('public')
+          html = (root / 'index.html').read_text(encoding='utf-8')
+          sw = (root / 'sw.js').read_text(encoding='utf-8')
+          app = (root / 'app.js').read_text(encoding='utf-8')
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids = []
+                  self.result_attrs = None
+                  self.tabs = []
+              def handle_starttag(self, tag, attrs):
+                  a = dict(attrs)
+                  if 'id' in a:
+                      self.ids.append(a['id'])
+                  if a.get('id') == 'resultReading':
+                      self.result_attrs = a
+                  if tag == 'button' and 'data-tab' in a:
+                      self.tabs.append(a['data-tab'])
+          audit = Audit()
+          audit.feed(html)
+          duplicates = [k for k, v in Counter(audit.ids).items() if v > 1]
+          if duplicates:
+              raise SystemExit('Duplicate HTML IDs: ' + str(duplicates))
+          if audit.tabs[:2] != ['pronunciation', 'saved']:
+              raise SystemExit('Primary navigation changed unexpectedly')
+          if not audit.result_attrs:
+              raise SystemExit('Translation result field not found')
+          if audit.result_attrs.get('placeholder') != '认为翻译结果不正确可自行修改':
+              raise SystemExit('Translation result field placeholder does not match requested text')
+          for token in (
+              'id="inputText"', 'id="translationCorrectionPanel"',
+              'id="translationPronunciationCandidates"', 'id="submitTranslationCorrection"',
+              'id="historySearch"', 'id="pronunciationResults"',
+              'id="dwss-apk-download"', 'id="openPublicPronunciationEditor"',
+              'id="resultReading"', 'DWSS_AUTO_UPDATE_0_9_115'
+          ):
+              if token not in html:
+                  raise SystemExit('Missing required existing page element: ' + token)
+          if '输入中文后，翻译结果中文谐音会显示在这里' in html:
+              raise SystemExit('Old result hint remains')
+          if html.count('认为翻译结果不正确可自行修改') != 1:
+              raise SystemExit('New result hint must appear exactly once')
+          if 'id="copyReading"' in html or '复制谐音' in html or 'dwssCopyBound' in html:
+              raise SystemExit('Removed copy-reading control unexpectedly reappeared')
+          if "const APP_VERSION = '0.9.115';" not in sw:
+              raise SystemExit('Service Worker version mismatch')
+          if "version:'0.9.115'" not in app:
+              raise SystemExit('Application metadata version mismatch')
+          manifest = json.loads((root / 'manifest.webmanifest').read_text(encoding='utf-8'))
+          if manifest.get('name') != '刚果金斯语翻译' or manifest.get('display') != 'standalone':
+              raise SystemExit('PWA identity unexpectedly changed')
+          print('PASS: unique IDs, exact result-field placeholder, main navigation, correction controls, history and PWA identity.')
+          PY
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.115
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.115 copy, cache identity and unchanged assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0115"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest shared-lexicon.js dictionary-overrides.js dictionary.js.gz cover.webp supabase.min.js; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 60 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
+          grep -Fxq 'Version: 0.9.115' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_115' "$LIVE/index.html"
+          grep -Fq '认为翻译结果不正确可自行修改' "$LIVE/index.html"
+          ! grep -Fq '输入中文后，翻译结果中文谐音会显示在这里' "$LIVE/index.html"
+          grep -Fq 'id="resultReading"' "$LIVE/index.html"
+          grep -Fq 'id="translationCorrectionPanel"' "$LIVE/index.html"
+          grep -Fq 'id="submitTranslationCorrection"' "$LIVE/index.html"
+          grep -Fq 'id="historySearch"' "$LIVE/index.html"
+          grep -Fq '历史记录只保存在当前设备，不会上传云端' "$LIVE/index.html"
+          ! grep -Fq 'id="copyReading"' "$LIVE/index.html"
+          ! grep -Fq '复制谐音' "$LIVE/index.html"
+          grep -Fq "version:'0.9.115'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.115';" "$LIVE/sw.js"
+          test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
+          test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          for file in app.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js; do node --check "$LIVE/$file"; done
+          DWSS_PUBLIC_DIR="$LIVE" node scripts/test_dwss_0115_result_hint.cjs
+          echo 'PASS: live DWSS 0.9.115 shows the exact requested result hint, removes the old hint, preserves the app layout/features, and keeps the cover and APK byte-identical.'
+
+      - name: Record live-verified release marker
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dwss-release-proof"
+          printf 'DWSS 0.9.115\nThe main translation result-field hint was changed exactly to “认为翻译结果不正确可自行修改”. No other interface layout, colors, sizing, translation behavior, shared vocabulary or correction/sync behavior was changed. The existing cover, Android installer and protected app assets remain byte-identical to 0.9.114. This website/PWA update does not require a new APK.\nCommit: %s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dwss-release-proof/0.9.115.txt"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/dwss-release-proof/0.9.115.txt")"
+          proof_path=".release-verification/0.9.115.txt"
+          existing_sha="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$proof_path?ref=main" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$existing_sha" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.115 result hint correction" -f content="$encoded" -f branch=main -f sha="$existing_sha"
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/$proof_path" -f message="Record live-verified DWSS 0.9.115 result hint correction" -f content="$encoded" -f branch=main
+          fi
