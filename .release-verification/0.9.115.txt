@@ -1,0 +1,4 @@
+DWSS 0.9.115
+The main translation result-field hint was changed exactly to “认为翻译结果不正确可自行修改”. No other interface layout, colors, sizing, translation behavior, shared vocabulary or correction/sync behavior was changed. The existing cover, Android installer and protected app assets remain byte-identical to 0.9.114. This website/PWA update does not require a new APK.
+Deployment commit: 8b37872a7f77acf78b6ece4b177ab9dd4c2eb04b
+Live deployment and verification: successful.
