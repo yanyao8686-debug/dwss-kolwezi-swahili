@@ -304,6 +304,12 @@
     const panel = document.createElement("div");
     panel.className = "dwss-fr-machine-tools";
     panel.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 4px";
+    const grammarStatus = document.createElement("div");
+    grammarStatus.id = "dwssFrenchCorrectionStatus";
+    grammarStatus.className = "dwss-french-grammar-status";
+    grammarStatus.setAttribute("role", "status");
+    grammarStatus.setAttribute("aria-live", "polite");
+    grammarStatus.style.cssText = "width:100%;font-size:12px;line-height:1.5;min-height:1.2em";
     grammarButton = document.createElement("button");
     grammarButton.type = "button";
     grammarButton.className = "soft mini";
@@ -312,6 +318,7 @@
     const note = document.createElement("small");
     note.style.cssText = "font-size:12px;opacity:.82";
     note.innerHTML = '使用免密公共翻译节点和第三方法语校对；文本会发送到外部服务，请勿输入矿区或个人敏感信息。校对由 <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> 提供。';
+    panel.appendChild(grammarStatus);
     panel.appendChild(grammarButton);
     panel.appendChild(note);
     anchor.insertAdjacentElement("afterend", panel);
