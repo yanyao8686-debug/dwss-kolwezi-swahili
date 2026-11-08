@@ -32,9 +32,6 @@ assert(ext.includes('confidenceLabel(variant.confidence)'), 'French result cards
 assert(ext.includes('normalizeLeXiKPhone(ipa)'), 'IPA normalizer is not used by the transliterator');
 assert(ext.includes('DWSSFrenchMachineTranslationController.translateCurrentChinese()'),
   'Legacy word composer can still overwrite full-sentence French translation');
-assert(runtime.includes('DWSSFrenchMachineTranslationController = Object.freeze'),
-  'French translation controller is not exposed before input events');
-
 for (const id of [
   'resultFrenchReading','dwssMainLanguagePicker','dwssMainFrMode',
   'pronunciationFrenchSearch','dwssPronunciationMode','dwssSaveFrenchCorrection'
@@ -130,6 +127,10 @@ assert(phrase.ipa.includes('多个独立来源一致') || phrase.ipa.includes('�
 // Validate the French spelling-indexed shards used to pronounce machine-translated sentences.
 const runtime = read('french-translation-runtime.js');
 const wordMeta = JSON.parse(read('french-word-index.json'));
+assert(runtime.includes('DWSSFrenchMachineTranslationController = Object.freeze'),
+  'French translation controller is not exposed before input events');
+assert(runtime.includes('if (pendingChinese === chinese) return;'),
+  'Repeated main-page translation events are not deduplicated');
 assert(runtime.includes('dwss-french-language'), 'French translation Edge Function endpoint missing');
 assert(runtime.includes('action: "translate"'), 'Chinese-to-French sentence translation action missing');
 assert(runtime.includes('action: "check"'), 'manual French grammar-check action missing');
