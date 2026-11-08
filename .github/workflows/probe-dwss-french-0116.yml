@@ -1,0 +1,21 @@
+name: Probe DWSS French extension architecture
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/probe_dwss_french_0116.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect current live DWSS site
+        run: |
+          set -euo pipefail
+          python3 scripts/probe_dwss_french_0116.py
