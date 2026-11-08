@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-dwss-0118-french-shared-readback.yml'
-      - 'scripts/prepare_dwss_0118_french_shared_readback.py'
-      - 'scripts/test_dwss_0118_french_shared_readback.cjs'
+      - '.github/workflows/deploy-dwss-0118-french-style-parity.yml'
+      - 'scripts/prepare_dwss_0118_french_style_parity.py'
+      - 'scripts/test_dwss_0118_french_style_parity.cjs'
   workflow_dispatch:
 
 permissions:
@@ -35,15 +35,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/prepare_dwss_0118_french_shared_readback.py
+          python3 scripts/prepare_dwss_0118_french_style_parity.py
           node --check public/app.js
           node --check public/shared-lexicon.js
           node --check public/sw.js
           node --check public/french-extension.js
-          node --check scripts/test_dwss_0118_french_shared_readback.cjs
+          node --check scripts/test_dwss_0118_french_style_parity.cjs
           gzip -t public/french-ipa-index.tsv.gz
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
-          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0118_french_shared_readback.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0118_french_style_parity.cjs
           touch public/.nojekyll
 
       - name: Audit unique IDs, French UI and normalized cloud-field handoff
@@ -119,5 +119,5 @@ jobs:
           node --check "$LIVE/french-extension.js"
           gzip -t "$LIVE/french-ipa-index.tsv.gz"
           rm -rf public && mkdir -p public && cp "$LIVE/"* public/
-          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0118_french_shared_readback.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0118_french_style_parity.cjs
           echo 'PASS: live DWSS 0.9.118 French shared spelling and Chinese-homophone are read back correctly; 0.9.116 UI/data pack, cover and APK preserved.'
