@@ -568,6 +568,21 @@ if n != 1:
 # Patch the existing French interface to use the sharded index and expose confidence labels.
 ext_path = ROOT / "french-extension.js"
 ext = ext_path.read_text(encoding="utf-8")
+# Prevent the legacy glossary composer from overwriting a full-sentence machine translation.
+legacy_main_anchor = "  function renderMainFrench() {"
+if legacy_main_anchor not in ext:
+    fail("Cannot locate legacy French main translation entry point.")
+ext = ext.replace(
+    legacy_main_anchor,
+    legacy_main_anchor + """
+    if (window.DWSSFrenchMachineTranslationController) {
+      window.DWSSFrenchMachineTranslationController.translateCurrentChinese();
+      return;
+    }
+""",
+    1
+)
+
 ext = ext.replace('const DATA_URL = "./french-ipa-index.tsv.gz";',
                   'const GLOSS_URL = "./french-gloss-index.tsv.gz";\n  const META_URL = "./french-pronunciation-index.json";\n  const SHARD_BASE = "./french-pronunciation-shards/";')
 ext = ext.replace("let firstRanges = new Map();", "let firstKeys = [];\n  let firstKeySet = new Set();\n  let shardCache = new Map();\n  const MAX_SHARD_CACHE = 12;")
