@@ -61,7 +61,7 @@ jobs:
       - name: Verify live compact French UI and protected assets
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           LIVE="$RUNNER_TEMP/dwss-live-0122"
           mkdir -p "$LIVE"
@@ -80,6 +80,10 @@ jobs:
           node --check "$LIVE/sw.js"
           node --check "$LIVE/french-extension.js"
           node --check "$LIVE/french-translation-runtime.js"
-          test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
-          test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          COVER_SHA="$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)"
+          APK_SHA="$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)"
+          echo "Live cover SHA-256: $COVER_SHA"
+          echo "Live Android APK SHA-256: $APK_SHA"
+          test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
+          test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           echo 'PASS: live DWSS 0.9.122 compact French UI, translation/grammar actions, versioning, cover and Android installer verified.'
