@@ -139,22 +139,24 @@ jobs:
           gzip -t "$LIVE/word-me.tsv.gz"
           test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          # Best-effort smoke test: a public mirror may temporarily rate-limit requests.
+          # Live smoke test uses the latest Supabase no-key provider chain (MyMemory → Google web → LibreTranslate).
           KEY=$(sed -n 's/.*PUBLISHABLE_KEY = "\([^"]*\)".*/\1/p' "$LIVE/french-translation-runtime.js")
           if [[ -n "$KEY" ]]; then
-            if curl -fsS --max-time 35 -X POST 'https://pautxzcfmtwkaunjxghj.supabase.co/functions/v1/dwss-french-language' \
+            if curl -fsS --max-time 30 -X POST 'https://pautxzcfmtwkaunjxghj.supabase.co/functions/v1/dwss-french-language' \
               -H "Origin: https://yanyao8686-debug.github.io" -H "apikey: $KEY" -H 'Content-Type: application/json' \
               --data '{"action":"translate","text":"你好"}' -o "$LIVE/translation-smoke.json"; then
               python3 - "$LIVE/translation-smoke.json" <<'PY'
           import json,sys
           d=json.load(open(sys.argv[1],encoding='utf-8'))
-          if d.get('ok') and d.get('translatedText'):
-              print('PASS: no-key Chinese-to-French sentence translation endpoint responded.')
-          else:
-              print('WARNING: translation endpoint returned an application error:', d.get('error','unknown'))
+          if not d.get('ok') or not d.get('translatedText'):
+              raise SystemExit('Translation endpoint returned an application error: '+str(d.get('error','unknown')))
+          provider=str(d.get('provider',''))
+          if not any(name in provider for name in ('MyMemory','Google Translate','LibreTranslate')):
+              raise SystemExit('Unexpected translation provider: '+provider)
+          print('PASS: live Chinese-to-French translation returned:',d['translatedText'],'| provider:',provider)
           PY
             else
-              echo '::warning::No-key public translation mirrors did not answer the release smoke test; the deployed UI will show a retryable service error.'
+              echo '::warning::No-key translation providers did not answer this live smoke test; the deployed UI will show a retryable service error.'
             fi
           fi
           echo 'PASS: live DWSS 0.9.120 translation runtime, spelling-keyed LeXiK IPA shards, glossary, offline cache, cover and unchanged Android APK verified.'
