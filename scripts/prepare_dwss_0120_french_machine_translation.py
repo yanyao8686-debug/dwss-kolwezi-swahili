@@ -142,14 +142,15 @@ app = paths["app.js"].read_text(encoding="utf-8")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 shared = paths["shared-lexicon.js"].read_text(encoding="utf-8")
 
-if f"Version: {OLD_VERSION}" not in version:
-    fail("Live site is not 0.9.118; VERSION.txt begins " + repr(version[:100]))
-if "DWSS_AUTO_UPDATE_0_9_119" not in html:
-    fail("Live HTML cache marker is not 0.9.119.")
-if "version:'0.9.119'" not in app:
-    fail("Live app.js version is not 0.9.119.")
-if "const APP_VERSION = '0.9.119';" not in sw:
-    fail("Live Service Worker version is not 0.9.119.")
+live_versions = ("0.9.119", "0.9.120")
+if not any(f"Version: {candidate}" in version for candidate in live_versions):
+    fail("Live site is not a supported DWSS base version; VERSION.txt begins " + repr(version[:100]))
+if not any(f"DWSS_AUTO_UPDATE_{candidate.replace('.', '_')}" in html for candidate in live_versions):
+    fail("Live HTML automatic-update marker is not 0.9.119 or 0.9.120.")
+if not any(f"version:'{candidate}'" in app for candidate in live_versions):
+    fail("Live app.js version is not 0.9.119 or 0.9.120.")
+if not any(f"const APP_VERSION = '{candidate}';" in sw for candidate in live_versions):
+    fail("Live Service Worker version is not 0.9.119 or 0.9.120.")
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
 
@@ -793,7 +794,7 @@ app = app.replace("version:'0.9.119'", "version:'0.9.120'", 1)
 sw = sw.replace("const APP_VERSION = '0.9.119';", "const APP_VERSION = '0.9.120';", 1)
 version = version.replace("Version: 0.9.119", "Version: 0.9.120", 1)
 version = version.rstrip() + (
-    "\n\n0.9.119: Expanded the French pronunciation index using checksum-verified LeXiK 1.0. "
+    "\n\n0.9.120: Added no-key Chinese-to-French full-sentence translation, manual French grammar checking, and French-spelling-indexed IPA lookup. "
     f"Indexed {indexed_forms:,} written forms with IPA and Chinese approximate readings; {missing_pronunciation:,} forms lacked IPA and are not presented as pronounced. "
     f"Confidence counts are preserved (including {confidence_counts.get('G',0):,} model-predicted forms marked G). "
     "The French pronunciation lookup loads first-pinyin-syllable shards for reverse search; an additional French-spelling-keyed IPA index supports translated sentence pronunciation. "
