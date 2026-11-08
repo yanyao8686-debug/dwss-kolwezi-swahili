@@ -58,8 +58,8 @@ for (const id of [
 ]) {
   assert(html.includes('id="' + id + '"'), 'French extension UI element missing: ' + id);
 }
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_116'), 'HTML auto-update marker not updated');
-assert(!html.includes('DWSS_AUTO_UPDATE_0_9_115'), 'stale HTML auto-update marker remains');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_117'), 'HTML auto-update marker not updated');
+assert(!html.includes('DWSS_AUTO_UPDATE_0_9_116'), 'stale HTML auto-update marker remains');
 assert(html.includes('#resultCard #resultFrenchReading'), 'French result field does not share the main result styling layer');
 assert(html.includes('#dwssFrenchSpelling') && html.includes('text-decoration'), 'French spelling style block missing');
 assert((html.match(/id="resultFrenchReading"/g) || []).length === 1, 'French result field id is duplicated');
