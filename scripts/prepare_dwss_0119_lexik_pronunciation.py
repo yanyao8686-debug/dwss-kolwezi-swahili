@@ -164,7 +164,7 @@ RIME = {
 CODA = {
     "ʁ":"赫","ʃ":"施","s":"斯","z":"兹","t":"特","d":"德","k":"克","g":"格",
     "p":"普","b":"波","m":"姆","n":"恩","l":"勒","f":"夫","v":"维","j":"伊",
-    "ɲ":"尼","ŋ":"昂",
+    "ɲ":"尼","ŋ":"昂","ʒ":"日","w":"乌","ɥ":"于",
 }
 CV = {
     "bɑ̃":"邦","bɔ̃":"邦","ba":"巴","bɑ":"巴","bo":"波","bɔ":"博","bu":"布","be":"贝","bɛ":"贝","bɛ̃":"班","bi":"比","by":"比","bə":"伯","bœ":"伯","bø":"贝",
@@ -489,7 +489,14 @@ normalizer_js = r'''  function normalizeLeXiKPhone(value) {
 '''
 ext = ext.replace("  function ipaToChinese(ipa) {", normalizer_js + "  function ipaToChinese(ipa) {", 1)
 # Keep the IPA character fallbacks complete for all LeXiK phonemes.
-ext = ext.replace('"ɲ":"尼","ŋ":"昂"', '"ɲ":"尼","ŋ":"昂","ʒ":"日","w":"乌","ɥ":"于"')
+coda_start = ext.find("const coda = {")
+coda_end = ext.find("};", coda_start)
+if coda_start < 0 or coda_end < 0:
+    fail("Cannot locate IPA coda mapping in French runtime.")
+coda_block = ext[coda_start:coda_end]
+if '"ʒ":"日"' not in coda_block:
+    coda_block = coda_block.replace('"ɲ":"尼","ŋ":"昂"', '"ɲ":"尼","ŋ":"昂","ʒ":"日","w":"乌","ɥ":"于"')
+ext = ext[:coda_start] + coda_block + ext[coda_end:]
 ext = ext.replace("window.DWSSFrenchTools = Object.freeze({ ipaToChinese, normalizeChinese, translateChinese });",
                   "window.DWSSFrenchTools = Object.freeze({ ipaToChinese, normalizeChinese, translateChinese, normalizeLeXiKPhone });")
 # Confidence labels are always visible where IPA and sound hints are shown.
