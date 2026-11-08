@@ -148,61 +148,24 @@ if "const APP_VERSION = '0.9.117';" not in sw:
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
 
-# Stage 1: when Supabase shared_terms rows are normalized, retain french_text.
+# 0.9.117 already fixed the shared French spelling/homophone readback.
+# Verify both normalized fields remain present and do not re-apply that earlier patch.
 start = app.find("function applySharedTerms(rows){")
 end = app.find("function applySharedPronunciationVariants", start)
 if start < 0 or end < 0:
     fail("Cannot locate shared-term ingestion function.")
 ingest = app[start:end]
-if ingest.count("french:'',") != 1:
-    fail("Expected exactly one empty French field in shared-term ingestion.")
-ingest = ingest.replace("french:'',", "french:String(t.french_text||'').trim(),", 1)
-app = app[:start] + ingest + app[end:]
-
-# Stage 2: rebuild() receives normalized sharedCustom rows, so use c.french and
-# c.frenchReadingZh, not the raw Supabase column names which no longer exist here.
+if "french:String(t.french_text||'').trim()" not in ingest:
+    fail("French spelling readback from Supabase regressed.")
 start = app.find("// Shared terms supplement the built-in and personal dictionaries.")
 end = app.find("for(const v of sharedPronunciationVariants", start)
 if start < 0 or end < 0:
     fail("Cannot locate shared-term dictionary rebuild block.")
 rebuild = app[start:end]
-rebuild = replace_once = rebuild.replace(
-    "french:String(c.french_text||'').trim()",
-    "french:String(c.french||'').trim()",
-    1
-)
 if "french:String(c.french||'').trim()" not in rebuild:
-    fail("French spelling is not preserved in the normalized shared dictionary merge.")
-rebuild2 = rebuild.replace(
-    "frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim()",
-    "frenchReadingZh:String(c.frenchReadingZh||'').trim()",
-    1
-)
-if rebuild2 == rebuild and "frenchReadingZh:String(c.frenchReadingZh||'').trim()" not in rebuild:
-    fail("French homophone is not preserved in the normalized shared dictionary merge.")
-app = app[:start] + rebuild2 + app[end:]
-
-# Match the French result field to the existing Swahili result field exactly.
-# Remove French-only colors, gradient, font weight and focus treatment.
-old_result_rule = '#resultCard #resultFrenchReading{display:block;width:100%;min-height:88px;height:auto;max-height:42vh;resize:vertical;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;text-align:left;font-family:inherit;font-weight:760;box-sizing:border-box;border-color:#dce6f6;background:linear-gradient(135deg,#fff8e8,#fff0d2);color:#79664c}'
-new_result_rule = '#resultCard #resultFrenchReading{display:block!important;align-items:initial!important;width:100%!important;min-height:88px!important;height:auto!important;max-height:42vh!important;resize:vertical!important;padding:10px 12px!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;line-height:1.5!important;text-align:left!important;font-family:inherit!important;box-sizing:border-box!important}'
-if html.count(old_result_rule) != 1:
-    fail("French result style anchor mismatch; refusing to apply an uncertain CSS edit.")
-html = html.replace(old_result_rule, new_result_rule, 1)
-old_focus_rule = '#resultCard #resultFrenchReading:focus{outline:none;border-color:#c8a45b;box-shadow:0 0 0 3px rgba(200,164,91,.18)}'
-new_focus_rule = '#resultCard #resultFrenchReading:focus{outline:2px solid rgba(184,141,46,.35)!important;outline-offset:2px!important}'
-if html.count(old_focus_rule) != 1:
-    fail("French result focus style anchor mismatch.")
-html = html.replace(old_focus_rule, new_focus_rule, 1)
-old_placeholder_rule = '#resultCard #resultFrenchReading.empty::placeholder{color:#a89a80;opacity:1}'
-if html.count(old_placeholder_rule) != 1:
-    fail("French result placeholder style anchor mismatch.")
-html = html.replace(old_placeholder_rule, '', 1)
-empty_rule = '#resultCard #resultFrenchReading.empty{display:block!important;font-size:15px!important;font-weight:500!important;color:#93a0b2!important}'
-focus_end = new_focus_rule
-if html.count(focus_end) != 1:
-    fail("French result focus rule uniqueness check failed.")
-html = html.replace(focus_end, focus_end + '\n' + empty_rule, 1)
+    fail("Normalized French spelling is not preserved in dictionary rebuild.")
+if "frenchReadingZh:String(c.frenchReadingZh||'').trim()" not in rebuild:
+    fail("Normalized French Chinese-homophone is not preserved in dictionary rebuild.")
 
 # Bump HTML, app metadata and Service Worker cache as one consistent release.
 html = html.replace(OLD_VERSION, NEW_VERSION)
