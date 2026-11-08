@@ -1,0 +1,42 @@
+name: Verify published DWSS 0.9.117 French extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-dwss-0117-french-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download complete live release for read-only verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          mkdir -p public
+          for file in VERSION.txt index.html app.js shared-lexicon.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest dictionary.js.gz dictionary-overrides.js supabase.min.js french-extension.js french-lexicon-sources.txt french-FREEDICT-COPYING.txt french-IPA-LICENSE.txt cover.webp DWSS-Android-Installer.apk; do
+            curl -fsSL --retry 8 --retry-delay 2 --max-time 120 "$BASE/$file?verify_0117=$GITHUB_SHA" -o "public/$file"
+            test -s "public/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 2 --max-time 180 "$BASE/french-ipa-index.tsv.gz?verify_0117=$GITHUB_SHA" -o public/french-ipa-index.tsv.gz
+          grep -Fxq 'Version: 0.9.117' public/VERSION.txt
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_117' public/index.html
+          grep -Fq "version:'0.9.117'" public/app.js
+          grep -Fq "const APP_VERSION = '0.9.117';" public/sw.js
+          grep -Fq "'./french-ipa-index.tsv.gz'" public/sw.js
+          grep -Fq "'./french-extension.js'" public/sw.js
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/sw.js
+          node --check public/french-extension.js
+          gzip -t public/french-ipa-index.tsv.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0117_french_shared_readback.cjs
+          echo 'PASS: Published 0.9.117 is verified read-only; no website files or database rows were changed by this check.'
