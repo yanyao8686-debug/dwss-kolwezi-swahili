@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.117 French shared spelling readback fix
+name: Deploy DWSS 0.9.117 French shared spelling readback fix (corrected cache marker test)
 
 on:
   push:
