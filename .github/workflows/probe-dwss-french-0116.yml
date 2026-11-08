@@ -1,10 +1,11 @@
-name: Probe DWSS French extension architecture
+name: Probe official French-Chinese lexicon source
 
 on:
   push:
     branches: [main]
     paths:
-      - 'scripts/probe_dwss_french_0116.py'
+      - '.github/workflows/probe-dwss-french-0116.yml'
+      - 'scripts/probe_freedict_source_0116.py'
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect current live DWSS site
+      - name: Inspect official FreeDict archive and licence structure
         run: |
           set -euo pipefail
-          python3 scripts/probe_dwss_french_0116.py
+          python3 scripts/probe_freedict_source_0116.py
