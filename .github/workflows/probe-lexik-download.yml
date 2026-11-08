@@ -42,3 +42,54 @@ jobs:
             except Exception as e:
               print("ERROR",type(e).__name__,str(e))
           PY
+
+      - name: Inspect the official LeXiK word-form table, pronunciation coverage and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import gzip, hashlib, urllib.request, collections, unicodedata, io, csv
+          base='https://lexique.lectura.world/telechargements/lexik/'
+          def get(name):
+              with urllib.request.urlopen(base+name,timeout=180) as r: return r.read()
+          sums=get('checksums.sha256').decode('utf-8','replace')
+          print('OFFICIAL_CHECKSUMS')
+          print(sums[:5000])
+          data=get('lexik_formes_mots.tsv.gz')
+          print('FILE_BYTES',len(data),'SHA256',hashlib.sha256(data).hexdigest())
+          with gzip.GzipFile(fileobj=io.BytesIO(data)) as z:
+              f=io.TextIOWrapper(z,encoding='utf-8',newline='')
+              reader=csv.DictReader(f,delimiter='\t')
+              print('COLUMNS',reader.fieldnames)
+              counts=collections.Counter()
+              distinct=set()
+              distinct_with_phone=set()
+              unknown=collections.Counter()
+              phone_examples=[]
+              n=0
+              for row in reader:
+                  n+=1
+                  ortho=row.get('ortho','').strip()
+                  phone=row.get('phone','').strip()
+                  conf=row.get('confiance','').strip() or '(blank)'
+                  counts[(conf,'phone' if phone else 'no_phone')]+=1
+                  if ortho:
+                      distinct.add(ortho.casefold())
+                      if phone: distinct_with_phone.add(ortho.casefold())
+                  if phone:
+                      if len(phone_examples)<30: phone_examples.append((ortho,phone,conf))
+                      normal=unicodedata.normalize('NFC',phone)
+                      stripped=normal
+                      for ch in '[]{}|>*‿.':
+                          stripped=stripped.replace(ch,'')
+                      for ch in stripped:
+                          if ch.isalpha() or unicodedata.category(ch).startswith('M') or ch in "'‑-":
+                              continue
+                          unknown[ch]+=1
+              print('ROWS',n,'UNIQUE_ORTHO',len(distinct),'UNIQUE_WITH_PHONE',len(distinct_with_phone))
+              print('CONFIDENCE_COUNTS')
+              for (conf,kind),v in sorted(counts.items()): print(conf,kind,v)
+              print('OTHER_SYMBOLS',unknown.most_common(80))
+              print('SAMPLE_PHONES')
+              for x in phone_examples: print(repr(x))
+          PY
