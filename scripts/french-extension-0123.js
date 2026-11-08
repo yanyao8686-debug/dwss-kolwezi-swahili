@@ -319,7 +319,6 @@
       $("resultFrenchReading").hidden = false;
       $("dwssFrenchSpellingBlock").hidden = true;
       $("dwssFrenchSpellingBlock").style.setProperty("display", "none", "important");
-      $("dwssFrenchSpellingBlock").style.setProperty("display", "none", "important");
       $("dwssFrenchCorrectionPanel").hidden = false;
       $("translationCorrectionPanel").hidden = true;
       loadLexicon().then(renderMainFrench).catch(error => {
