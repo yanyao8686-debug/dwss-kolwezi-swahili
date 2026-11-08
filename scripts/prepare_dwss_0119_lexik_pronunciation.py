@@ -463,7 +463,7 @@ items = [x for x in items if x != "./french-ipa-index.tsv.gz"]
 for required_asset in ("./french-gloss-index.tsv.gz", "./french-pronunciation-index.json", "./french-LEXIK-LICENSE.txt"):
     if required_asset not in items:
         items.append(required_asset)
-replacement = "const PRECACHE_URLS = [\n" + "".join("  " + json.dumps(x) + ",\n" for x in items) + "];"
+replacement = "const PRECACHE_URLS = [\n" + "".join("  '" + x.replace("'", "\\'") + "',\n" for x in items) + "];"
 sw, n = re.subn(r"const\s+PRECACHE_URLS\s*=\s*\[.*?\];", replacement, sw, count=1, flags=re.S)
 if n != 1:
     fail("Could not update Service Worker precache list.")
