@@ -146,10 +146,10 @@ if f"Version: {OLD_VERSION}" not in version:
     fail("Live site is not 0.9.118; VERSION.txt begins " + repr(version[:100]))
 if "DWSS_AUTO_UPDATE_0_9_119" not in html:
     fail("Live HTML cache marker is not 0.9.119.")
-if "version:'0.9.118'" not in app:
-    fail("Live app.js version is not 0.9.118.")
-if "const APP_VERSION = '0.9.118';" not in sw:
-    fail("Live Service Worker version is not 0.9.118.")
+if "version:'0.9.119'" not in app:
+    fail("Live app.js version is not 0.9.119.")
+if "const APP_VERSION = '0.9.119';" not in sw:
+    fail("Live Service Worker version is not 0.9.119.")
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
 
