@@ -58,8 +58,8 @@ for (const id of [
 ]) {
   assert(html.includes('id="' + id + '"'), 'French extension UI element missing: ' + id);
 }
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_117'), 'HTML auto-update marker not updated');
-assert(!html.includes('DWSS_AUTO_UPDATE_0_9_116'), 'stale HTML auto-update marker remains');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_118'), 'HTML auto-update marker not updated');
+assert(!html.includes('DWSS_AUTO_UPDATE_0_9_117'), 'stale HTML auto-update marker remains');
 assert(html.includes('#resultCard #resultFrenchReading{display:block!important;align-items:initial!important;width:100%!important;min-height:88px!important;height:auto!important;max-height:42vh!important;resize:vertical!important;padding:10px 12px!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;line-height:1.5!important;text-align:left!important;font-family:inherit!important;box-sizing:border-box!important}'), 'French result box dimensions/typography are not identical to the Swahili result box');
 assert(html.includes('#resultCard #resultFrenchReading.empty{display:block!important;font-size:15px!important;font-weight:500!important;color:#93a0b2!important}'), 'French placeholder typography/color does not match Swahili');
 assert(html.includes('#resultCard #resultFrenchReading:focus{outline:2px solid rgba(184,141,46,.35)!important;outline-offset:2px!important}'), 'French focus outline does not match Swahili');
