@@ -42,3 +42,8 @@ ipa_text=ipa_data.decode("utf-8")
 ipa_lines=[line for line in ipa_text.splitlines() if "\t" in line and line.split("\t",1)[0].strip()]
 print("IPA_DICT_BYTES",len(ipa_data),"IPA_DICT_ROWS",len(ipa_lines),"FIRST_ROWS",ipa_lines[:8])
 print("IPA_DICT_SHA256",hashlib.sha256(ipa_data).hexdigest())
+
+tokens=[line.split("\t",1)[0].strip() for line in ipa_lines]
+single=[x for x in tokens if x and not re.search(r"\s",x)]
+print("IPA_SINGLE_FORM_ROWS",len(single),"UNIQUE_CASEFOLD",len(set(x.casefold() for x in single)),"MULTIWORD_ROWS",len(tokens)-len(single))
+print("IPA_UNIQUE_SAMPLE",list(dict.fromkeys(x.casefold() for x in single))[:20])
