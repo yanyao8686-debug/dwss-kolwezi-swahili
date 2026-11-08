@@ -24,6 +24,9 @@ REQUIRED = [
     "manifest.webmanifest", "dictionary-overrides.js", "dictionary.js.gz",
     "supabase.min.js", "cover.webp", "DWSS-Android-Installer.apk",
     "french-extension.js", "french-translation-runtime.js",
+    "french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json",
+    "french-lexicon-sources.txt", "french-LEXIK-LICENSE.txt",
+    "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt", "french-ipa-index.tsv.gz",
 ]
 PROTECTED = [
     "cover.webp", "DWSS-Android-Installer.apk", "dictionary.js.gz",
@@ -131,6 +134,24 @@ for name in REQUIRED:
     if not path.is_file() or path.stat().st_size == 0:
         fail("Required live asset is missing: " + name)
 
+# Copy the on-demand pronunciation files too; they are intentionally not all in the
+# Service Worker precache, but both French lookup and translated-sentence reading need them.
+pron_meta = json.loads((ROOT / "french-pronunciation-index.json").read_text(encoding="utf-8"))
+word_meta = json.loads((ROOT / "french-word-index.json").read_text(encoding="utf-8"))
+pron_keys = pron_meta.get("firstKeys", [])
+word_keys = word_meta.get("prefixes", [])
+if len(pron_keys) < 100 or len(word_keys) < 100:
+    fail("French on-demand shard metadata is incomplete.")
+for folder, keys in (("french-pronunciation-shards", pron_keys), ("french-word-shards", word_keys)):
+    for key in keys:
+        name = f"{folder}/{key}.tsv.gz"
+        target = ROOT / name
+        if not target.is_file():
+            url = urljoin(BASE_URL, name)
+            write_asset(name, fetch_bytes(url + "?dwss_mirror=0_9_121", limit=20 * 1024 * 1024))
+        if not target.is_file() or target.stat().st_size < 20:
+            fail("French on-demand shard is missing or empty: " + name)
+
 paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "sw.js")}
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
 html = paths["index.html"].read_text(encoding="utf-8")
@@ -234,5 +255,6 @@ for name, expected in protected.items():
         fail("Protected asset changed unexpectedly: " + name)
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
+print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
 print("PASS: DWSS 0.9.121 hidden-state fix; one visible translation result field per language; one visible pronunciation instruction per selected query mode.")
 print("PASS: all original translation/query assets, vocabulary, shared sync, cover and Android APK remain byte-identical.")
