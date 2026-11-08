@@ -167,6 +167,23 @@ if "french:String(c.french||'').trim()" not in rebuild:
 if "frenchReadingZh:String(c.frenchReadingZh||'').trim()" not in rebuild:
     fail("Normalized French Chinese-homophone is not preserved in dictionary rebuild.")
 
+# Align the French result textarea with the existing Swahili result textarea.
+# Both already share class="phonetic empty"; remove only French-specific overrides.
+old_result_rule = '#resultCard #resultFrenchReading{display:block;width:100%;min-height:88px;height:auto;max-height:42vh;resize:vertical;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;text-align:left;font-family:inherit;font-weight:760;box-sizing:border-box;border-color:#dce6f6;background:linear-gradient(135deg,#fff8e8,#fff0d2);color:#79664c}'
+new_result_rule = '#resultCard #resultFrenchReading{display:block!important;align-items:initial!important;width:100%!important;min-height:88px!important;height:auto!important;max-height:42vh!important;resize:vertical!important;padding:10px 12px!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;line-height:1.5!important;text-align:left!important;font-family:inherit!important;box-sizing:border-box!important}'
+if html.count(old_result_rule) != 1:
+    fail("French result style anchor mismatch; refusing an uncertain CSS edit.")
+html = html.replace(old_result_rule, new_result_rule, 1)
+old_focus_rule = '#resultCard #resultFrenchReading:focus{outline:none;border-color:#c8a45b;box-shadow:0 0 0 3px rgba(200,164,91,.18)}'
+new_focus_rule = '#resultCard #resultFrenchReading:focus{outline:2px solid rgba(184,141,46,.35)!important;outline-offset:2px!important}'
+if html.count(old_focus_rule) != 1:
+    fail("French result focus style anchor mismatch.")
+html = html.replace(old_focus_rule, new_focus_rule, 1)
+old_placeholder_rule = '#resultCard #resultFrenchReading.empty::placeholder{color:#a89a80;opacity:1}'
+if html.count(old_placeholder_rule) != 1:
+    fail("French result placeholder override anchor mismatch.")
+html = html.replace(old_placeholder_rule, '', 1)
+
 # Bump HTML, app metadata and Service Worker cache as one consistent release.
 html = html.replace(OLD_VERSION, NEW_VERSION)
 if "DWSS_AUTO_UPDATE_0_9_118" not in html:
