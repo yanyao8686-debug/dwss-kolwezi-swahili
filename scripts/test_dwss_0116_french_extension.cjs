@@ -91,7 +91,7 @@ const protectedAssets = {
   'boot.js': 'f311e1e4ded4c17adda95927e5f58bdbd3a47ed872676389462664ee201f1ce5',
   'manifest.webmanifest': '3006fc878f2c0f26dad097c46165cf476817e02560a5fa5d0fe6403f2e6838df',
   'pronunciation-search.js': 'd68ad9bb5cc5a79e98e6147908cdce238e07babef1b26b7db2418be04e8fd30d',
-  'dwss-pronunciation-controls.js': 'b0184efc5cae2c65423e08ba1f909f2baa5e11edf19458fd2e189a6d4c51d52c'
+  'dwss-pronunciation-controls.js': 'b0184efc5cae2c65423b04fa1e909f2baa5e11edf19458fd2e189a6d4c51d52c'
 };
 const crypto = require('crypto');
 for (const [name, expected] of Object.entries(protectedAssets)) {
