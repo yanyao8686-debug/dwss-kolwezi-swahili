@@ -14,7 +14,7 @@ jobs:
   probe:
     runs-on: ubuntu-24.04
     steps:
-      - name: Resolve official LeXiK page and ORTOLANG download links
+      - name: Resolve official LeXiK page and ORTOLANG download links (explicit run)
         shell: bash
         run: |
           set -euo pipefail
