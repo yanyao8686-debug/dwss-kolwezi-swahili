@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """DWSS 0.9.119: replace the undersized IPA list with the full LeXiK word-form index."""
 from __future__ import annotations
-from __future__ import annotations
-import hashlib, json, re, time, gzip, csv, sqlite3, tempfile, collections, io, os
+import hashlib, json, re, time, gzip, csv, sqlite3, tempfile, collections, io, os, unicodedata
 from pypinyin import Style, lazy_pinyin
 from html.parser import HTMLParser
 from pathlib import Path
@@ -22,7 +21,7 @@ REQUIRED = [
     "manifest.webmanifest", "dictionary-overrides.js", "dictionary.js.gz",
     "supabase.min.js", "cover.webp", "DWSS-Android-Installer.apk",
     "french-extension.js", "french-ipa-index.tsv.gz", "french-lexicon-sources.txt",
-    "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt", "french-LEXIK-LICENSE.txt",
+    "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt",
 ]
 PROTECTED = [
     "cover.webp", "DWSS-Android-Installer.apk", "dictionary.js.gz",
@@ -705,6 +704,9 @@ paths["index.html"].write_text(html, encoding="utf-8", newline="\n")
 paths["app.js"].write_text(app, encoding="utf-8", newline="\n")
 paths["sw.js"].write_text(sw, encoding="utf-8", newline="\n")
 
+db.close()
+database_path.unlink(missing_ok=True)
+
 for name, expected in protected.items():
     if sha(ROOT / name) != expected:
         fail("Protected asset changed unexpectedly: " + name)
@@ -738,48 +740,3 @@ if "french:String(c.french||'').trim()" not in rebuild:
     fail("Normalized French spelling is not preserved in dictionary rebuild.")
 if "frenchReadingZh:String(c.frenchReadingZh||'').trim()" not in rebuild:
     fail("Normalized French Chinese-homophone is not preserved in dictionary rebuild.")
-
-# Align the French result textarea with the existing Swahili result textarea.
-# Both already share class="phonetic empty"; remove only French-specific overrides.
-old_result_rule = '#resultCard #resultFrenchReading{display:block;width:100%;min-height:88px;height:auto;max-height:42vh;resize:vertical;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;text-align:left;font-family:inherit;font-weight:760;box-sizing:border-box;border-color:#dce6f6;background:linear-gradient(135deg,#fff8e8,#fff0d2);color:#79664c}'
-new_result_rule = '#resultCard #resultFrenchReading{display:block!important;align-items:initial!important;width:100%!important;min-height:88px!important;height:auto!important;max-height:42vh!important;resize:vertical!important;padding:10px 12px!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;line-height:1.5!important;text-align:left!important;font-family:inherit!important;box-sizing:border-box!important}'
-if html.count(old_result_rule) != 1:
-    fail("French result style anchor mismatch; refusing an uncertain CSS edit.")
-html = html.replace(old_result_rule, new_result_rule, 1)
-old_focus_rule = '#resultCard #resultFrenchReading:focus{outline:none;border-color:#c8a45b;box-shadow:0 0 0 3px rgba(200,164,91,.18)}'
-new_focus_rule = '#resultCard #resultFrenchReading:focus{outline:2px solid rgba(184,141,46,.35)!important;outline-offset:2px!important}'
-if html.count(old_focus_rule) != 1:
-    fail("French result focus style anchor mismatch.")
-html = html.replace(old_focus_rule, new_focus_rule, 1)
-empty_rule = '#resultCard #resultFrenchReading.empty{display:block!important;font-size:15px!important;font-weight:500!important;color:#93a0b2!important}'
-html = html.replace(new_focus_rule, new_focus_rule + empty_rule, 1)
-old_placeholder_rule = '#resultCard #resultFrenchReading.empty::placeholder{color:#a89a80;opacity:1}'
-if html.count(old_placeholder_rule) != 1:
-    fail("French result placeholder override anchor mismatch.")
-html = html.replace(old_placeholder_rule, '', 1)
-
-# Bump HTML, app metadata and Service Worker cache as one consistent release.
-html = html.replace(OLD_VERSION, NEW_VERSION)
-if "DWSS_AUTO_UPDATE_0_9_118" not in html:
-    html = html.replace("DWSS_AUTO_UPDATE_0_9_118", "DWSS_AUTO_UPDATE_0_9_118", 1)
-if "DWSS_AUTO_UPDATE_0_9_118" not in html:
-    fail("New automatic-update marker could not be applied.")
-app = app.replace("version:'0.9.118'", "version:'0.9.118'", 1)
-sw = sw.replace("const APP_VERSION = '0.9.118';", "const APP_VERSION = '0.9.118';", 1)
-version = version.replace("Version: 0.9.118", "Version: 0.9.118", 1)
-version = version.rstrip() + (
-    "\n\n0.9.118: Matched the French result field to the existing Swahili result field typography, color, border, placeholder and focus treatment. "
-    "French translation, pronunciation lookup, shared corrections, the offline French lexicon and all 0.9.118 behavior remain unchanged. "
-    "Cover and Android installer remain byte-identical.\n"
-)
-
-paths["VERSION.txt"].write_text(version, encoding="utf-8", newline="\n")
-paths["index.html"].write_text(html, encoding="utf-8", newline="\n")
-paths["app.js"].write_text(app, encoding="utf-8", newline="\n")
-paths["sw.js"].write_text(sw, encoding="utf-8", newline="\n")
-
-for name, expected in protected.items():
-    if sha(ROOT / name) != expected:
-        fail("Protected asset changed unexpectedly: " + name)
-
-print("PASS: DWSS 0.9.118 preserves french_text through Supabase normalization and dictionary rebuild; French pronunciation field remains intact; all offline French assets, cover and APK unchanged.")
