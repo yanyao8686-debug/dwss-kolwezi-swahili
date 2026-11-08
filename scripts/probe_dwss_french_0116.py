@@ -72,3 +72,15 @@ for term, source in [
     i=source.find(term)
     print(f"--{term}--")
     print(source[max(0,i-1300):min(len(source),i+10500)] if i>=0 else "NOT FOUND")
+
+
+print("===PRECISE CUSTOM WORD API===")
+for needle in ["function validateEntry","function addCustomEntry","function updateCustomEntry","window.KolweziSwahili","$('entryForm').addEventListener","function renderPronunciationLookup"]:
+    i=a.find(needle)
+    if i < 0:
+        print("NOT_FOUND",needle); continue
+    candidates=[x for x in [a.find("\nfunction ",i+3),a.find("\nconst ",i+3),a.find("\nwindow.",i+3),a.find("\ndocument.",i+3)] if x>i]
+    end=min(candidates) if candidates else min(len(a),i+8000)
+    print("CODE_BEGIN",needle)
+    print(a[i:end][:9000])
+    print("CODE_END",needle)
