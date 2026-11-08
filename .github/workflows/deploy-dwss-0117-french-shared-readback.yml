@@ -94,7 +94,7 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           LIVE="$RUNNER_TEMP/dwss-live-0117"
           mkdir -p "$LIVE"
-          for file in VERSION.txt index.html app.js shared-lexicon.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest french-extension.js french-lexicon-sources.txt french-FREEDICT-COPYING.txt french-IPA-LICENSE.txt; do
+          for file in VERSION.txt index.html app.js shared-lexicon.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest dictionary.js.gz dictionary-overrides.js supabase.min.js french-extension.js french-lexicon-sources.txt french-FREEDICT-COPYING.txt french-IPA-LICENSE.txt; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/french-ipa-index.tsv.gz?verify=$GITHUB_SHA" -o "$LIVE/french-ipa-index.tsv.gz"
