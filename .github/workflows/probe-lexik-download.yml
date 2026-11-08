@@ -1,0 +1,44 @@
+name: Probe official LeXiK download endpoints
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-lexik-download.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve official LeXiK page and ORTOLANG download links
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from urllib.request import Request, urlopen
+          urls=[
+            "https://lexique.lectura.world/lexik/telechargement",
+            "https://hdl.handle.net/11403/lexik/v1.0",
+            "https://www.ortolang.fr/market/items/lexik"
+          ]
+          for url in urls:
+            print("\\nPAGE",url)
+            try:
+              req=Request(url,headers={"User-Agent":"Mozilla/5.0 DWSS research"})
+              with urlopen(req,timeout=90) as response:
+                body=response.read(5_000_000).decode("utf-8","replace")
+                print("FINAL",response.geturl(),"STATUS",response.status,"BYTES",len(body))
+              for hit in re.findall(r"""(?:href|src)=["']([^"']+)["']""",body,re.I):
+                if any(x in hit.lower() for x in ("lexik","ortolang","zip","tsv","gzip","download")):
+                  print("LINK",hit[:1000])
+              for line in body.splitlines():
+                if "lexik_formes_mots" in line or "LeXiK-1.0.zip" in line or "30e9a320" in line:
+                  print("MATCH",line[:2000])
+            except Exception as e:
+              print("ERROR",type(e).__name__,str(e))
+          PY
