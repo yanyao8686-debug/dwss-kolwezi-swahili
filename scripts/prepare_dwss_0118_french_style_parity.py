@@ -206,20 +206,17 @@ html = html.replace(focus_end, focus_end + '\n' + empty_rule, 1)
 
 # Bump HTML, app metadata and Service Worker cache as one consistent release.
 html = html.replace(OLD_VERSION, NEW_VERSION)
-if html.count("DWSS_AUTO_UPDATE_0_9_117") == 0:
-    html = html.replace("DWSS_AUTO_UPDATE_0_9_117", "DWSS_AUTO_UPDATE_0_9_117", 1)
-if "DWSS_AUTO_UPDATE_0_9_117" not in html:
+if "DWSS_AUTO_UPDATE_0_9_118" not in html:
+    html = html.replace("DWSS_AUTO_UPDATE_0_9_117", "DWSS_AUTO_UPDATE_0_9_118", 1)
+if "DWSS_AUTO_UPDATE_0_9_118" not in html:
     fail("New automatic-update marker could not be applied.")
 app = app.replace("version:'0.9.117'", "version:'0.9.118'", 1)
 sw = sw.replace("const APP_VERSION = '0.9.117';", "const APP_VERSION = '0.9.118';", 1)
 version = version.replace("Version: 0.9.117", "Version: 0.9.118", 1)
 version = version.rstrip() + (
-    "\n\n0.9.117: Fixed French shared-term readback. The app now retains french_text "
-    "when rows are normalized from Supabase and passes the normalized French spelling "
-    "and French Chinese-homophone into the dictionary index. This ensures saved French "
-    "corrections are visible to other users after cloud sync. All 0.9.117 French UI, "
-    "offline lexicon, IPA data, translation, pronunciation lookup, cover and Android "
-    "installer remain unchanged.\n"
+    "\n\n0.9.118: Matched the French result field to the existing Swahili result field typography, color, border, placeholder and focus treatment. "
+    "French translation, pronunciation lookup, shared corrections, the offline French lexicon and all 0.9.117 behavior remain unchanged. "
+    "Cover and Android installer remain byte-identical.\n"
 )
 
 paths["VERSION.txt"].write_text(version, encoding="utf-8", newline="\n")
