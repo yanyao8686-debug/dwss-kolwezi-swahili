@@ -84,3 +84,14 @@ for needle in ["function validateEntry","function addCustomEntry","function upda
     print("CODE_BEGIN",needle)
     print(a[i:end][:9000])
     print("CODE_END",needle)
+
+print("===SHARED TERM NORMALIZATION===")
+for needle in ["function applySharedTerms","function applySharedPronunciationVariants","sharedCustom=terms.map","sharedCustom = terms.map","const sharedCustom"]:
+    i=a.find(needle)
+    print("--"+needle+"--")
+    if i>=0:
+        candidates=[x for x in [a.find("\nfunction ",i+3),a.find("\nconst ",i+3),a.find("\nwindow.",i+3)] if x>i]
+        end=min(candidates) if candidates else min(len(a),i+9000)
+        print(a[i:end][:9000])
+    else:
+        print("NOT FOUND")
