@@ -94,7 +94,7 @@ jobs:
               for x in phone_examples: print(repr(x))
           PY
 
-      - name: Inspect current Service Worker fetch and precache logic
+      - name: Inspect current Service Worker fetch and precache logic (refresh)
         shell: bash
         run: |
           set -euo pipefail
