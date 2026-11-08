@@ -69,12 +69,13 @@ assert((html.match(/id="dwssPronunciationMode"/g) || []).length === 1, 'Pronunci
 assert(version.includes('Version: 0.9.116'), 'VERSION.txt not updated');
 
 // Correction/sync must preserve French word spelling and sound, not only the Chinese gloss.
-assert(app.includes("french:String(c.french_text||'').trim()"), 'synced French spelling is not merged back into the local lexicon');
+assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French spelling is not read from the cloud row');
+assert(app.includes("french:String(c.french||'').trim()"), 'shared French spelling is not retained during dictionary rebuild');
 assert(app.includes("french=String(data.french||'').trim()"), 'user French spelling is discarded by validation');
 assert(app.includes('french,frenchReadingZh,category:'), 'custom French spelling is not returned from validation');
 assert(shared.includes('french_text: french || null'), 'French spelling is not included in cloud payload');
 assert(shared.includes('normalizeSharedText(t.french_text) === normalizeSharedText(payload.french_text)'), 'cloud duplicate detection does not include French spelling');
-assert(app.includes("frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim()"), 'cloud French pronunciation not loaded');
+assert(app.includes("frenchReadingZh:String(t.french_pronunciation_cn||'').trim()"), 'cloud French pronunciation not loaded');
 
 assert(sw.includes("const APP_VERSION = '0.9.116';"), 'Service Worker not at 0.9.116');
 assert(sw.includes("'./french-extension.js'"), 'French runtime is missing from SW precache');
