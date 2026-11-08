@@ -33,3 +33,12 @@ with tempfile.TemporaryDirectory() as tmp:
        print("ENTRY_XML",ET.tostring(entry,encoding="unicode")[:2200])
     except Exception as e: print("XML_PARSE_ERROR",repr(e))
     break
+
+
+IPA_URL="https://raw.githubusercontent.com/open-dict-data/ipa-dict/master/data/fr_FR.txt"
+req=Request(IPA_URL,headers={"User-Agent":"DWSS-French-Lexicon-Build/0.9.116"})
+with urlopen(req,timeout=120) as response: ipa_data=response.read()
+ipa_text=ipa_data.decode("utf-8")
+ipa_lines=[line for line in ipa_text.splitlines() if "\t" in line and line.split("\t",1)[0].strip()]
+print("IPA_DICT_BYTES",len(ipa_data),"IPA_DICT_ROWS",len(ipa_lines),"FIRST_ROWS",ipa_lines[:8])
+print("IPA_DICT_SHA256",hashlib.sha256(ipa_data).hexdigest())
