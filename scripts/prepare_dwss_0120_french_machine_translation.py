@@ -128,7 +128,7 @@ while queue:
 for name in REQUIRED:
     p = ROOT / name
     if not p.is_file() or p.stat().st_size == 0:
-        fail("Required 0.9.118 file missing: " + name)
+        fail(f"Required {OLD_VERSION} file missing: " + name)
 
 runtime_source = Path("scripts/french-translation-runtime.js")
 if not runtime_source.is_file() or runtime_source.stat().st_size < 10000:
