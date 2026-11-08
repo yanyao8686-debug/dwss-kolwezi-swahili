@@ -36,6 +36,7 @@
   let translateTimer = null;
   let activeRequest = 0;
   let lastChinese = "";
+  let lastMachineFrench = "";
   let composing = false;
   let grammarButton = null;
   let grammarDetails = null;
@@ -209,13 +210,15 @@
       output.value = "";
       setMeta("");
       lastChinese = "";
+      lastMachineFrench = "";
       return;
     }
-    if (chinese === lastChinese && spelling.value.trim()) return;
+    if (chinese === lastChinese && spelling.value.trim() && spelling.value.trim() === lastMachineFrench) return;
     lastChinese = chinese;
     const requestId = ++activeRequest;
     spelling.value = "";
     output.value = "";
+    lastMachineFrench = "";
     setMeta("正在进行中文 → 法语整句翻译…");
     setGrammarStatus("正在生成完整法语句子…", "info");
     resetGrammarDetails();
@@ -230,6 +233,7 @@
       const french = String(data.translatedText || "").trim();
       if (!french) throw new Error("翻译服务没有返回法语原文。");
       spelling.value = french;
+      lastMachineFrench = french;
       setGrammarStatus("整句已生成；建议点击“检查法语语法”进行第二步校对。", "info");
       await renderPronunciation(french, requestId);
       if (requestId !== activeRequest) return;
@@ -268,6 +272,7 @@
       const matches = Array.isArray(result.matches) ? result.matches : [];
       if (corrected !== french) {
         spelling.value = corrected;
+        lastMachineFrench = corrected;
         lastChinese = String($("inputText") && $("inputText").value || "").trim();
         await renderPronunciation(corrected, activeRequest);
       }
@@ -306,7 +311,7 @@
     grammarButton.addEventListener("click", runGrammarCheck);
     const note = document.createElement("small");
     note.style.cssText = "font-size:12px;opacity:.82";
-    note.innerHTML = '手动校对服务：<a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a>。校对文本会发送给第三方服务，请勿输入矿区敏感信息。';
+    note.innerHTML = '使用免密公共翻译节点和第三方法语校对；文本会发送到外部服务，请勿输入矿区或个人敏感信息。校对由 <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> 提供。';
     panel.appendChild(grammarButton);
     panel.appendChild(note);
     anchor.insertAdjacentElement("afterend", panel);
@@ -333,6 +338,7 @@
     spelling.addEventListener("input", () => {
       if (!isFrenchMode()) return;
       const french = String(spelling.value || "").trim();
+      lastMachineFrench = "";
       const requestId = ++activeRequest;
       if (french) {
         setMeta("正在根据已编辑的法语原文生成词形 IPA…");
