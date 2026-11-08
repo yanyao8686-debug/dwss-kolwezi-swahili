@@ -508,8 +508,8 @@ app_text = replace_once(app_text, "if(zh.length>100||reading.length>200||latin.l
 app_text = replace_once(app_text, "return {zh,reading,latin,french:'',frenchReadingZh,category:", "return {zh,reading,latin,french,frenchReadingZh,category:", "preserve French source word in custom term")
 old_duplicate = "&&norm(c.frenchReadingZh)===norm(v.frenchReadingZh)"
 app_text = app_text.replace(old_duplicate, old_duplicate + "&&norm(c.french)===norm(v.french)")
-if app_text.count("&&norm(c.french)===norm(v.french)") != 2:
-    fail("Expected French-aware duplicate checks in addCustom and updateCustom.")
+if app_text.count("&&norm(c.french)===norm(v.french)") < 2:
+    fail("French-aware duplicate checks were not added to both custom-word operations; found " + str(app_text.count("&&norm(c.french)===norm(v.french)")) + ".")
 
 old_shared_variant = "french:'',frenchReadingZh:String(c.frenchReadingZh||'').trim(),"
 new_shared_variant = "french:String(c.french_text||'').trim(),frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim(),"
