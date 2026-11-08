@@ -95,3 +95,5 @@ for needle in ["function applySharedTerms","function applySharedPronunciationVar
         print(a[i:end][:9000])
     else:
         print("NOT FOUND")
+
+# Probe rerun marker: inspect the now-deployed 0.9.116 French shared-term read path.
