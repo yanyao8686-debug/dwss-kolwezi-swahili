@@ -37,6 +37,7 @@
   let activeRequest = 0;
   let lastChinese = "";
   let lastMachineFrench = "";
+  let pendingChinese = "";
   let composing = false;
   let grammarButton = null;
   let grammarDetails = null;
@@ -209,12 +210,16 @@
       spelling.value = "";
       output.value = "";
       setMeta("");
+      activeRequest += 1;
+      pendingChinese = "";
       lastChinese = "";
       lastMachineFrench = "";
       return;
     }
+    if (pendingChinese === chinese) return;
     if (chinese === lastChinese && spelling.value.trim() && spelling.value.trim() === lastMachineFrench) return;
     lastChinese = chinese;
+    pendingChinese = chinese;
     const requestId = ++activeRequest;
     spelling.value = "";
     output.value = "";
@@ -229,7 +234,11 @@
         translationCache.set(chinese, data);
         if (translationCache.size > 100) translationCache.delete(translationCache.keys().next().value);
       }
-      if (requestId !== activeRequest || !isFrenchMode() || String(input.value || "").trim() !== chinese) return;
+      if (requestId !== activeRequest) return;
+      if (!isFrenchMode() || String(input.value || "").trim() !== chinese) {
+        pendingChinese = "";
+        return;
+      }
       const french = String(data.translatedText || "").trim();
       if (!french) throw new Error("翻译服务没有返回法语原文。");
       spelling.value = french;
@@ -242,8 +251,10 @@
       const meta = $("dwssFrenchIpaMeta");
       if (meta) meta.textContent = "法语整句来源：" + providerLabel + cachedLabel + "。语法校对尚未执行；中文近似音为 IPA 自动转写。" +
         (meta.textContent ? "\n" + meta.textContent : "");
+      if (requestId === activeRequest) pendingChinese = "";
     } catch (error) {
       if (requestId !== activeRequest) return;
+      pendingChinese = "";
       setGrammarStatus("在线整句翻译失败：" + String(error && error.message || error) +
         "。当前如有旧的词典拼接内容，只能作单词参考，不能视为语法正确的法语句子。", "error");
       setMeta("在线翻译节点暂不可用。本次不把逐词拼接结果冒充完整法语翻译。请保持联网后重试。");
@@ -251,7 +262,13 @@
   }
   function scheduleTranslation(delay) {
     window.clearTimeout(translateTimer);
-    if (!isFrenchMode()) return;
+    if (!isFrenchMode()) {
+      if (pendingChinese) {
+        pendingChinese = "";
+        activeRequest += 1;
+      }
+      return;
+    }
     translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 700 : delay);
   }
   async function runGrammarCheck() {
@@ -337,7 +354,7 @@
     const frenchMode = $("dwssMainFrMode");
     if (frenchMode) frenchMode.addEventListener("click", () => scheduleTranslation(100));
     const swMode = $("dwssMainSwMode");
-    if (swMode) swMode.addEventListener("click", () => { window.clearTimeout(translateTimer); activeRequest += 1; });
+    if (swMode) swMode.addEventListener("click", () => { window.clearTimeout(translateTimer); pendingChinese = ""; activeRequest += 1; });
     const translateButton = $("translateBtn");
     if (translateButton) translateButton.addEventListener("click", () => scheduleTranslation(100));
     const clearButton = $("clearBtn");
@@ -345,6 +362,7 @@
     spelling.addEventListener("input", () => {
       if (!isFrenchMode()) return;
       const french = String(spelling.value || "").trim();
+      pendingChinese = "";
       lastMachineFrench = "";
       const requestId = ++activeRequest;
       if (french) {
