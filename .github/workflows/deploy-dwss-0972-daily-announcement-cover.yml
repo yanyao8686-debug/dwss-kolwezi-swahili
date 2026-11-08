@@ -1,11 +1,11 @@
-name: Temporary DWSS French extension architecture probe
+name: Probe official French-Chinese lexicon source
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/deploy-dwss-0972-daily-announcement-cover.yml'
-      - 'scripts/probe_dwss_french_0116.py'
+      - 'scripts/probe_freedict_source_0116.py'
   workflow_dispatch:
 
 permissions:
@@ -19,4 +19,4 @@ jobs:
       - name: Inspect current live DWSS site
         run: |
           set -euo pipefail
-          python3 scripts/probe_dwss_french_0116.py
+          python3 scripts/probe_freedict_source_0116.py
