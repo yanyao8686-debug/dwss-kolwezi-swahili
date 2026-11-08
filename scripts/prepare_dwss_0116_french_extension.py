@@ -511,9 +511,35 @@ app_text = app_text.replace(old_duplicate, old_duplicate + "&&norm(c.french)===n
 if app_text.count("&&norm(c.french)===norm(v.french)") < 2:
     fail("French-aware duplicate checks were not added to both custom-word operations; found " + str(app_text.count("&&norm(c.french)===norm(v.french)")) + ".")
 
-old_shared_variant = "french:'',frenchReadingZh:String(c.frenchReadingZh||'').trim(),"
-new_shared_variant = "french:String(c.french_text||'').trim(),frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim(),"
-app_text = replace_once(app_text, old_shared_variant, new_shared_variant, "read synced French spelling and pronunciation from cloud terms")
+shared_start = app_text.find("// Shared terms supplement the built-in and personal dictionaries.")
+shared_end = app_text.find("for(const v of sharedPronunciationVariants", shared_start)
+if shared_start < 0 or shared_end < 0:
+    fail("Could not locate the cloud-shared dictionary merge block.")
+shared_chunk = app_text[shared_start:shared_end]
+# Preserve the French source expression and user-corrected Chinese sound returned by shared_terms.
+french_property = re.search(r"\bfrench\s*:\s*''", shared_chunk)
+if not french_property:
+    fail("Cloud-shared dictionary merge has no empty French property anchor.")
+shared_chunk = shared_chunk[:french_property.start()] + "french:String(c.french_text||'').trim()" + shared_chunk[french_property.end():]
+reading_property = re.search(r"\bfrenchReadingZh\s*:\s*String\(c\.frenchReadingZh\s*\|\|\s*''\)\.trim\(\)", shared_chunk)
+if reading_property:
+    shared_chunk = shared_chunk[:reading_property.start()] + "frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim()" + shared_chunk[reading_property.end():]
+else:
+    # Some release variants map the French homophone under a different alias.
+    french_field_line = re.search(r"(french\s*:\s*String\(c\.french_text\|\|''\)\.trim\(\)\s*,)", shared_chunk)
+    if not french_field_line:
+        fail("Cloud-shared French spelling property could not be verified after patch.")
+    if "frenchReadingZh:" not in shared_chunk:
+        insert_at = french_field_line.end()
+        shared_chunk = shared_chunk[:insert_at] + "frenchReadingZh:String(c.french_pronunciation_cn||'').trim()," + shared_chunk[insert_at:]
+    else:
+        shared_chunk = re.sub(
+            r"frenchReadingZh\s*:\s*[^,}]+",
+            "frenchReadingZh:String(c.french_pronunciation_cn||'').trim()",
+            shared_chunk,
+            count=1
+        )
+app_text = app_text[:shared_start] + shared_chunk + app_text[shared_end:]
 
 # Personal-term cloud payload must retain French spelling as well as its Chinese homophone.
 old_payload_anchor = "const frenchReading = String(entry.frenchReadingZh || '').trim();\n  const latin = String(entry.latin || '').trim();"
