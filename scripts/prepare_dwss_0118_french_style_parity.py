@@ -179,6 +179,8 @@ new_focus_rule = '#resultCard #resultFrenchReading:focus{outline:2px solid rgba(
 if html.count(old_focus_rule) != 1:
     fail("French result focus style anchor mismatch.")
 html = html.replace(old_focus_rule, new_focus_rule, 1)
+empty_rule = '#resultCard #resultFrenchReading.empty{display:block!important;font-size:15px!important;font-weight:500!important;color:#93a0b2!important}'
+html = html.replace(new_focus_rule, new_focus_rule + empty_rule, 1)
 old_placeholder_rule = '#resultCard #resultFrenchReading.empty::placeholder{color:#a89a80;opacity:1}'
 if html.count(old_placeholder_rule) != 1:
     fail("French result placeholder override anchor mismatch.")
