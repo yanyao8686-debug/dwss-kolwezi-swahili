@@ -586,7 +586,7 @@ new_loader = r'''  async function decompressGzip(response, label) {
   }
 
 '''
-ext = ext.slice(0, load_start) + new_loader + ext.slice(load_end)
+ext = ext[:load_start] + new_loader + ext[load_end:]
 # Main translation is based on the small bilingual glossary, not pronunciation shard availability.
 ext = ext.replace("if (!rows.length)", "if (!meaningRows.length)")
 ext = ext.replace("if (!rows.length) loadLexicon()", "if (!meaningRows.length) loadLexicon()")
