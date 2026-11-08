@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -142,13 +143,32 @@ pron_keys = pron_meta.get("firstKeys", [])
 word_keys = word_meta.get("prefixes", [])
 if len(pron_keys) < 100 or len(word_keys) < 100:
     fail("French on-demand shard metadata is incomplete.")
+shard_downloads = []
 for folder, keys in (("french-pronunciation-shards", pron_keys), ("french-word-shards", word_keys)):
     for key in keys:
         name = f"{folder}/{key}.tsv.gz"
         target = ROOT / name
-        if not target.is_file():
-            url = urljoin(BASE_URL, name)
-            write_asset(name, fetch_bytes(url + "?dwss_mirror=0_9_121", limit=20 * 1024 * 1024))
+        if target.is_file() and target.stat().st_size >= 20:
+            continue
+        url = urljoin(BASE_URL, name) + "?dwss_mirror=0_9_121"
+        shard_downloads.append((name, url))
+
+def download_shard(item):
+    name, url = item
+    return name, fetch_bytes(url, limit=20 * 1024 * 1024)
+
+# Bounded concurrency speeds up the many small immutable shard downloads without
+# overwhelming GitHub Pages or retaining the complete dataset in memory.
+with ThreadPoolExecutor(max_workers=12) as executor:
+    futures = [executor.submit(download_shard, item) for item in shard_downloads]
+    for future in as_completed(futures):
+        name, data = future.result()
+        write_asset(name, data)
+
+for folder, keys in (("french-pronunciation-shards", pron_keys), ("french-word-shards", word_keys)):
+    for key in keys:
+        name = f"{folder}/{key}.tsv.gz"
+        target = ROOT / name
         if not target.is_file() or target.stat().st_size < 20:
             fail("French on-demand shard is missing or empty: " + name)
 
