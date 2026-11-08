@@ -1,7 +1,6 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { JSDOM } = require('jsdom');
 const root = path.resolve(process.env.DWSS_PUBLIC_DIR || 'public');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
@@ -55,9 +54,21 @@ assert(sw.includes("const APP_VERSION = '0.9.121';"), 'Service Worker cache vers
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_121'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.121'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(app.includes("french:String(t.french_text||'').trim()'), 'shared French sync ingestion changed');
+assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(fs.existsSync(path.join(root, 'french-extension.js')), 'French pronunciation extension missing');
 assert(fs.existsSync(path.join(root, 'french-translation-runtime.js')), 'French sentence translation runtime missing');
+const pronMeta = JSON.parse(read('french-pronunciation-index.json'));
+const wordMeta = JSON.parse(read('french-word-index.json'));
+for (const key of pronMeta.firstKeys) {
+  assert(fs.existsSync(path.join(root, 'french-pronunciation-shards', key + '.tsv.gz')),
+    'French reverse-pronunciation shard missing: ' + key);
+}
+for (const key of wordMeta.prefixes) {
+  assert(fs.existsSync(path.join(root, 'french-word-shards', key + '.tsv.gz')),
+    'French translated-word pronunciation shard missing: ' + key);
+}
+assert(fs.existsSync(path.join(root, 'french-gloss-index.tsv.gz')), 'French-Chinese gloss index missing');
+assert(fs.existsSync(path.join(root, 'french-LEXIK-LICENSE.txt')), 'LeXiK licence file missing');
 
 for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const data = fs.readFileSync(path.join(root, name));
