@@ -357,6 +357,12 @@
     });
     if (isFrenchMode()) scheduleTranslation(150);
   }
+  window.DWSSFrenchMachineTranslationController = Object.freeze({
+    translateCurrentChinese,
+    scheduleTranslation,
+    isFrenchMode
+  });
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind, { once: true });
   else bind();
 })(window, document);
