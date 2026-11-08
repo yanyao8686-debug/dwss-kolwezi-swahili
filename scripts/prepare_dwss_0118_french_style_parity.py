@@ -128,7 +128,7 @@ while queue:
 for name in REQUIRED:
     p = ROOT / name
     if not p.is_file() or p.stat().st_size == 0:
-        fail("Required 0.9.116 file missing: " + name)
+        fail("Required 0.9.117 file missing: " + name)
 
 paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "sw.js", "shared-lexicon.js")}
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
@@ -138,13 +138,13 @@ sw = paths["sw.js"].read_text(encoding="utf-8")
 shared = paths["shared-lexicon.js"].read_text(encoding="utf-8")
 
 if f"Version: {OLD_VERSION}" not in version:
-    fail("Live site is not 0.9.116; VERSION.txt begins " + repr(version[:100]))
-if "DWSS_AUTO_UPDATE_0_9_116" not in html:
-    fail("Live HTML cache marker is not 0.9.116.")
-if "version:'0.9.116'" not in app:
-    fail("Live app.js version is not 0.9.116.")
-if "const APP_VERSION = '0.9.116';" not in sw:
-    fail("Live Service Worker version is not 0.9.116.")
+    fail("Live site is not 0.9.117; VERSION.txt begins " + repr(version[:100]))
+if "DWSS_AUTO_UPDATE_0_9_117" not in html:
+    fail("Live HTML cache marker is not 0.9.117.")
+if "version:'0.9.117'" not in app:
+    fail("Live app.js version is not 0.9.117.")
+if "const APP_VERSION = '0.9.117';" not in sw:
+    fail("Live Service Worker version is not 0.9.117.")
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
 
@@ -207,17 +207,17 @@ html = html.replace(focus_end, focus_end + '\n' + empty_rule, 1)
 # Bump HTML, app metadata and Service Worker cache as one consistent release.
 html = html.replace(OLD_VERSION, NEW_VERSION)
 if html.count("DWSS_AUTO_UPDATE_0_9_117") == 0:
-    html = html.replace("DWSS_AUTO_UPDATE_0_9_116", "DWSS_AUTO_UPDATE_0_9_117", 1)
+    html = html.replace("DWSS_AUTO_UPDATE_0_9_117", "DWSS_AUTO_UPDATE_0_9_117", 1)
 if "DWSS_AUTO_UPDATE_0_9_117" not in html:
     fail("New automatic-update marker could not be applied.")
-app = app.replace("version:'0.9.116'", "version:'0.9.117'", 1)
-sw = sw.replace("const APP_VERSION = '0.9.116';", "const APP_VERSION = '0.9.117';", 1)
-version = version.replace("Version: 0.9.116", "Version: 0.9.117", 1)
+app = app.replace("version:'0.9.117'", "version:'0.9.118'", 1)
+sw = sw.replace("const APP_VERSION = '0.9.117';", "const APP_VERSION = '0.9.118';", 1)
+version = version.replace("Version: 0.9.117", "Version: 0.9.118", 1)
 version = version.rstrip() + (
     "\n\n0.9.117: Fixed French shared-term readback. The app now retains french_text "
     "when rows are normalized from Supabase and passes the normalized French spelling "
     "and French Chinese-homophone into the dictionary index. This ensures saved French "
-    "corrections are visible to other users after cloud sync. All 0.9.116 French UI, "
+    "corrections are visible to other users after cloud sync. All 0.9.117 French UI, "
     "offline lexicon, IPA data, translation, pronunciation lookup, cover and Android "
     "installer remain unchanged.\n"
 )
