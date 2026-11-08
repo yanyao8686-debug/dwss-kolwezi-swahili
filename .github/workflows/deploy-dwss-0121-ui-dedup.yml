@@ -1,0 +1,83 @@
+name: Deploy DWSS 0.9.121 hidden-state UI fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0121-ui-dedup.yml'
+      - 'scripts/prepare_dwss_0121_ui_dedup.py'
+      - 'scripts/test_dwss_0121_ui_dedup.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0121-ui-dedup
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mirror current site and fix hidden states
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/prepare_dwss_0121_ui_dedup.py
+          python3 scripts/prepare_dwss_0121_ui_dedup.py
+          python3 -m py_compile scripts/prepare_dwss_0121_ui_dedup.py
+          node --check public/app.js
+          node --check public/sw.js
+          node --check public/french-extension.js
+          node --check public/french-translation-runtime.js
+
+      - name: Run DOM and regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --version
+          npm install --no-save --no-package-lock jsdom@26.1.0
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0121_ui_dedup.cjs
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.121
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live 0.9.121 UI fix and protected assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0121"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js sw.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          grep -Fxq 'Version: 0.9.121' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_121' "$LIVE/index.html"
+          grep -Fq 'version:'\''0.9.121'\''' "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.121';" "$LIVE/sw.js"
+          grep -Fq '#resultCard #resultFrenchReading[hidden]' "$LIVE/index.html"
+          grep -Fq '#pronunciation .pronunciation-lookup-card .pronunciation-lookup-instruction[hidden]' "$LIVE/index.html"
+          node --check "$LIVE/app.js"
+          node --check "$LIVE/sw.js"
+          node --check "$LIVE/french-extension.js"
+          node --check "$LIVE/french-translation-runtime.js"
+          test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
+          test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          echo 'PASS: live DWSS 0.9.121 hidden-state CSS, app/SW versioning, French runtime, cover and original Android installer verified.'
