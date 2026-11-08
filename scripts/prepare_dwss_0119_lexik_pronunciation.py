@@ -595,10 +595,11 @@ ext = ext.replace("if (rows.length) activeMeaningIndex = createMeaningIndex();",
 ext = ext.replace('ipa.push(record.word + " /" + record.ipa + "/");',
                   'ipa.push(record.word + " /" + record.ipa + "/ [" + confidenceLabel(record.confidence) + "]");')
 # Replace the old in-memory range search with lazy pinyin-key shards.
-const oldRangeStart = ext.indexOf("  function nearFirstKeys(first, engine) {");
-const oldRangeEnd = ext.indexOf("  function customQueryCandidates()", oldRangeStart);
-if (oldRangeStart < 0 || oldRangeEnd < 0) fail("Cannot locate legacy pronunciation candidate range functions.");
-const newRange = r'''  function nearFirstKeys(first, engine) {
+old_range_start = ext.find("  function nearFirstKeys(first, engine) {")
+old_range_end = ext.find("  function customQueryCandidates()", old_range_start)
+if old_range_start < 0 or old_range_end < 0:
+    fail("Cannot locate legacy pronunciation candidate range functions.")
+new_range = r'''  function nearFirstKeys(first, engine) {
     if (firstKeySet.has(first)) return [first];
     const keys = [];
     for (const key of firstKeys) {
@@ -638,7 +639,7 @@ const newRange = r'''  function nearFirstKeys(first, engine) {
   }
 
 '''
-ext = ext.slice(0, oldRangeStart) + newRange + ext.slice(oldRangeEnd)
+ext = ext[:old_range_start] + new_range + ext[old_range_end:]
 # Query now loads only the first-syllable shards which can match this input.
 ext = ext.replace("const candidates = rowsForFirst(firstKeys, 16000);",
                   "const shardLines = await Promise.all(firstKeys.map(loadPronunciationShard));\n    const candidates = rowsForShards(shardLines, 24000);")
@@ -651,7 +652,7 @@ ext = ext.replace("const label = score >= 99 ? \"读音一致\" : \"近似读音
 # Existing refresh logic must not depend on the former whole-table array.
 ext = ext.replace("if (rows.length) activeMeaningIndex = createMeaningIndex();", "if (meaningRows.length) activeMeaningIndex = createMeaningIndex();")
 # Fail closed if any old whole-table fetch/range logic remains.
-if (ext.includes("firstRanges") || ext.includes("rowsForFirst") || ext.includes("const DATA_URL =")):
+if "firstRanges" in ext or "rowsForFirst" in ext or "const DATA_URL =" in ext:
     fail("Old monolithic French data loader remains after sharding patch.")
 (ROOT / "french-extension.js").write_text(ext, encoding="utf-8", newline="\n")
 
