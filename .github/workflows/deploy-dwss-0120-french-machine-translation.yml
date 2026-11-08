@@ -78,7 +78,7 @@ jobs:
           dup=[k for k,v in Counter(audit.ids).items() if v>1]
           if dup: raise SystemExit('Duplicate HTML IDs: '+str(dup))
           if audit.tabs[:2] != ['pronunciation','saved']: raise SystemExit('Original primary navigation changed')
-          for token in ('id="resultFrenchReading"','id="pronunciationFrenchSearch"','id="dwssMainLanguagePicker"','id="dwssPronunciationMode"','id="dwssSaveFrenchCorrection"','DWSS_AUTO_UPDATE_0_9_119'):
+          for token in ('id="resultFrenchReading"','id="pronunciationFrenchSearch"','id="dwssMainLanguagePicker"','id="dwssPronunciationMode"','id="dwssSaveFrenchCorrection"','DWSS_AUTO_UPDATE_0_9_120'):
               if token not in html: raise SystemExit('French feature or version marker missing: '+token)
           for token in ("french:String(t.french_text||'').trim()","french:String(c.french||'').trim()","frenchReadingZh:String(c.frenchReadingZh||'').trim()"):
               if token not in app: raise SystemExit('French shared readback mapping missing: '+token)
@@ -117,7 +117,7 @@ jobs:
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/cover.webp?verify=$GITHUB_SHA" -o "$LIVE/cover.webp"
           curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
           grep -Fxq 'Version: 0.9.120' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_119' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_120' "$LIVE/index.html"
           grep -Fq "version:'0.9.120'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.120';" "$LIVE/sw.js"
           grep -Fq "'./french-gloss-index.tsv.gz'" "$LIVE/sw.js"
