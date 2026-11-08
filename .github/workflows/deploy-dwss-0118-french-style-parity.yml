@@ -68,7 +68,7 @@ jobs:
           dup=[k for k,v in Counter(audit.ids).items() if v>1]
           if dup: raise SystemExit('Duplicate HTML IDs: '+str(dup))
           if audit.tabs[:2] != ['pronunciation','saved']: raise SystemExit('Primary navigation changed')
-          for token in ('id="resultFrenchReading"','id="pronunciationFrenchSearch"','id="dwssMainLanguagePicker"','id="dwssPronunciationMode"','id="dwssSaveFrenchCorrection"','DWSS_AUTO_UPDATE_0_9_117'):
+          for token in ('id="resultFrenchReading"','id="pronunciationFrenchSearch"','id="dwssMainLanguagePicker"','id="dwssPronunciationMode"','id="dwssSaveFrenchCorrection"','DWSS_AUTO_UPDATE_0_9_118'):
               if token not in html: raise SystemExit('French feature or version marker missing: '+token)
           for token in ("french:String(t.french_text||'').trim()","french:String(c.french||'').trim()","frenchReadingZh:String(c.frenchReadingZh||'').trim()"):
               if token not in app: raise SystemExit('French shared readback mapping missing: '+token)
@@ -101,7 +101,7 @@ jobs:
           curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/cover.webp?verify=$GITHUB_SHA" -o "$LIVE/cover.webp"
           curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
           grep -Fxq 'Version: 0.9.118' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_117' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_118' "$LIVE/index.html"
           grep -Fq "version:'0.9.118'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.118';" "$LIVE/sw.js"
           grep -Fq "french:String(t.french_text||'').trim()" "$LIVE/app.js"
@@ -120,4 +120,4 @@ jobs:
           gzip -t "$LIVE/french-ipa-index.tsv.gz"
           rm -rf public && mkdir -p public && cp "$LIVE/"* public/
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0118_french_style_parity.cjs
-          echo 'PASS: live DWSS 0.9.118 French shared spelling and Chinese-homophone are read back correctly; 0.9.116 UI/data pack, cover and APK preserved.'
+          echo 'PASS: live DWSS 0.9.118 exact French/Swahili result styling, translation, pronunciation, shared corrections, offline lexicon, cover and APK verified.'
