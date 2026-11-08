@@ -26,6 +26,22 @@
   function exportTools() {
     return Object.freeze({ normalizeFrenchWord, wordPrefix });
   }
+  function formatCombinedResult(french, reading) {
+    return "法语原文：" + String(french || "").trim() + "\\n中文近似音：" + String(reading || "").trim();
+  }
+  function parseCombinedResult(value) {
+    const text = String(value || "");
+    const marker = "\\n中文近似音：";
+    const index = text.indexOf(marker);
+    if (index < 0) return { french: "", reading: text.trim() };
+    const french = text.slice(0, index).replace(/^法语原文：/, "").trim();
+    const reading = text.slice(index + marker.length).trim();
+    return { french, reading };
+  }
+  window.DWSSFrenchCombinedResult = Object.freeze({
+    format: formatCombinedResult,
+    parse: parseCombinedResult
+  });
   window.DWSSFrenchMachineTranslation = exportTools();
   if (!document || !document.getElementById) return;
 
@@ -187,10 +203,10 @@
     try {
       const pronunciation = await buildPhraseReading(french);
       if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
-      result.value = pronunciation.reading;
+      result.value = formatCombinedResult(french, pronunciation.reading);
       setMeta("");
     } catch (_) {
-      result.value = "";
+      result.value = formatCombinedResult(french, "近似音暂不可用");
       setGrammarStatus("法语近似音暂不可用。", "error");
     }
   }
@@ -291,13 +307,45 @@
       grammarButton.textContent = "检查法语语法";
     }
   }
+  function mirrorSwahiliResultStyle() {
+    const source = $("resultReading");
+    const target = $("resultFrenchReading");
+    if (!source || !target) return;
+    const empty = target.classList.contains("empty");
+    target.className = source.className;
+    target.classList.toggle("empty", empty);
+    target.rows = source.rows || target.rows || 4;
+    target.cols = source.cols || target.cols || 20;
+    if (typeof window.getComputedStyle !== "function") return;
+    const computed = window.getComputedStyle(source);
+    const props = [
+      "width","min-height","height","box-sizing","padding","border","border-radius",
+      "background-color","color","font-family","font-size","font-weight","line-height",
+      "letter-spacing","text-align","resize","box-shadow","outline","margin",
+      "white-space","overflow-wrap"
+    ];
+    for (const prop of props) {
+      const value = computed.getPropertyValue(prop);
+      if (value) target.style.setProperty(prop, value, computed.getPropertyPriority(prop));
+    }
+  }
   function addGrammarControls() {
     if (grammarButton) return;
-    const anchor = $("dwssFrenchIpaMeta");
-    if (!anchor || !anchor.parentElement) return;
-    anchor.textContent = "";
-    anchor.hidden = true;
-    anchor.style.display = "none";
+    const output = $("resultFrenchReading");
+    if (!output || !output.parentElement) return;
+    mirrorSwahiliResultStyle();
+    output.placeholder = "法语原文：\n中文近似音：";
+    const sourceBlock = $("dwssFrenchSpellingBlock");
+    if (sourceBlock) {
+      sourceBlock.hidden = true;
+      sourceBlock.style.setProperty("display", "none", "important");
+    }
+    const meta = $("dwssFrenchIpaMeta");
+    if (meta) {
+      meta.textContent = "";
+      meta.hidden = true;
+      meta.style.setProperty("display", "none", "important");
+    }
     const panel = document.createElement("div");
     panel.className = "dwss-fr-machine-tools";
     panel.style.cssText = "display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:6px 0 2px";
@@ -319,7 +367,7 @@
     panel.appendChild(grammarStatus);
     panel.appendChild(grammarButton);
     panel.appendChild(note);
-    anchor.insertAdjacentElement("afterend", panel);
+    output.insertAdjacentElement("afterend", panel);
   }
   function bind() {
     addGrammarControls();
@@ -342,16 +390,31 @@
       const french = String(spelling.value || "").trim();
       setGrammarStatus("");
       pendingChinese = "";
-      lastMachineFrench = "";
+      lastMachineFrench = french;
       const requestId = ++activeRequest;
       if (french) {
-        setMeta("正在根据已编辑的法语原文生成词形 IPA…");
         window.setTimeout(() => renderPronunciation(french, requestId), 260);
       } else {
         $("resultFrenchReading").value = "";
         setMeta("");
       }
     });
+    const combinedOutput = $("resultFrenchReading");
+    let combinedEditTimer = null;
+    if (combinedOutput) {
+      combinedOutput.addEventListener("input", () => {
+        const parsed = parseCombinedResult(combinedOutput.value);
+        const french = String(parsed.french || "").trim();
+        if (!french || french === String(spelling.value || "").trim()) return;
+        spelling.value = french;
+        lastMachineFrench = french;
+        pendingChinese = "";
+        setGrammarStatus("");
+        const requestId = ++activeRequest;
+        window.clearTimeout(combinedEditTimer);
+        combinedEditTimer = window.setTimeout(() => renderPronunciation(french, requestId), 420);
+      });
+    }
     if (isFrenchMode()) scheduleTranslation(150);
   }
   window.DWSSFrenchMachineTranslationController = Object.freeze({
