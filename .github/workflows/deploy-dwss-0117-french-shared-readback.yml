@@ -1,0 +1,123 @@
+name: Deploy DWSS 0.9.117 French shared spelling readback fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0117-french-shared-readback.yml'
+      - 'scripts/prepare_dwss_0117_french_shared_readback.py'
+      - 'scripts/test_dwss_0117_french_shared_readback.cjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0117-french-shared-readback
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Fix cloud French spelling and pronunciation readback; preserve all other live assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_dwss_0117_french_shared_readback.py
+          node --check public/app.js
+          node --check public/shared-lexicon.js
+          node --check public/sw.js
+          node --check public/french-extension.js
+          node --check scripts/test_dwss_0117_french_shared_readback.cjs
+          gzip -t public/french-ipa-index.tsv.gz
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0117_french_shared_readback.cjs
+          touch public/.nojekyll
+
+      - name: Audit unique IDs, French UI and normalized cloud-field handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import json
+          root=Path('public')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          app=(root/'app.js').read_text(encoding='utf-8')
+          class Audit(HTMLParser):
+              def __init__(self): super().__init__(); self.ids=[]; self.tabs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if a.get('id'): self.ids.append(a['id'])
+                  if tag=='button' and a.get('data-tab'): self.tabs.append(a['data-tab'])
+          audit=Audit(); audit.feed(html)
+          dup=[k for k,v in Counter(audit.ids).items() if v>1]
+          if dup: raise SystemExit('Duplicate HTML IDs: '+str(dup))
+          if audit.tabs[:2] != ['pronunciation','saved']: raise SystemExit('Primary navigation changed')
+          for token in ('id="resultFrenchReading"','id="pronunciationFrenchSearch"','id="dwssMainLanguagePicker"','id="dwssPronunciationMode"','id="dwssSaveFrenchCorrection"','DWSS_AUTO_UPDATE_0_9_117'):
+              if token not in html: raise SystemExit('French feature or version marker missing: '+token)
+          for token in ("french:String(t.french_text||'').trim()","french:String(c.french||'').trim()","frenchReadingZh:String(c.frenchReadingZh||'').trim()"):
+              if token not in app: raise SystemExit('French shared readback mapping missing: '+token)
+          manifest=json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
+          if manifest.get('name')!='刚果金斯语翻译' or manifest.get('display')!='standalone':
+              raise SystemExit('PWA identity changed')
+          print('PASS: unique IDs, existing navigation, independent French panels and cloud spelling/homophone readback.')
+          PY
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.117
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live DWSS 0.9.117, French lexicon and stable Android package
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0117"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js shared-lexicon.js pwa.js sw.js boot.js pronunciation-search.js dwss-pronunciation-controls.js manifest.webmanifest french-extension.js french-lexicon-sources.txt french-FREEDICT-COPYING.txt french-IPA-LICENSE.txt; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/french-ipa-index.tsv.gz?verify=$GITHUB_SHA" -o "$LIVE/french-ipa-index.tsv.gz"
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 90 "$BASE/cover.webp?verify=$GITHUB_SHA" -o "$LIVE/cover.webp"
+          curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/DWSS-Android-Installer.apk?verify=$GITHUB_SHA" -o "$LIVE/DWSS-Android-Installer.apk"
+          grep -Fxq 'Version: 0.9.117' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_117' "$LIVE/index.html"
+          grep -Fq "version:'0.9.117'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.117';" "$LIVE/sw.js"
+          grep -Fq "french:String(t.french_text||'').trim()" "$LIVE/app.js"
+          grep -Fq "french:String(c.french||'').trim()" "$LIVE/app.js"
+          grep -Fq "frenchReadingZh:String(c.frenchReadingZh||'').trim()" "$LIVE/app.js"
+          grep -Fq 'id="resultFrenchReading"' "$LIVE/index.html"
+          grep -Fq 'id="pronunciationFrenchSearch"' "$LIVE/index.html"
+          grep -Fq "'./french-ipa-index.tsv.gz'" "$LIVE/sw.js"
+          grep -Fq "'./french-extension.js'" "$LIVE/sw.js"
+          test "$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
+          test "$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          node --check "$LIVE/app.js"
+          node --check "$LIVE/shared-lexicon.js"
+          node --check "$LIVE/sw.js"
+          node --check "$LIVE/french-extension.js"
+          gzip -t "$LIVE/french-ipa-index.tsv.gz"
+          rm -rf public && mkdir -p public && cp "$LIVE/"* public/
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0117_french_shared_readback.cjs
+          echo 'PASS: live DWSS 0.9.117 French shared spelling and Chinese-homophone are read back correctly; 0.9.116 UI/data pack, cover and APK preserved.'
