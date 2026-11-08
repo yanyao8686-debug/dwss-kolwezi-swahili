@@ -40,7 +40,6 @@
   let pendingChinese = "";
   let composing = false;
   let grammarButton = null;
-  let grammarDetails = null;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, c => ({
@@ -52,16 +51,22 @@
     const button = $("dwssMainFrMode");
     return !!result && !result.hidden && (!button || button.classList.contains("active"));
   }
-  function setMeta(message) {
+  function setMeta(_message) {
     const meta = $("dwssFrenchIpaMeta");
-    if (meta) meta.textContent = message || "";
+    if (meta) {
+      meta.textContent = "";
+      meta.hidden = true;
+      meta.style.display = "none";
+    }
   }
   function setGrammarStatus(message, type) {
     const status = $("dwssFrenchCorrectionStatus");
-    if (status) {
-      status.textContent = message;
-      status.dataset.status = type || "info";
-    }
+    if (!status) return;
+    const visibleText = String(message || "").trim();
+    status.textContent = visibleText;
+    status.dataset.status = type || "info";
+    status.hidden = !visibleText;
+    status.style.display = visibleText ? "block" : "none";
   }
   async function apiCall(payload) {
     const response = await fetch(ENDPOINT, {
@@ -175,12 +180,6 @@
     reading = reading.replace(/\s{2,}/g, " ").trim();
     return { reading, ipa, missing };
   }
-  function resetGrammarDetails() {
-    if (grammarDetails) {
-      grammarDetails.open = false;
-      grammarDetails.innerHTML = "";
-    }
-  }
   async function renderPronunciation(french, requestId) {
     const spelling = $("dwssFrenchSpelling");
     const result = $("resultFrenchReading");
@@ -189,14 +188,10 @@
       const pronunciation = await buildPhraseReading(french);
       if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
       result.value = pronunciation.reading;
-      const source = pronunciation.ipa.length ? "逐词 IPA：" + pronunciation.ipa.slice(0, 24).join("；") : "未找到可核对的词形 IPA。";
-      const missing = pronunciation.missing.length
-        ? "；未收录读音：" + [...new Set(pronunciation.missing)].slice(0, 12).join("、")
-        : "";
-      setMeta("发音来源：LeXiK 1.0 法语词形 IPA。中文近似音仅作辅助；法语连读和联诵受语境影响，不能用逐词读音完全替代。" + missing + "\n" + source);
-    } catch (error) {
+      setMeta("");
+    } catch (_) {
       result.value = "";
-      setMeta("法语原文已生成，但整句发音词库暂时无法加载：" + String(error && error.message || error));
+      setGrammarStatus("法语近似音暂不可用。", "error");
     }
   }
   async function translateCurrentChinese() {
@@ -210,6 +205,7 @@
       spelling.value = "";
       output.value = "";
       setMeta("");
+      setGrammarStatus("");
       activeRequest += 1;
       pendingChinese = "";
       lastChinese = "";
@@ -224,9 +220,8 @@
     spelling.value = "";
     output.value = "";
     lastMachineFrench = "";
-    setMeta("正在进行中文 → 法语整句翻译…");
-    setGrammarStatus("正在生成完整法语句子…", "info");
-    resetGrammarDetails();
+    setMeta("");
+    setGrammarStatus("");
     try {
       let data = translationCache.get(chinese);
       if (!data) {
@@ -240,24 +235,16 @@
         return;
       }
       const french = String(data.translatedText || "").trim();
-      if (!french) throw new Error("翻译服务没有返回法语原文。");
+      if (!french) throw new Error("empty translation");
       spelling.value = french;
       lastMachineFrench = french;
-      setGrammarStatus("整句已生成；建议点击“检查法语语法”进行第二步校对。", "info");
       await renderPronunciation(french, requestId);
-      if (requestId !== activeRequest) return;
-      const cachedLabel = data.cached ? "（缓存结果）" : "";
-      const providerLabel = data.provider || "免密机器翻译服务";
-      const meta = $("dwssFrenchIpaMeta");
-      if (meta) meta.textContent = "法语整句来源：" + providerLabel + cachedLabel + "。语法校对尚未执行；中文近似音为 IPA 自动转写。" +
-        (meta.textContent ? "\n" + meta.textContent : "");
       if (requestId === activeRequest) pendingChinese = "";
-    } catch (error) {
+    } catch (_) {
       if (requestId !== activeRequest) return;
       pendingChinese = "";
-      setGrammarStatus("在线整句翻译失败：" + String(error && error.message || error) +
-        "。当前如有旧的词典拼接内容，只能作单词参考，不能视为语法正确的法语句子。", "error");
-      setMeta("在线翻译节点暂不可用。本次不把逐词拼接结果冒充完整法语翻译。请保持联网后重试。");
+      setGrammarStatus("法语翻译暂不可用，请稍后重试。", "error");
+      setMeta("");
     }
   }
   function scheduleTranslation(delay) {
@@ -276,39 +263,29 @@
     const spelling = $("dwssFrenchSpelling");
     const french = String(spelling && spelling.value || "").trim();
     if (!french) {
-      setGrammarStatus("请先生成或填写法语原文。", "error");
+      setGrammarStatus("请先生成法语译文。", "error");
       return;
     }
     grammarButton.disabled = true;
-    grammarButton.textContent = "正在检查…";
-    setGrammarStatus("正在调用 LanguageTool 检查法语拼写和语法…", "info");
+    grammarButton.textContent = "检查中…";
+    setGrammarStatus("正在检查…", "info");
     try {
       const result = await apiCall({ action: "check", text: french });
       const corrected = String(result.correctedText || french);
       const corrections = Array.isArray(result.appliedCorrections) ? result.appliedCorrections : [];
-      const matches = Array.isArray(result.matches) ? result.matches : [];
       if (corrected !== french) {
         spelling.value = corrected;
         lastMachineFrench = corrected;
         lastChinese = String($("inputText") && $("inputText").value || "").trim();
         await renderPronunciation(corrected, activeRequest);
       }
-      if (matches.length) {
-        setGrammarStatus("发现 " + result.totalIssues + " 处疑似问题，已按首选建议自动修正 " + corrections.length +
-          " 处。请复核法语原文与中文原意；机器校对不能保证语义完全正确。", "ok");
+      if (corrections.length) {
+        setGrammarStatus("语法校对完成，已修正 " + corrections.length + " 处。", "ok");
       } else {
-        setGrammarStatus("LanguageTool 未发现明显拼写或语法问题；这不等于语义和用词已获母语者确认。", "ok");
+        setGrammarStatus("未发现明显拼写或语法问题。", "ok");
       }
-      if (grammarDetails) {
-        grammarDetails.innerHTML = "<summary>查看校对建议（" + matches.length + " 项）</summary>" +
-          (matches.length ? "<ul>" + matches.map(item =>
-            "<li><b>" + escapeHtml(item.shortMessage || item.category || "建议") + "</b>：" +
-            escapeHtml(item.message) + (item.suggestions && item.suggestions.length
-              ? "；建议：" + escapeHtml(item.suggestions.join(" / ")) : "") + "</li>"
-          ).join("") + "</ul>" : "<p>没有返回需要展示的建议。</p>");
-      }
-    } catch (error) {
-      setGrammarStatus("法语语法检查暂时失败：" + String(error && error.message || error) + "。法语原文保持不变。", "error");
+    } catch (_) {
+      setGrammarStatus("语法检查暂不可用，译文未更改。", "error");
     } finally {
       grammarButton.disabled = false;
       grammarButton.textContent = "检查法语语法";
@@ -318,30 +295,31 @@
     if (grammarButton) return;
     const anchor = $("dwssFrenchIpaMeta");
     if (!anchor || !anchor.parentElement) return;
+    anchor.textContent = "";
+    anchor.hidden = true;
+    anchor.style.display = "none";
     const panel = document.createElement("div");
     panel.className = "dwss-fr-machine-tools";
-    panel.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 4px";
+    panel.style.cssText = "display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:6px 0 2px";
     const grammarStatus = document.createElement("div");
     grammarStatus.id = "dwssFrenchCorrectionStatus";
     grammarStatus.className = "dwss-french-grammar-status";
     grammarStatus.setAttribute("role", "status");
     grammarStatus.setAttribute("aria-live", "polite");
-    grammarStatus.style.cssText = "width:100%;font-size:12px;line-height:1.5;min-height:1.2em";
+    grammarStatus.hidden = true;
+    grammarStatus.style.cssText = "width:100%;font-size:12px;line-height:1.4;margin:0";
     grammarButton = document.createElement("button");
     grammarButton.type = "button";
     grammarButton.className = "soft mini";
     grammarButton.textContent = "检查法语语法";
     grammarButton.addEventListener("click", runGrammarCheck);
     const note = document.createElement("small");
-    note.style.cssText = "font-size:12px;opacity:.82";
-    note.innerHTML = '使用免密公共翻译节点和第三方法语校对；文本会发送到外部服务，请勿输入矿区或个人敏感信息。校对由 <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> 提供。';
+    note.textContent = "语法检查会将法语文本发送至外部服务。";
+    note.style.cssText = "font-size:10px;opacity:.68;line-height:1.4;margin:0";
     panel.appendChild(grammarStatus);
     panel.appendChild(grammarButton);
     panel.appendChild(note);
     anchor.insertAdjacentElement("afterend", panel);
-    grammarDetails = document.createElement("details");
-    grammarDetails.style.cssText = "font-size:12px;margin:4px 0 8px";
-    panel.insertAdjacentElement("afterend", grammarDetails);
   }
   function bind() {
     addGrammarControls();
@@ -362,6 +340,7 @@
     spelling.addEventListener("input", () => {
       if (!isFrenchMode()) return;
       const french = String(spelling.value || "").trim();
+      setGrammarStatus("");
       pendingChinese = "";
       lastMachineFrench = "";
       const requestId = ++activeRequest;
