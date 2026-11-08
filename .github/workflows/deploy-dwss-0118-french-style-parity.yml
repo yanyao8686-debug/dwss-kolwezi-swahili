@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.118 French shared spelling readback fix (corrected cache marker test)
+name: Deploy DWSS 0.9.118 French/Swahili result style parity
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0118-french-shared-readback
+  group: dwss-pages-deploy-0118-french-style-parity
   cancel-in-progress: true
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Fix cloud French spelling and pronunciation readback; preserve all other live assets
+      - name: Match French result field typography and focus styling to the Swahili result field
         shell: bash
         run: |
           set -euo pipefail
