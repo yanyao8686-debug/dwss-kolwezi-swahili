@@ -511,34 +511,31 @@ app_text = app_text.replace(old_duplicate, old_duplicate + "&&norm(c.french)===n
 if app_text.count("&&norm(c.french)===norm(v.french)") < 2:
     fail("French-aware duplicate checks were not added to both custom-word operations; found " + str(app_text.count("&&norm(c.french)===norm(v.french)")) + ".")
 
+# The live shared-term normalizer currently blanks French spelling at ingestion.
+# Preserve french_text here, then preserve the normalized spelling when rebuild()
+# appends cloud rows to the main dictionary.
+apply_start = app_text.find("function applySharedTerms(rows){")
+apply_end = app_text.find("function applySharedPronunciationVariants", apply_start)
+if apply_start < 0 or apply_end < 0:
+    fail("Could not locate applySharedTerms() cloud-ingestion block.")
+apply_chunk = app_text[apply_start:apply_end]
+apply_old = "french:'',"
+apply_count = apply_chunk.count(apply_old)
+if apply_count != 1:
+    fail("applySharedTerms French-spelling anchor: expected one empty field, found " + str(apply_count))
+apply_chunk = apply_chunk.replace(apply_old, "french:String(t.french_text||'').trim(),", 1)
+app_text = app_text[:apply_start] + apply_chunk + app_text[apply_end:]
+
 shared_start = app_text.find("// Shared terms supplement the built-in and personal dictionaries.")
 shared_end = app_text.find("for(const v of sharedPronunciationVariants", shared_start)
 if shared_start < 0 or shared_end < 0:
-    fail("Could not locate the cloud-shared dictionary merge block.")
+    fail("Could not locate the cloud-shared dictionary rebuild block.")
 shared_chunk = app_text[shared_start:shared_end]
-# Preserve the French source expression and user-corrected Chinese sound returned by shared_terms.
-french_property = re.search(r"\bfrench\s*:\s*''", shared_chunk)
-if not french_property:
-    fail("Cloud-shared dictionary merge has no empty French property anchor.")
-shared_chunk = shared_chunk[:french_property.start()] + "french:String(c.french_text||'').trim()" + shared_chunk[french_property.end():]
-reading_property = re.search(r"\bfrenchReadingZh\s*:\s*String\(c\.frenchReadingZh\s*\|\|\s*''\)\.trim\(\)", shared_chunk)
-if reading_property:
-    shared_chunk = shared_chunk[:reading_property.start()] + "frenchReadingZh:String(c.french_pronunciation_cn||c.frenchReadingZh||'').trim()" + shared_chunk[reading_property.end():]
-else:
-    # Some release variants map the French homophone under a different alias.
-    french_field_line = re.search(r"(french\s*:\s*String\(c\.french_text\|\|''\)\.trim\(\)\s*,)", shared_chunk)
-    if not french_field_line:
-        fail("Cloud-shared French spelling property could not be verified after patch.")
-    if "frenchReadingZh:" not in shared_chunk:
-        insert_at = french_field_line.end()
-        shared_chunk = shared_chunk[:insert_at] + "frenchReadingZh:String(c.french_pronunciation_cn||'').trim()," + shared_chunk[insert_at:]
-    else:
-        shared_chunk = re.sub(
-            r"frenchReadingZh\s*:\s*[^,}]+",
-            "frenchReadingZh:String(c.french_pronunciation_cn||'').trim()",
-            shared_chunk,
-            count=1
-        )
+rebuild_old = "french:'',"
+rebuild_count = shared_chunk.count(rebuild_old)
+if rebuild_count != 1:
+    fail("Shared-term rebuild French-spelling anchor: expected one empty field, found " + str(rebuild_count))
+shared_chunk = shared_chunk.replace(rebuild_old, "french:String(c.french||'').trim(),", 1)
 app_text = app_text[:shared_start] + shared_chunk + app_text[shared_end:]
 
 # Personal-term cloud payload must retain French spelling as well as its Chinese homophone.
