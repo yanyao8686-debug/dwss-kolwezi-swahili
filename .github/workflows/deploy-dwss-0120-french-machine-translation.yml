@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-dwss-0120-lexik-pronunciation.yml'
-      - 'scripts/prepare_dwss_0120_lexik_pronunciation.py'
-      - 'scripts/test_dwss_0120_lexik_pronunciation.cjs'
+      - '.github/workflows/deploy-dwss-0120-french-machine-translation.yml'
+      - 'scripts/prepare_dwss_0120_french_machine_translation.py'
+      - 'scripts/test_dwss_0120_french_machine_translation.cjs'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0120-lexik-pronunciation
+  group: dwss-pages-deploy-0120-french-machine-translation
   cancel-in-progress: true
 
 jobs:
@@ -39,20 +39,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/prepare_dwss_0120_lexik_pronunciation.py
-          .venv/bin/python scripts/prepare_dwss_0120_lexik_pronunciation.py
-          python3 -m py_compile scripts/prepare_dwss_0120_lexik_pronunciation.py
+          python3 -m py_compile scripts/prepare_dwss_0120_french_machine_translation.py
+          .venv/bin/python scripts/prepare_dwss_0120_french_machine_translation.py
+          python3 -m py_compile scripts/prepare_dwss_0120_french_machine_translation.py
           node --check public/app.js
           node --check public/shared-lexicon.js
           node --check public/sw.js
           node --check public/french-extension.js
-          node --check scripts/test_dwss_0120_lexik_pronunciation.cjs
+          node --check scripts/test_dwss_0120_french_machine_translation.cjs
           gzip -t public/french-gloss-index.tsv.gz
           gzip -t public/french-ipa-index.tsv.gz
           find public/french-pronunciation-shards -type f -name '*.tsv.gz' -print0 | xargs -0 -n 1 gzip -t
           find public/french-word-shards -type f -name '*.tsv.gz' -print0 | xargs -0 -n 1 gzip -t
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
-          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0120_lexik_pronunciation.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0120_french_machine_translation.cjs
           touch public/.nojekyll
 
       - name: Audit unique HTML IDs, original navigation, French controls and cloud corrections
