@@ -93,3 +93,10 @@ jobs:
               print('SAMPLE_PHONES')
               for x in phone_examples: print(repr(x))
           PY
+
+      - name: Inspect current Service Worker fetch and precache logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/sw.js?probe=lexik' -o "$RUNNER_TEMP/sw.js"
+          grep -nE 'PRECACHE_URLS|addEventListener|cache\.|fetch\(' "$RUNNER_TEMP/sw.js" | tail -100
