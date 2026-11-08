@@ -218,6 +218,12 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
+old_marker = "DWSS_AUTO_UPDATE_0_9_120"
+new_marker = "DWSS_AUTO_UPDATE_0_9_121"
+if new_marker not in html:
+    if html.count(old_marker) != 1:
+        fail("Expected one 0.9.120 auto-update marker; found " + str(html.count(old_marker)))
+    html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
 if html.count(style_id) != 1:
