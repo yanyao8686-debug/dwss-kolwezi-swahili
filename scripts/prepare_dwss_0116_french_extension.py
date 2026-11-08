@@ -167,7 +167,7 @@ ver_text = ver_path.read_text(encoding="utf-8")
 shared_text = shared_path.read_text(encoding="utf-8")
 
 if f"Version: {OLD_VERSION}" not in ver_text:
-    fail("The live site is not the expected 0.9.115 baseline.")
+    fail("The live site is not the expected baseline; VERSION.txt begins with: " + repr(ver_text[:160]))
 if f"DWSS_AUTO_UPDATE_{OLD_VERSION.replace('.', '_')}" not in html_text:
     fail("The live HTML cache marker is not 0.9.115.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw_text:
