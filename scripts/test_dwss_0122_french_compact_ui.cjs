@@ -77,7 +77,7 @@ assert(runtime.includes('语法检查会将法语文本发送至外部服务。'
 assert(runtime.includes('action: "translate"') && runtime.includes('action: "check"'),
   'translation or grammar-check action was removed');
 assert(runtime.includes('result.value = pronunciation.reading'), 'Chinese approximate pronunciation generation was removed');
-assert(runtime.includes('grammarStatus.hidden = !visibleText'), 'empty grammar status is not hidden');
+assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 for (const verbose of ['法语整句来源：','逐词 IPA：','发音来源：LeXiK','查看校对建议',
   '使用免密公共翻译节点和第三方法语校对','整句已生成；建议点击']) {
   assert(!runtime.includes(verbose), 'verbose French UI text remains: ' + verbose);
