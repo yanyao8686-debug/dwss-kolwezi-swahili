@@ -30,6 +30,10 @@ assert(ext.includes('SHARD_BASE') && ext.includes('loadPronunciationShard'), 'Fr
 assert(!ext.includes('firstRanges') && !ext.includes('rowsForFirst'), 'Old monolithic in-memory pronunciation lookup remains');
 assert(ext.includes('confidenceLabel(variant.confidence)'), 'French result cards do not display pronunciation confidence');
 assert(ext.includes('normalizeLeXiKPhone(ipa)'), 'IPA normalizer is not used by the transliterator');
+assert(ext.includes('DWSSFrenchMachineTranslationController.translateCurrentChinese()'),
+  'Legacy word composer can still overwrite full-sentence French translation');
+assert(runtime.includes('DWSSFrenchMachineTranslationController = Object.freeze'),
+  'French translation controller is not exposed before input events');
 
 for (const id of [
   'resultFrenchReading','dwssMainLanguagePicker','dwssMainFrMode',
