@@ -39,6 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m py_compile scripts/prepare_dwss_0119_lexik_pronunciation.py
           .venv/bin/python scripts/prepare_dwss_0119_lexik_pronunciation.py
           python3 -m py_compile scripts/prepare_dwss_0119_lexik_pronunciation.py
           node --check public/app.js
