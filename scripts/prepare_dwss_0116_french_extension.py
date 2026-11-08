@@ -595,8 +595,8 @@ if html_text.count('id="dwssMainLanguagePicker"') != 1 or html_text.count('id="d
     fail("French language selectors are missing or duplicated.")
 if "french_text: french || null" not in shared_text:
     fail("French spelling is not preserved in cloud payload.")
-if "french:String(c.french_text||'').trim()" not in app_text:
-    fail("Cloud French spelling is not restored into the application dictionary.")
+if "french:String(t.french_text||'').trim()" not in app_text or "french:String(c.french||'').trim()" not in app_text:
+    fail("Cloud French spelling is not preserved through ingestion and dictionary rebuild.")
 print(
     "PASS: French lexicon built and verified; "
     f"{len(rows)} pronunciation rows, {gloss_count} Chinese-gloss records; "
