@@ -54,3 +54,21 @@ for term in ["inputText","newFrench","pronunciation","resultReading"]:
 print("===SERVICE WORKER PRECACHE===")
 m=re.search(r'const\s+PRECACHE_URLS\s*=\s*\[(.*?)\];',sw,re.S)
 print(m.group(0)[:6000] if m else "NO PRECACHE")
+
+
+print("===TARGETED CURRENT FRENCH UI AND ENGINE===")
+for term, source in [
+    ("newFrenchReadingZh", h),
+    ("pronunciationSearch", h),
+    ("function preferredFrenchPronunciationVariants", a),
+    ("function lookupFrenchPronunciationAt", a),
+    ("function translateFrenchHomophone", a),
+    ("function renderPronunciationLookup", a),
+    ("function tokenize", a),
+    ("function sourceHeadwordAliases", a),
+    ("function rebuild", a),
+    ("function buildPersonalPayload", s),
+]:
+    i=source.find(term)
+    print(f"--{term}--")
+    print(source[max(0,i-1300):min(len(source),i+10500)] if i>=0 else "NOT FOUND")
