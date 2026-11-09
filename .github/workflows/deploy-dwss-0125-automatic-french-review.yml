@@ -77,7 +77,7 @@ jobs:
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '翻译时自动检查法语语法，译文会发送至外部服务。' "$LIVE/french-translation-runtime.js"
           grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
-          ! grep -Fq '检查法语语法' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq 'grammarButton.textContent = "检查法语语法"' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'runGrammarCheck' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'id="dwssFrenchCorrectionPanel"' "$LIVE/index.html"
           ! grep -Fq '提交法语修正并同步所有用户' "$LIVE/index.html"
