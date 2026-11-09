@@ -256,7 +256,7 @@ assert(combined === '邦茹', 'top French result must contain only Chinese appro
 const parsed = codec.parse(combined);
 assert(parsed.french === '' && parsed.reading === '邦茹',
   'reading-only result parser must not invent a French original');
-const legacyParsed = codec.parse('法语原文：Bonjour\\n中文近似音：邦茹');
+const legacyParsed = codec.parse('法语原文：Bonjour\n中文近似音：邦茹');
 assert(legacyParsed.french === 'Bonjour' && legacyParsed.reading === '邦茹',
   'legacy combined result strings must remain readable for compatibility');
 
