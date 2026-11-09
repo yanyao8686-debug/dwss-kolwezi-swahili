@@ -60,6 +60,8 @@ assert(html.includes('french-translation-runtime.js'), 'French translation runti
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
+assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
+  'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
 assert(fs.existsSync(path.join(root, 'french-extension.js')), 'French pronunciation extension missing');
 assert(fs.existsSync(path.join(root, 'french-translation-runtime.js')), 'French sentence translation runtime missing');
 const pronMeta = JSON.parse(read('french-pronunciation-index.json'));
@@ -105,6 +107,13 @@ assert(html.includes('id="dwss-dual-language-gloss-0126"'), 'dual-language gloss
 assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
   'the mobile-moved single-word gloss wrapper must remain visible in both modes');
 
+assert(html.includes('id="singleReadingGlossLabel"'), 'language-aware single-word gloss title must be present exactly once');
+assert((html.match(/id="singleReadingGlossLabel"/g) || []).length === 1,
+  'single-word gloss title ID must not be duplicated');
+assert(html.includes('id="dwss-dual-language-gloss-0126"'), 'dual-language gloss layout stylesheet missing');
+assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
+  'the mobile-moved single-word gloss wrapper must remain visible in both modes');
+
 for (const selector of [
   '#resultCard[data-dwss-lang="fr"] > .stats',
   '#resultCard[data-dwss-lang="fr"] > .quality-note',
@@ -128,6 +137,12 @@ assert(extension.includes('window.DWSSRenderTranslation();'), 'Swahili mode must
 assert(extension.includes('machine.scheduleTranslation(80)'), 'French mode must refresh the French result from the retained Chinese input');
 assert(extension.includes('glossSegments.push({ type: "match", zh: matched, record });'),
   'French word-level matches must retain dictionary word, IPA, reading and Chinese meaning data');
+assert(extension.includes('renderFrenchSingleGloss'), 'French mode must render its own single-word gloss list');
+assert(extension.includes('单个法语读法释义：'), 'French gloss title must change with the selected language');
+assert(extension.includes('window.DWSSRenderTranslation();'), 'Swahili mode must redraw from the retained Chinese input');
+assert(extension.includes('machine.scheduleTranslation(80)'), 'French mode must refresh the French result from the retained Chinese input');
+assert(extension.includes('glossSegments.push({ type: "match", zh: matched, record });'),
+  'French word-level matches must retain dictionary word, IPA, reading and Chinese meaning data');
 assert(extension.includes('if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;') &&
        extension.includes('if (frenchCorrectionButton) frenchCorrectionButton.addEventListener'),
   'legacy extension must tolerate removal of the French shared-correction panel');
@@ -135,6 +150,8 @@ assert(extension.includes('formatCombinedFrenchResult(result.words, result.readi
   'legacy French dictionary extension did not merge its results');
 assert(extension.includes('DWSSFrenchCombinedResult.parse'),
   'French correction save no longer reads both fields from the combined result');
+assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
+  'French single-word glossary renderer must be exposed for regression testing');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
 assert(runtime.includes('formatCombinedResult(french, pronunciation.reading)'),
@@ -151,6 +168,22 @@ assert(runtime.includes('output.style.setProperty') || runtime.includes('mirrorS
   'French result must inherit styling from the Swahili result field');
 assert(extension.includes('$("dwssFrenchSpellingBlock").hidden = true'),
   'separate spelling block is not hidden in French mode');
+const extensionSandbox = { window: {}, document: null };
+vm.runInNewContext(extension, extensionSandbox);
+const frenchTools = extensionSandbox.window.DWSSFrenchTools;
+assert(frenchTools && typeof frenchTools.translateChinese === 'function',
+  'French word-level dictionary matcher must be available');
+const fixture = new Map([
+  ['你好', [{word:'Bonjour', ipa:'bɔ̃.ʒuʁ', reading:'邦茹', meanings:['你好'], source:'test'}]],
+  ['保安', [{word:'agent de sécurité', ipa:'a.ʒɑ̃ də se.ky.ʁi.te', reading:'阿让 德 塞居里泰', meanings:['保安'], source:'test'}]]
+]);
+const frenchGloss = frenchTools.translateChinese('你好，保安', fixture);
+assert(frenchGloss.glossSegments.length === 2, 'one-word gloss should preserve every matched Chinese segment');
+assert(frenchGloss.glossSegments[0].record.word === 'Bonjour' &&
+       frenchGloss.glossSegments[0].record.reading === '邦茹',
+  'French gloss should expose the matching French word and Chinese approximate pronunciation');
+assert(frenchGloss.glossSegments[1].record.word === 'agent de sécurité',
+  'second matched Chinese segment should switch to the corresponding French dictionary item');
 const extensionSandbox = { window: {}, document: null };
 vm.runInNewContext(extension, extensionSandbox);
 const frenchTools = extensionSandbox.window.DWSSFrenchTools;
