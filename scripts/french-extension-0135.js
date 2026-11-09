@@ -194,7 +194,7 @@
   function frenchNumberPhraseReading(v){return Array.from(String(v||"").matchAll(/[\p{L}]+/gu),m=>m[0]).map(getFrenchNumberWordReading).filter(Boolean).join(" ");}
   function numberToFrench(v){return numberPartsToFrench(parseNumberLiteral(v));}
   function isNumericExpression(v){return !!parseNumberLiteral(String(v==null?"":v).trim());}
-  function expandFrenchNumerals(v){return String(v==null?"":v).replace(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:[.,]\d+)?/g,m=>numberToFrench(m)||m);}
+  function expandFrenchNumerals(value){return String(value==null?"":value).replace(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:[.,]\d+)?/g,m=>numberToFrench(m)||m);}
 
   const chineseMatcherCache = new WeakMap();
   function translateChinese(raw, meaningIndex) {
