@@ -58,7 +58,7 @@ assert(sw.includes("const APP_VERSION = '0.9.133';"), 'Service Worker cache vers
 for (const asset of ['french-gloss-index.tsv.gz','french-pronunciation-index.json','french-word-index.json']) {
   assert(sw.includes(asset), 'French offline dictionary asset missing from Service Worker cache: ' + asset);
 }
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_132'), 'automatic-update marker mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_133'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.133'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
