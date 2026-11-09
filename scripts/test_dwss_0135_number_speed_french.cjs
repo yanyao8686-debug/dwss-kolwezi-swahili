@@ -15,7 +15,7 @@ const version = read('VERSION.txt');
 const runtime = read('french-translation-runtime.js');
 const extension = read('french-extension.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.135 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.136 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -52,11 +52,11 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.135'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.135'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.135';"), 'Service Worker cache version mismatch');
+assert(version.includes('Version: 0.9.136'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.136'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.136';"), 'Service Worker cache version mismatch');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_135'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.135'), 'cache-busted page assets were not advanced');
+assert(html.includes('dwss-release=0.9.136'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
@@ -84,12 +84,12 @@ assert(fs.existsSync(path.join(root, 'french-gloss-index.tsv.gz')), 'French-Chin
 assert(fs.existsSync(path.join(root, 'french-LEXIK-LICENSE.txt')), 'LeXiK licence file missing');
 assert(html.includes('id="dwss-french-compact-ui-0122"'), 'compact French UI stylesheet missing');
 assert(html.includes('#resultCard #dwssFrenchIpaMeta{display:none!important}'), 'verbose provider/IPA meta should be hidden');
-assert(runtime.includes('await autoCheckFrenchGrammar(french, requestId)'),
-  'French translation must run grammar checking automatically');
+assert(!runtime.includes('await autoCheckFrenchGrammar(french, requestId)'),
+  'French output must not wait for a second third-party grammar request');
 assert(runtime.includes('action: "check"') && runtime.includes('autoCheckFrenchGrammar'),
   'automatic grammar-check endpoint call is missing');
-assert(runtime.includes('翻译时自动检查法语语法，译文会发送至外部服务。'),
-  'automatic grammar/privacy note missing');
+assert(runtime.includes('法语优先使用本机词库；未收录内容联网后调用机器翻译服务。'),
+  'French local-first / online-miss notice missing');
 assert(!runtime.includes('grammarButton') && !runtime.includes('runGrammarCheck') &&
        !runtime.includes('"检查法语语法"'),
   'manual grammar button/code must be removed');
@@ -117,7 +117,7 @@ assert(runtime.includes('enrichedGlossTools.renderSingleGloss(lastChinese, frenc
   'background pronunciation enrichment must refresh every word in the lower French word grid');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
-assert(html.includes('id="dwss-french-ux-0125"'), '0.9.135 French result UI stylesheet missing');
+assert(html.includes('id="dwss-french-ux-0125"'), '0.9.136 French result UI stylesheet missing');
 assert(html.includes('id="singleReadingGlossLabel"'), 'language-aware single-word gloss title must be present exactly once');
 assert((html.match(/id="singleReadingGlossLabel"/g) || []).length === 1,
   'single-word gloss title ID must not be duplicated');
@@ -136,7 +136,7 @@ assert(html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
   'Chinese meaning result row styling is missing');
 
-assert(html.includes('dwss-release=0.9.135'), 'French pronunciation update cache-busting version missing');
+assert(html.includes('dwss-release=0.9.136'), 'French pronunciation update cache-busting version missing');
 assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
   'the mobile-moved single-word gloss wrapper must remain visible in both modes');
 
@@ -232,9 +232,11 @@ assert(runtime.includes('await renderPronunciation(french, requestId)') &&
   'machine translation must render the local pronunciation and replace it with the completed word-index pronunciation');
 assert(extension.includes('translateOfflineChinese(raw)') &&
        extension.includes('getPhraseWordPairs(phrase)') &&
+       extension.includes('refreshActiveMeaningIndex()') &&
+       extension.includes('activeRowsSignature') &&
        extension.includes('chineseMatcherCache = new WeakMap()'),
   'fast local Chinese-to-French dictionary translation helpers are missing');
-for (const token of ['showInstantLocalDraft(chinese)','PERSISTED_CACHE_KEY',
+for (const token of ['showInstantLocalDraft(chinese)','localPreviewCompleteChinese','misses.length === 0','await localTools.prepareOfflineChinese(chinese)','PERSISTED_CACHE_KEY',
   'restorePersistentTranslations()','persistTranslations()',
   'buildLocalPhraseReading(french)','scheduleTranslation(60)','expandFrenchNumerals(rawFrench)','numeralTools.isNumericExpression(chinese)','const immediate = tools.translateOfflineChinese(chinese)',
   'navigator.onLine === false']) {
@@ -431,4 +433,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const data = fs.readFileSync(path.join(root, name));
   assert(data.length > 10000, name + ' unexpectedly small');
 }
-console.log('PASS DWSS 0.9.135: fast local-first French translation, local word pronunciation, device-only cache and offline base dictionary checks passed.');
+console.log('PASS DWSS 0.9.136: fast local-first French translation, local word pronunciation, device-only cache and offline base dictionary checks passed.');
