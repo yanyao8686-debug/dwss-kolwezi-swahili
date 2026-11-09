@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.132: display every French word with its own Chinese approximate reading in the single-word gloss list."""
+"""DWSS 0.9.132: render a compact French word-by-word grid with only the original word and its Chinese approximate reading."""
 from __future__ import annotations
 
 import hashlib
@@ -629,5 +629,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.131 French result field contains only the Chinese approximate pronunciation; the complete French original is displayed in the lower single-word French gloss section.")
+print("PASS: DWSS 0.9.132 French glossary renders a compact per-word grid with only the French original and its own Chinese approximate pronunciation.")
 print("PASS: main translation, reverse lookup, shared sync, vocabulary indexes, cover and Android APK remain unchanged.")
