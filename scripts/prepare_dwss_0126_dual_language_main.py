@@ -184,7 +184,7 @@ render_anchor = "function renderTranslation(options={}){"
 if render_guard not in app:
     if app.count(render_anchor) != 1:
         fail("Cannot locate the single main translation renderer for the French-mode guard.")
-    app = app.replace(render_anchor, render_anchor + "\\n " + render_guard, 1)
+    app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 
 # Expose a safe, no-history re-render hook so switching back to Swahili uses
 # the existing Chinese draft instead of requiring the user to type it again.
