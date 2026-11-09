@@ -8,7 +8,6 @@ on:
       - 'scripts/prepare_dwss_0134_french_pronunciation_grid.py'
       - 'scripts/test_dwss_0134_french_pronunciation_grid.cjs'
       - 'scripts/french-extension-0134.js'
-      - 'scripts/french-translation-runtime.js'
   workflow_dispatch:
 
 permissions:
