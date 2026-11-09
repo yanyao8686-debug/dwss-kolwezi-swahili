@@ -283,6 +283,10 @@
     if (!activeMeaningIndex || !activeMeaningIndex.size) return null;
     return translateChinese(String(raw || ""), activeMeaningIndex);
   }
+  async function prepareOfflineChinese(raw) {
+    await loadLexicon();
+    return translateChinese(String(raw || ""), activeMeaningIndex);
+  }
   async function getPhraseWordPairs(phrase) {
     await loadLexicon();
     return buildFrenchWordPairs(phrase, frenchWordReadingByWord, []);
