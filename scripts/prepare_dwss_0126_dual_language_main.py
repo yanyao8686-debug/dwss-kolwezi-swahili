@@ -177,6 +177,15 @@ html = paths["index.html"].read_text(encoding="utf-8")
 app = paths["app.js"].read_text(encoding="utf-8")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
+# In French mode, stop the Swahili renderer from overwriting the French result
+# and French single-word gloss after each input event. Preserve local history on blur.
+render_guard = "const frenchModeButton=document.getElementById('dwssMainFrMode');if(frenchModeButton&&frenchModeButton.classList.contains('active')){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}"
+render_anchor = "function renderTranslation(options={}){"
+if render_guard not in app:
+    if app.count(render_anchor) != 1:
+        fail("Cannot locate the single main translation renderer for the French-mode guard.")
+    app = app.replace(render_anchor, render_anchor + "\\n " + render_guard, 1)
+
 # Expose a safe, no-history re-render hook so switching back to Swahili uses
 # the existing Chinese draft instead of requiring the user to type it again.
 render_hook = "window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});"
@@ -184,7 +193,7 @@ if render_hook not in app:
     anchor = "window.KolweziSwahili={"
     if app.count(anchor) != 1:
         fail("Cannot locate the single public dictionary API for the language-switch render hook.")
-    app = app.replace(anchor, render_hook + "\n" + anchor, 1)
+    app = app.replace(anchor, render_hook + "\\n" + anchor, 1)
 
 # The French shared-correction submit panel was removed in 0.9.125. Accept
 # either an older baseline (remove it once) or the current baseline (already absent).
@@ -436,6 +445,9 @@ if 'id="dwss-dual-language-gloss-0126"' not in html:
     fail("Dual-language gloss wrapper visibility styles are missing.")
 if render_hook not in app:
     fail("Swahili result refresh hook was not injected into app.js.")
+if render_guard not in app:
+    fail("Swahili renderer can still overwrite the French-language gloss.")
+
 if ux_style_id not in html:
     fail("French result style and French-mode-only detail hiding rules are missing.")
 for selector in (
