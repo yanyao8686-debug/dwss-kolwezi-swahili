@@ -180,9 +180,9 @@ sw = paths["sw.js"].read_text(encoding="utf-8")
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
     fail("Live site is not the supported 0.9.123/0.9.125 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.122 or 0.9.125.")
+    fail("Live app.js version is not 0.9.123 or 0.9.125.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.122 or 0.9.125.")
+    fail("Live Service Worker version is not 0.9.123 or 0.9.125.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -271,7 +271,7 @@ old_marker = "DWSS_AUTO_UPDATE_0_9_123"
 new_marker = "DWSS_AUTO_UPDATE_0_9_125"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.121 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.123 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -336,7 +336,7 @@ if html.count(ux_style_id) > 1:
 if ux_style_id not in html:
     if "</head>" not in html:
         fail("Cannot find </head> for the French result style fix.")
-    html = html.replace("</head>", ux_style + "\\n</head>", 1)
+    html = html.replace("</head>", ux_style + "\n</head>", 1)
 for selector in (
     "#resultCard #resultFrenchReading[hidden]",
     "#resultCard #resultFrenchReading.empty[hidden]",
