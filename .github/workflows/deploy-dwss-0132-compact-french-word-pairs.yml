@@ -1,10 +1,10 @@
-name: Deploy DWSS 0.9.133 compact French word pairs
+name: Deploy DWSS 0.9.133 fast offline-aware French translation
 
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-dwss-0133-fast-offline-french.yml'
+      - '.github/workflows/deploy-dwss-0132-compact-french-word-pairs.yml'
       - 'scripts/prepare_dwss_0132_compact_french_word_pairs.py'
       - 'scripts/test_dwss_0132_compact_french_word_pairs.cjs'
       - 'scripts/french-extension-0133.js'
