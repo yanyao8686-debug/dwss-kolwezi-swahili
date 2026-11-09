@@ -292,7 +292,7 @@
     return buildFrenchWordPairs(phrase, frenchWordReadingByWord, []);
   }
   window.DWSSFrenchTools = Object.freeze({
-    ipaToChinese, normalizeChinese, translateChinese, translateOfflineChinese,
+    ipaToChinese, normalizeChinese, translateChinese, translateOfflineChinese, prepareOfflineChinese,
     getWordChineseReading, tokenizeFrenchPhrase, buildFrenchWordReadingLookup,
     buildFrenchWordPairs, getPhraseWordPairs,
     renderSingleGloss: renderFrenchSingleGloss
