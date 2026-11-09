@@ -1,4 +1,5 @@
 name: Deploy DWSS 0.9.133 fast offline-aware French translation
+# 0.9.133: local-first Chinese input, device cache, and offline French glossary.
 
 on:
   push:
