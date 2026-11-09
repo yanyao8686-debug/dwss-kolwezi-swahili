@@ -222,7 +222,7 @@ if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
     fail("Live app.js version is not 0.9.125 or 0.9.128.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.126 or 0.9.128.")
+    fail("Live Service Worker version is not 0.9.127 or 0.9.128.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -330,7 +330,7 @@ old_marker = "DWSS_AUTO_UPDATE_0_9_127"
 new_marker = "DWSS_AUTO_UPDATE_0_9_128"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.126 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.127 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
