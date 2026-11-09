@@ -705,8 +705,9 @@
         const currentChinese = String($("inputText") && $("inputText").value || "").trim();
         const refreshFrenchMode = () => {
           renderMainFrench();
-          const frenchOriginal = String($("dwssFrenchSpelling") && $("dwssFrenchSpelling").value || "").trim();
-          renderFrenchSingleGloss(currentChinese, frenchOriginal);
+          // The sentence-level runtime supplies the original French text after
+          // translation; do not show a stale previous translation during refresh.
+          renderFrenchSingleGloss(currentChinese);
         };
         if (!rows.length) loadLexicon().then(refreshFrenchMode).catch(error => {
           $("dwssFrenchIpaMeta").textContent = error.message || String(error);
