@@ -293,9 +293,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.126: Combined editable French original text and Chinese approximate pronunciation in one result field styled like the Swahili result. "
-        "The separate French-original field is hidden from the interface while its value remains available to grammar checking and shared correction sync. "
-        "French translation, pronunciation indexes, vocabulary, cloud sync, cover and Android installer are preserved.\n"
+        "\n\n0.9.126: Keep one Chinese input while switching between Swahili and French. Each mode refreshes its own result and matching single-word gloss; French glosses show dictionary word, approximate pronunciation, IPA and Chinese meaning. The cover, vocabulary indexes, shared data and Android installer are preserved.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
