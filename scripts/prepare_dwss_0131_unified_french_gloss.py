@@ -348,7 +348,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_131"
+old_marker = "DWSS_AUTO_UPDATE_0_9_130"
 new_marker = "DWSS_AUTO_UPDATE_0_9_131"
 if new_marker not in html:
     if html.count(old_marker) != 1:
@@ -553,7 +553,7 @@ if html.count(french_word_completeness_style_id) > 1:
 if french_word_completeness_style_id not in html:
     if "</head>" not in html:
         fail("Cannot find </head> for complete French word-list styles.")
-    html = html.replace("</head>", french_word_completeness_style + "\\n</head>", 1)
+    html = html.replace("</head>", french_word_completeness_style + "\n</head>", 1)
 if html.count(french_word_reading_style_id) > 1:
     fail("Duplicate per-word French pronunciation styles found.")
 if french_word_reading_style_id not in html:
