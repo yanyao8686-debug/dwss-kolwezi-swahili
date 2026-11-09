@@ -108,7 +108,7 @@
     let i = 0;
     while (i < normalizedText.length) {
       const char = normalizedText[i];
-      if (/[\\s，。！？；：、,.!?;:（）()]/.test(char)) {
+      if (/[\s，。！？；：、,.!?;:（）()]/.test(char)) {
         sounds.push(char);
         i += 1;
         continue;
@@ -132,7 +132,7 @@
         continue;
       }
       let j = i + 1;
-      while (j < normalizedText.length && !/[\\s，。！？；：、,.!?;:（）()]/.test(normalizedText[j]) && !(byFirst.get(normalizedText[j]) || []).length) j += 1;
+      while (j < normalizedText.length && !/[\s，。！？；：、,.!?;:（）()]/.test(normalizedText[j]) && !(byFirst.get(normalizedText[j]) || []).length) j += 1;
       const unknown = normalizedText.slice(i, j);
       sounds.push("【未收录法语：" + unknown + "】");
       misses.push(unknown);
