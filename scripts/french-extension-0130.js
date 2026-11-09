@@ -172,15 +172,11 @@
       return;
     }
     const result = translateChinese(text, activeMeaningIndex);
-    const matches = [];
-    const seen = new Set();
-    for (const part of result.glossSegments || []) {
-      if (part.type !== "match" || !part.record) continue;
-      const key = normalizeChinese(part.zh) + "|" + String(part.record.word || "").toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      matches.push(part);
-    }
+    // Keep every matched occurrence in the original phrase order. Each French
+    // word receives its own Chinese approximate reading in the gloss list.
+    const matches = (result.glossSegments || []).filter(part =>
+      part.type === "match" && part.record
+    );
     if (!matches.length) {
       host.innerHTML = originalMarkup + '<div class="nores">法语词典暂未找到对应的单词释义；法语原文和中文近似音仍会保留。</div>';
       return;
