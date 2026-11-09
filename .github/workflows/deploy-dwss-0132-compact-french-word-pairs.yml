@@ -74,7 +74,7 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           grep -Fxq 'Version: 0.9.133' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_132' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_133' "$LIVE/index.html"
           grep -Fq "version:'0.9.133'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.133';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
