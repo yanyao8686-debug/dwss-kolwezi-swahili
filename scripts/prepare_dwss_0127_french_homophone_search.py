@@ -318,7 +318,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_125"
+old_marker = "DWSS_AUTO_UPDATE_0_9_126"
 new_marker = "DWSS_AUTO_UPDATE_0_9_127"
 if new_marker not in html:
     if html.count(old_marker) != 1:
