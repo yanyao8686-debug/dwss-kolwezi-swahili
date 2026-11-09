@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.134"
-NEW_VERSION = "0.9.135"
+OLD_VERSION = "0.9.135"
+NEW_VERSION = "0.9.136"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -232,11 +232,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.134/0.9.135 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.135/0.9.136 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.131 or 0.9.135.")
+    fail("Live app.js version is not 0.9.135 or 0.9.136.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.131 or 0.9.135.")
+    fail("Live Service Worker version is not 0.9.135 or 0.9.136.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -268,7 +268,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "enrichedWordReadings",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", "enrichedWordReadings",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
@@ -293,9 +293,9 @@ if 'const candidates = rowsForShards(shardLines, 24000);' not in extension:
 if 'firstRanges' in extension or 'const DATA_URL =' in extension:
     fail("Legacy monolithic French pronunciation loader remains enabled.")
 for required in ('action: "translate"', 'action: "check"',
-                 'await autoCheckFrenchGrammar(french, requestId)',
-                 'autoCheckFrenchGrammar',
-                 '翻译时自动检查法语语法，译文会发送至外部服务。',
+                 'localPreviewCompleteChinese',
+                 'await localTools.prepareOfflineChinese(chinese)',
+                 '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。',
                  'window.DWSSFrenchCombinedResult', 'formatCombinedResult',
                  'parseCombinedResult', 'mirrorSwahiliResultStyle',
                  'function formatCombinedResult(_french, reading)',
@@ -355,7 +355,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.135: French translation now displays local dictionary matches immediately, races cloud translation providers in parallel, stores successful translations on this device for 30-day offline reuse, and uses the local French-Chinese glossary for word readings before background pronunciation enrichment. Base French dictionary files are precached by the Service Worker for offline dictionary translation.\n"
+        "\n\n0.9.136: Complete French dictionary matches now finish locally without waiting for cloud translation or a separate grammar request. Unmatched Chinese is resolved against the local French lexicon first and only then sent to online translation when available. French personal and queued/shared terms are re-indexed after local additions, and base French dictionaries remain precached for offline use.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -365,11 +365,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_134"
-new_marker = "DWSS_AUTO_UPDATE_0_9_135"
+old_marker = "DWSS_AUTO_UPDATE_0_9_135"
+new_marker = "DWSS_AUTO_UPDATE_0_9_136"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.132 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.135 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
