@@ -333,7 +333,7 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.131 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.132 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
@@ -348,11 +348,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_130"
-new_marker = "DWSS_AUTO_UPDATE_0_9_131"
+old_marker = "DWSS_AUTO_UPDATE_0_9_131"
+new_marker = "DWSS_AUTO_UPDATE_0_9_132"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.130 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.131 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
