@@ -93,6 +93,8 @@ assert(runtime.includes('formatCombinedResult(french, pronunciation.reading)'),
   'machine translation no longer writes both fields into the combined result');
 assert(runtime.includes('mirrorSwahiliResultStyle'),
   'French result no longer inherits Swahili result styling');
+assert(runtime.includes('output.readOnly = false;') && runtime.includes('output.disabled = false;'),
+  'combined French result field must remain editable for user corrections');
 assert(runtime.includes('combinedOutput.addEventListener("input"'),
   'editing the combined field no longer updates its French source');
 assert(extension.includes('$("dwssFrenchSpellingBlock").hidden = true'),
