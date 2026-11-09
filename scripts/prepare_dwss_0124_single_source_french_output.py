@@ -247,7 +247,7 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.121 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.124 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
