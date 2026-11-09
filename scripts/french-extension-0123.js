@@ -271,6 +271,12 @@
   }
 
   function renderMainFrench() {
+    // The sentence-level translation runtime is authoritative for the main result.
+    // Keep this legacy dictionary renderer only as a fallback when that runtime
+    // is absent; otherwise both modules race to overwrite the same result field.
+    const machineRuntime = window.DWSSFrenchMachineTranslationController;
+    if (machineRuntime && typeof machineRuntime.translateCurrentChinese === "function") return;
+
     const input = $("inputText");
     const output = $("resultFrenchReading");
     if (!input || !output || activeMainMode !== "fr") return;
