@@ -214,8 +214,8 @@ assert(!extension.includes('const DATA_URL =') && !extension.includes('firstRang
 assert(extension.includes('dwss-french-original-in-gloss') &&
        extension.includes('法语原文：'),
   'complete French original must be displayed in the lower single-word gloss section');
-assert(extension.includes('host.innerHTML = originalMarkup + matches.map(part => {'),
-  'French original must be grouped with the per-word French gloss entries');
+assert(extension.includes('host.innerHTML = originalMarkup + words.map(word => {'),
+  'the complete French original must be rendered as one row per individual word');
 assert(extension.includes('renderFrenchSingleGloss(currentChinese);'),
   'a new Chinese input must not temporarily reuse the previous French original');
 assert(runtime.includes('formatCombinedResult(french, pronunciation.reading)'),
