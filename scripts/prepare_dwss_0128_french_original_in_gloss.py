@@ -515,5 +515,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.128 combined French original and Chinese approximate pronunciation in one Swahili-styled result box; separate source input hidden.")
+print("PASS: DWSS 0.9.128 French result field contains only the Chinese approximate pronunciation; the complete French original is displayed in the lower single-word French gloss section.")
 print("PASS: all protected translation/query assets, vocabulary indexes, shared sync, cover and Android APK remain unchanged.")
