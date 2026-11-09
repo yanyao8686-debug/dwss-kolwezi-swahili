@@ -138,4 +138,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo 'PASS: live DWSS 0.9.130 single-word French gloss entries display each word's own Chinese approximate pronunciation, with IPA fallback and repeated occurrences preserved. French-Chinese meanings, pinyin homophone lookup, cover and Android installer are unchanged.'
+          echo "PASS: live DWSS 0.9.130 single-word French gloss entries display each word's own Chinese approximate pronunciation, with IPA fallback and repeated occurrences preserved. French-Chinese meanings, pinyin homophone lookup, cover and Android installer are unchanged."
