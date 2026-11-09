@@ -161,7 +161,7 @@
 
   function frenchWordTokens(value) {
     const tokens = [];
-    const re = /[\\p{L}\\p{M}]+/gu;
+    const re = /[\p{L}\p{M}]+/gu;
     let match;
     while ((match = re.exec(String(value || ""))) !== null) tokens.push(match[0]);
     return tokens;
