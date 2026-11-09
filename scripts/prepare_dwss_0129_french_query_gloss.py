@@ -220,7 +220,7 @@ if 'id="singleReadingGlossLabel"' not in html:
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
     fail("Live site is not the supported 0.9.125/0.9.129 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.125 or 0.9.129.")
+    fail("Live app.js version is not 0.9.128 or 0.9.129.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
     fail("Live Service Worker version is not 0.9.128 or 0.9.129.")
 
