@@ -26,8 +26,8 @@
   function exportTools() {
     return Object.freeze({ normalizeFrenchWord, wordPrefix });
   }
-  function formatCombinedResult(french, reading) {
-    return "法语原文：" + String(french || "").trim() + "\n中文近似音：" + String(reading || "").trim();
+  function formatCombinedResult(_french, reading) {
+    return String(reading || "").trim();
   }
   function parseCombinedResult(value) {
     const text = String(value || "");
@@ -215,9 +215,17 @@
       const pronunciation = await buildPhraseReading(french);
       if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
       setFrenchResult(formatCombinedResult(french, pronunciation.reading));
+      const glossTools = window.DWSSFrenchTools;
+      if (glossTools && typeof glossTools.renderSingleGloss === "function" && lastChinese) {
+        glossTools.renderSingleGloss(lastChinese, french);
+      }
       setMeta("");
     } catch (_) {
-      setFrenchResult(formatCombinedResult(french, "近似音暂不可用"));
+      setFrenchResult("近似音暂不可用");
+      const glossTools = window.DWSSFrenchTools;
+      if (glossTools && typeof glossTools.renderSingleGloss === "function" && lastChinese) {
+        glossTools.renderSingleGloss(lastChinese, french);
+      }
       setGrammarStatus("法语近似音暂不可用。", "error");
     }
   }
@@ -237,6 +245,8 @@
       pendingChinese = "";
       lastChinese = "";
       lastMachineFrench = "";
+      const glossTools = window.DWSSFrenchTools;
+      if (glossTools && typeof glossTools.renderSingleGloss === "function") glossTools.renderSingleGloss("", "");
       return;
     }
     if (pendingChinese === chinese) return;
@@ -337,7 +347,7 @@
     mirrorSwahiliResultStyle();
     output.readOnly = false;
     output.disabled = false;
-    output.placeholder = "法语原文：\n中文近似音：";
+    output.placeholder = "中文近似音将在此显示";
     const sourceBlock = $("dwssFrenchSpellingBlock");
     if (sourceBlock) {
       sourceBlock.hidden = true;
