@@ -319,19 +319,61 @@
     reading = reading.replace(/\s{2,}/g, " ").trim();
     return { reading, ipa, missing, wordReadings };
   }
+  async function buildLocalPhraseReading(french) {
+    const tokens = createWordTokens(french);
+    if (!tokens.length) return { reading: "", ipa: [], missing: [], wordReadings: new Map() };
+    const tools = window.DWSSFrenchTools;
+    let pairs = [];
+    if (tools && typeof tools.getPhraseWordPairs === "function") {
+      try { pairs = await tools.getPhraseWordPairs(french); } catch (_) { pairs = []; }
+    }
+    const lookup = new Map();
+    for (const pair of pairs) {
+      const key = normalizeFrenchWord(pair && pair.token);
+      const cue = String(pair && pair.reading || "").trim();
+      if (key && cue && cue !== "谐音待补") lookup.set(key, cue);
+    }
+    let reading = "";
+    const missing = [];
+    const wordReadings = new Map();
+    let cursor = 0;
+    for (const token of tokens) {
+      reading += french.slice(cursor, token.start);
+      const key = normalizeFrenchWord(token.word);
+      const cue = lookup.get(key) || fallbackElision(token.word);
+      if (cue) {
+        reading += cue;
+        wordReadings.set(key, { word: token.word, reading: cue, ipa: "", confidence: "local-gloss" });
+      } else {
+        reading += "〔发音待补〕";
+        missing.push(token.word);
+        wordReadings.set(key, { word: token.word, reading: "", ipa: "", missing: true });
+      }
+      cursor = token.end;
+    }
+    reading += french.slice(cursor);
+    return { reading: reading.trim(), ipa: [], missing, wordReadings };
+  }
   async function renderPronunciation(french, requestId) {
     const spelling = $("dwssFrenchSpelling");
     const result = $("resultFrenchReading");
     if (!spelling || !result) return;
     try {
-      const pronunciation = await buildPhraseReading(french);
+      const local = await buildLocalPhraseReading(french);
       if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
-      setFrenchResult(formatCombinedResult(french, pronunciation.reading));
+      setFrenchResult(local.reading);
       const glossTools = window.DWSSFrenchTools;
       if (glossTools && typeof glossTools.renderSingleGloss === "function" && lastChinese) {
-        glossTools.renderSingleGloss(lastChinese, french, pronunciation.wordReadings);
+        glossTools.renderSingleGloss(lastChinese, french);
       }
       setMeta("");
+      // Enrich missing word forms in the background without delaying this local result.
+      if (typeof navigator === "undefined" || navigator.onLine !== false) {
+        buildPhraseReading(french).then(enriched => {
+          if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
+          setFrenchResult(enriched.reading);
+        }).catch(() => {});
+      }
     } catch (_) {
       setFrenchResult("近似音暂不可用");
       const glossTools = window.DWSSFrenchTools;
@@ -469,7 +511,7 @@
         setGrammarStatus("本地词库暂未匹配，正在准备在线翻译。", "info");
       }
     }
-    translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 400 : delay);
+    translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 180 : delay);
   }
   async function autoCheckFrenchGrammar(french, requestId) {
     const original = String(french || "").trim();
@@ -542,8 +584,8 @@
     const spelling = $("dwssFrenchSpelling");
     if (!input || !spelling) return;
     input.addEventListener("compositionstart", () => { composing = true; });
-    input.addEventListener("compositionend", () => { composing = false; scheduleTranslation(160); });
-    input.addEventListener("input", () => { if (!composing) scheduleTranslation(360); });
+    input.addEventListener("compositionend", () => { composing = false; scheduleTranslation(80); });
+    input.addEventListener("input", () => { if (!composing) scheduleTranslation(180); });
     const frenchMode = $("dwssMainFrMode");
     if (frenchMode) frenchMode.addEventListener("click", () => scheduleTranslation(100));
     const swMode = $("dwssMainSwMode");
@@ -586,7 +628,7 @@
       });
 
     }
-    if (isFrenchMode()) scheduleTranslation(80);
+    if (isFrenchMode()) scheduleTranslation(50);
   }
   window.DWSSFrenchMachineTranslationController = Object.freeze({
     translateCurrentChinese,
