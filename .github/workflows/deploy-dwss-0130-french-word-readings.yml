@@ -7,7 +7,6 @@ on:
       - '.github/workflows/deploy-dwss-0130-french-word-readings.yml'
       - 'scripts/prepare_dwss_0130_french_word_readings.py'
       - 'scripts/test_dwss_0130_french_word_readings.cjs'
-      - 'scripts/french-translation-runtime.js'
       - 'scripts/french-extension-0130.js'
   workflow_dispatch:
 
