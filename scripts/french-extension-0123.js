@@ -325,7 +325,8 @@
       $("resultFrenchReading").hidden = false;
       $("dwssFrenchSpellingBlock").hidden = true;
       $("dwssFrenchSpellingBlock").style.setProperty("display", "none", "important");
-      $("dwssFrenchCorrectionPanel").hidden = false;
+      const frenchCorrectionPanel = $("dwssFrenchCorrectionPanel");
+      if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;
       $("translationCorrectionPanel").hidden = true;
       loadLexicon().then(renderMainFrench).catch(error => {
         $("resultFrenchReading").value = "";
@@ -336,7 +337,8 @@
     } else {
       $("resultFrenchReading").hidden = true;
       $("dwssFrenchSpellingBlock").hidden = true;
-      $("dwssFrenchCorrectionPanel").hidden = true;
+      const frenchCorrectionPanel = $("dwssFrenchCorrectionPanel");
+      if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;
       $("resultReading").hidden = false;
       $("translationCorrectionPanel").hidden = false;
     }
@@ -542,7 +544,8 @@
   function bind() {
     $("dwssMainSwMode").addEventListener("click", () => setMainMode("sw"));
     $("dwssMainFrMode").addEventListener("click", () => setMainMode("fr"));
-    $("dwssSaveFrenchCorrection").addEventListener("click", saveFrenchCorrection);
+    const frenchCorrectionButton = $("dwssSaveFrenchCorrection");
+    if (frenchCorrectionButton) frenchCorrectionButton.addEventListener("click", saveFrenchCorrection);
     $("dwssPronSwMode").addEventListener("click", () => setQueryMode("sw"));
     $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
     const scheduleMain = () => {
