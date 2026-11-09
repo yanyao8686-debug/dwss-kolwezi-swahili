@@ -307,8 +307,8 @@ assert(frenchTools && typeof frenchTools.translateChinese === 'function',
   'French word-level dictionary matcher must be available');
 assert(typeof frenchTools.getWordChineseReading === 'function',
   'word-specific Chinese approximate pronunciation helper must be exported');
-assert(frenchTools.getWordChineseReading({word:'Bonjour',reading:'邦茹',ipa:'bɔ̃.ʒuʁ'}) === '邦茹',
-  'a French word must use its own dictionary Chinese approximate pronunciation');
+assert(frenchTools.getWordChineseReading({word:'Bonjour',reading:'邦茹',ipa:'bɔ̃.ʒuʁ'}) === frenchTools.ipaToChinese('bɔ̃.ʒuʁ'),
+  'without an authoritative phrase map, the glossary must use the same IPA conversion as the main result');
 const ipaFallback = frenchTools.getWordChineseReading({word:'Bonjour',reading:'',ipa:'bɔ̃.ʒuʁ'});
 assert(ipaFallback === frenchTools.ipaToChinese('bɔ̃.ʒuʁ') && ipaFallback.length > 0,
   'a French word without a stored reading must derive its own Chinese approximation from its IPA');
