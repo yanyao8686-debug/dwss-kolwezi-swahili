@@ -4,10 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-dwss-0131-unified-french-word-gloss.yml'
-      - 'scripts/prepare_dwss_0131_french_word_readings.py'
-      - 'scripts/test_dwss_0131_french_word_readings.cjs'
+      - '.github/workflows/deploy-dwss-0131-unified-french-gloss.yml'
+      - 'scripts/prepare_dwss_0131_unified_french_gloss.py'
+      - 'scripts/test_dwss_0131_unified_french_gloss.cjs'
       - 'scripts/french-extension-0131.js'
+      - 'scripts/french-translation-runtime.js'
   workflow_dispatch:
 
 permissions:
@@ -33,9 +34,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/prepare_dwss_0131_french_word_readings.py
-          python3 scripts/prepare_dwss_0131_french_word_readings.py
-          python3 -m py_compile scripts/prepare_dwss_0131_french_word_readings.py
+          python3 -m py_compile scripts/prepare_dwss_0131_unified_french_gloss.py
+          python3 scripts/prepare_dwss_0131_unified_french_gloss.py
+          python3 -m py_compile scripts/prepare_dwss_0131_unified_french_gloss.py
           node --check public/app.js
           node --check public/sw.js
           node --check public/french-extension.js
@@ -46,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install --no-save --no-package-lock jsdom@26.1.0
-          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0131_french_word_readings.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0131_unified_french_gloss.cjs
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
 
       - name: Upload DWSS Pages artifact
@@ -69,7 +70,7 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           grep -Fxq 'Version: 0.9.131' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_130' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_131' "$LIVE/index.html"
           grep -Fq "version:'0.9.131'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.131';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
@@ -98,11 +99,11 @@ jobs:
           grep -Fq '输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语' "$LIVE/french-extension.js"
           grep -Fq 'function formatCombinedResult(_french, reading)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'return String(reading || "").trim();' "$LIVE/french-translation-runtime.js"
-          grep -Fq 'glossTools.renderSingleGloss(lastChinese, french);' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'glossTools.renderSingleGloss(lastChinese, french, pronunciation.wordReadings);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'output.placeholder = "中文近似音将在此显示";' "$LIVE/french-translation-runtime.js"
-          grep -Fq 'function renderFrenchSingleGloss(raw, frenchOriginal)' "$LIVE/french-extension.js"
+          grep -Fq 'function renderFrenchSingleGloss(raw, frenchOriginal, pronunciationOverrides)' "$LIVE/french-extension.js"
           grep -Fq 'dwss-french-original-in-gloss' "$LIVE/french-extension.js"
-          grep -Fq 'host.innerHTML = originalMarkup + matches.map(part => {' "$LIVE/french-extension.js"
+          grep -Fq 'host.innerHTML = originalMarkup + words.map(word => {' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-original-in-gloss-0128"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-gloss-visible-0129"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-word-reading-0131"' "$LIVE/index.html"
