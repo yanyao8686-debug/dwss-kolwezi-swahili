@@ -372,7 +372,17 @@
         buildPhraseReading(french).then(enriched => {
           if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
           setFrenchResult(enriched.reading);
-        }).catch(() => {});
+          const enrichedGlossTools = window.DWSSFrenchTools;
+          if (enrichedGlossTools && typeof enrichedGlossTools.renderSingleGloss === "function" && lastChinese) {
+            enrichedGlossTools.renderSingleGloss(lastChinese, french, enriched.wordReadings);
+          }
+        }).catch(() => {
+          if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
+          const enrichedGlossTools = window.DWSSFrenchTools;
+          if (enrichedGlossTools && typeof enrichedGlossTools.renderSingleGloss === "function" && lastChinese) {
+            enrichedGlossTools.renderSingleGloss(lastChinese, french, new Map());
+          }
+        });
       }
     } catch (_) {
       setFrenchResult("近似音暂不可用");
