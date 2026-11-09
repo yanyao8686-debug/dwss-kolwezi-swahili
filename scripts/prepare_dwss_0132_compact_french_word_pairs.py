@@ -365,12 +365,12 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_132"
 new_marker = "DWSS_AUTO_UPDATE_0_9_133"
 if new_marker not in html:
-    if html.count(old_marker) != 1:
-        fail("Expected one 0.9.132 auto-update marker; found " + str(html.count(old_marker)))
-    html = html.replace(old_marker, new_marker, 1)
+    old_markers = re.findall(r"DWSS_AUTO_UPDATE_0_9_\\d+", html)
+    if len(old_markers) != 1:
+        fail("Expected exactly one prior DWSS auto-update marker; found " + str(len(old_markers)))
+    html = html.replace(old_markers[0], new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
 if html.count(style_id) != 1:
