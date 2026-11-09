@@ -198,7 +198,8 @@ if not extension_source.is_file() or extension_source.stat().st_size < 20000:
     fail("Merged French extension source is missing or unexpectedly small.")
 write_asset("french-extension.js", extension_source.read_bytes())
 extension = (ROOT / "french-extension.js").read_text(encoding="utf-8")
-for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentChinese === \"function\") return;",\n                 "formatCombinedFrenchResult(result.words, result.reading)",
+for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentChinese === \"function\") return;",
+                 "formatCombinedFrenchResult(result.words, result.reading)",
                  "DWSSFrenchCombinedResult.parse", "dwssFrenchSpellingBlock"):
     if required not in extension:
         fail("Merged French extension is missing: " + required)
