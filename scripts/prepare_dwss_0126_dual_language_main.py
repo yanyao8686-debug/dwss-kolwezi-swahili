@@ -213,7 +213,7 @@ if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
     fail("Live app.js version is not 0.9.125 or 0.9.126.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.123 or 0.9.126.")
+    fail("Live Service Worker version is not 0.9.125 or 0.9.126.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
