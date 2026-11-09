@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.135 fast offline-aware French translation
+name: Deploy DWSS 0.9.136 fast offline-aware French translation
 
 on:
   push:
@@ -18,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0135-fast-offline-french
+  group: dwss-pages-deploy-0136-local-first-french
   cancel-in-progress: true
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.135
+      - name: Deploy DWSS 0.9.136
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -69,14 +69,14 @@ jobs:
           for file in VERSION.txt index.html app.js sw.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.135' "$LIVE/VERSION.txt"
+          grep -Fxq 'Version: 0.9.136' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_135' "$LIVE/index.html"
-          grep -Fq "version:'0.9.135'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.135';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.136'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.136';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq '翻译时自动检查法语语法，译文会发送至外部服务。' "$LIVE/french-translation-runtime.js"
-          grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
+          grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'grammarButton.textContent = "检查法语语法"' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'runGrammarCheck' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'id="dwssFrenchCorrectionPanel"' "$LIVE/index.html"
@@ -104,6 +104,8 @@ jobs:
           grep -Fq 'expandFrenchNumerals(rawFrench)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'numeralTools.isNumericExpression(chinese)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'const immediate = tools.translateOfflineChinese(chinese)' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'localPreviewCompleteChinese' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'await localTools.prepareOfflineChinese(chinese)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'function parseNumberAt(text, start)' "$LIVE/french-extension.js"
           grep -Fq 'function expandFrenchNumerals(value)' "$LIVE/french-extension.js"
           grep -Fq 'function frenchIntegerToWords(n)' "$LIVE/french-extension.js"
@@ -119,6 +121,8 @@ jobs:
           grep -Fq 'id="dwss-french-word-pairs-0132"' "$LIVE/index.html"
           grep -Fq 'grid-template-columns:repeat(2,minmax(0,1fr))!important' "$LIVE/index.html"
           grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
+          grep -Fq 'refreshActiveMeaningIndex()' "$LIVE/french-extension.js"
+          grep -Fq 'activeRowsSignature' "$LIVE/french-extension.js"
           grep -Fq 'getPhraseWordPairs(phrase)' "$LIVE/french-extension.js"
           grep -Fq 'chineseMatcherCache = new WeakMap()' "$LIVE/french-extension.js"
           grep -Fq 'PERSISTED_CACHE_KEY' "$LIVE/french-translation-runtime.js"
@@ -154,4 +158,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.135 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
+          echo "PASS: live DWSS 0.9.136 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
