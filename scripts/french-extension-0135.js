@@ -14,6 +14,7 @@
   let meaningByWord = new Map();
   let frenchWordReadingByWord = new Map();
   let activeMeaningIndex = new Map();
+  let activeRowsSignature = "";
   let activeMainMode = "sw";
   let activeQueryMode = "sw";
   let mainTimer = null;
@@ -406,6 +407,7 @@
 
   function translateOfflineChinese(raw) {
     const text = String(raw || "");
+    refreshActiveMeaningIndex();
     if ((!activeMeaningIndex || !activeMeaningIndex.size) && !isNumericExpression(text)) return null;
     return translateChinese(text, activeMeaningIndex || new Map());
   }
@@ -415,6 +417,7 @@
   }
   async function getPhraseWordPairs(phrase) {
     await loadLexicon();
+    refreshActiveMeaningIndex();
     return buildFrenchWordPairs(phrase, frenchWordReadingByWord, []);
   }
   window.DWSSFrenchTools = Object.freeze({
@@ -477,9 +480,9 @@
     return out;
   }
 
-  function createMeaningIndex() {
+  function createMeaningIndex(customRows) {
     const map = new Map();
-    const custom = activeRows();
+    const custom = Array.isArray(customRows) ? customRows : activeRows();
     for (const item of custom) {
       for (const meaning of item.meanings || []) {
         const key = normalizeChinese(meaning);
@@ -509,6 +512,26 @@
       });
     }
     return map;
+  }
+
+  function currentActiveRowsSignature(rows) {
+    return JSON.stringify((Array.isArray(rows) ? rows : []).map(item => [
+      normalizeChinese(item.meanings && item.meanings[0]),
+      normalizeFrenchGlossKey(item.word),
+      String(item.reading || "").trim(),
+      String(item.ipa || "").trim()
+    ]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+  }
+
+  function refreshActiveMeaningIndex() {
+    if (!meaningRows.length) return;
+    const rows = activeRows();
+    const signature = currentActiveRowsSignature(rows);
+    if (signature === activeRowsSignature) return;
+    activeRowsSignature = signature;
+    activeMeaningIndex = createMeaningIndex(rows);
+    // Put personal and locally queued/shared French corrections before base dictionary rows.
+    frenchWordReadingByWord = buildFrenchWordReadingLookup([...rows, ...meaningRows]);
   }
 
   async function decompressGzip(response, label) {
@@ -550,8 +573,10 @@
         throw new Error("法语分片词库或中译词典数量异常，已停止使用不完整词库。");
       }
       meaningByWord = buildFrenchGlossLookup(meaningRows);
-      frenchWordReadingByWord = buildFrenchWordReadingLookup(meaningRows);
-      activeMeaningIndex = createMeaningIndex();
+      const userRows = activeRows();
+      activeRowsSignature = currentActiveRowsSignature(userRows);
+      frenchWordReadingByWord = buildFrenchWordReadingLookup([...userRows, ...meaningRows]);
+      activeMeaningIndex = createMeaningIndex(userRows);
       return {
         forms: meta.formsWithIpa,
         glossed: meaningRows.length,
