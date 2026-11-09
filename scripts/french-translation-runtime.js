@@ -333,6 +333,10 @@
     if (grammarButton) return;
     const output = $("resultFrenchReading");
     if (!output || !output.parentElement) return;
+    // The combined result field is intentionally editable so users can correct
+    // the French source line and its Chinese approximate-pronunciation line.
+    output.readOnly = false;
+    output.disabled = false;
     mirrorSwahiliResultStyle();
     output.placeholder = "法语原文：\n中文近似音：";
     const sourceBlock = $("dwssFrenchSpellingBlock");
