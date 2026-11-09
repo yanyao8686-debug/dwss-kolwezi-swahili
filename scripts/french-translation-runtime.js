@@ -167,45 +167,53 @@
   }
   async function buildPhraseReading(french) {
     const tokens = createWordTokens(french);
-    if (!tokens.length) return { reading: "", ipa: [], missing: [] };
+    if (!tokens.length) return { reading: "", ipa: [], missing: [], wordReadings: new Map() };
     const prefixes = [...new Set(tokens.map(x => wordPrefix(x.word)).filter(Boolean))];
     const shards = await Promise.all(prefixes.map(loadWordShard));
     const words = new Map();
     for (const shard of shards) for (const [key, value] of shard) words.set(key, value);
 
     let reading = "";
-    let ipa = [];
+    const ipa = [];
     const missing = [];
+    const wordReadings = new Map();
     let cursor = 0;
     for (const token of tokens) {
       const gap = french.slice(cursor, token.start).replace(/[’']/g, "").replace(/[-‐‑–—]/g, " ");
       reading += gap;
       const key = normalizeFrenchWord(token.word);
       const item = words.get(key);
-      if (item && item.ipa) {
+      if (item) {
         const tools = window.DWSSFrenchTools;
-        const cue = tools && typeof tools.ipaToChinese === "function" ? tools.ipaToChinese(item.ipa) : item.reading;
+        const ipaReading = item.ipa && tools && typeof tools.ipaToChinese === "function"
+          ? tools.ipaToChinese(item.ipa) : "";
+        const cue = String(ipaReading || item.reading || "").trim();
         if (cue) {
           reading += cue;
-          ipa.push(token.word + " /" + item.ipa + "/ [" + (LABELS[item.confidence] || "来源未标注") + "]");
+          if (item.ipa) ipa.push(token.word + " /" + item.ipa + "/ [" + (LABELS[item.confidence] || "来源未标注") + "]");
+          wordReadings.set(key, { word: token.word, reading: cue, ipa: item.ipa || "", confidence: item.confidence || "" });
         } else {
           reading += "〔发音待核〕";
           missing.push(token.word);
+          wordReadings.set(key, { word: token.word, reading: "", ipa: item.ipa || "", confidence: item.confidence || "", missing: true });
         }
       } else {
         const elision = fallbackElision(token.word);
-        if (elision) reading += elision;
-        else {
+        if (elision) {
+          reading += elision;
+          wordReadings.set(key, { word: token.word, reading: elision, ipa: "", confidence: "fallback" });
+        } else {
           reading += "〔" + token.word + "读音待补〕";
           missing.push(token.word);
+          wordReadings.set(key, { word: token.word, reading: "", ipa: "", missing: true });
         }
       }
       cursor = token.end;
-      if (cursor < french.length && /\s/.test(french[cursor])) reading += " ";
+      if (cursor < french.length && /\\s/.test(french[cursor])) reading += " ";
     }
     reading += french.slice(cursor).replace(/[’']/g, "");
-    reading = reading.replace(/\s{2,}/g, " ").trim();
-    return { reading, ipa, missing };
+    reading = reading.replace(/\\s{2,}/g, " ").trim();
+    return { reading, ipa, missing, wordReadings };
   }
   async function renderPronunciation(french, requestId) {
     const spelling = $("dwssFrenchSpelling");
@@ -217,7 +225,7 @@
       setFrenchResult(formatCombinedResult(french, pronunciation.reading));
       const glossTools = window.DWSSFrenchTools;
       if (glossTools && typeof glossTools.renderSingleGloss === "function" && lastChinese) {
-        glossTools.renderSingleGloss(lastChinese, french);
+        glossTools.renderSingleGloss(lastChinese, french, pronunciation.wordReadings);
       }
       setMeta("");
     } catch (_) {
