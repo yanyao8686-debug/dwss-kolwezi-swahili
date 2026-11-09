@@ -296,7 +296,7 @@ if html.count(merged_style_id) > 1:
 if merged_style_id not in html:
     if "</head>" not in html:
         fail("Cannot find </head> for single-result French UI styles.")
-    html = html.replace("</head>", merged_style + "\\n</head>", 1)
+    html = html.replace("</head>", merged_style + "\n</head>", 1)
 for selector in (
     "#resultCard #resultFrenchReading[hidden]",
     "#resultCard #resultFrenchReading.empty[hidden]",
