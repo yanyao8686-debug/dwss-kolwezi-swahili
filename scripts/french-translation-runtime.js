@@ -27,11 +27,11 @@
     return Object.freeze({ normalizeFrenchWord, wordPrefix });
   }
   function formatCombinedResult(french, reading) {
-    return "法语原文：" + String(french || "").trim() + "\\n中文近似音：" + String(reading || "").trim();
+    return "法语原文：" + String(french || "").trim() + "\n中文近似音：" + String(reading || "").trim();
   }
   function parseCombinedResult(value) {
     const text = String(value || "");
-    const marker = "\\n中文近似音：";
+    const marker = "\n中文近似音：";
     const index = text.indexOf(marker);
     if (index < 0) return { french: "", reading: text.trim() };
     const french = text.slice(0, index).replace(/^法语原文：/, "").trim();
