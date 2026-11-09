@@ -245,7 +245,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "glossSegments", "window.DWSSRenderTranslation",
                  "machine.scheduleTranslation(80)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
-                 "nearFirstKeys", "bucketCap",
+                 "nearFirstKeys", "rowsForShards",
                  "function renderFrenchSingleGloss(raw, frenchOriginal)",
                  "dwss-french-original-in-gloss", "originalMarkup",
                  'const GLOSS_URL = "./french-gloss-index.tsv.gz";',
