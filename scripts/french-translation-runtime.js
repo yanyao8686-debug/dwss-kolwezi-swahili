@@ -355,7 +355,7 @@
     mirrorSwahiliResultStyle();
     output.readOnly = false;
     output.disabled = false;
-    output.placeholder = "中文近似音将在此显示";
+    output.placeholder = "输入中文后翻译结果中文谐音会显示在这里";
     const sourceBlock = $("dwssFrenchSpellingBlock");
     if (sourceBlock) {
       sourceBlock.hidden = true;
