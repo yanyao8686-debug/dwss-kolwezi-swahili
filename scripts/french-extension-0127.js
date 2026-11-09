@@ -13,6 +13,7 @@
   let mainTimer = null;
   let queryTimer = null;
   let lastMainMatches = [];
+  const FRENCH_NEAR_INITIAL_GROUPS = [["b", "p"], ["d", "t"], ["g", "k"]];
 
   function ipaToChinese(ipa) {
     const vowels = ["ɑ̃","ɛ̃","ɔ̃","œ̃","ɑ","a","e","ɛ","i","o","ɔ","u","y","ø","œ","ə"];
@@ -454,7 +455,6 @@
     }
   }
 
-  const FRENCH_NEAR_INITIAL_GROUPS = [["b", "p"], ["d", "t"], ["g", "k"]];
 
   function splitPinyinInitial(value) {
     const syllable = String(value || "").toLowerCase();
