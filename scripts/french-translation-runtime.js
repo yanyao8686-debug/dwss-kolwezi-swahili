@@ -59,6 +59,7 @@
   let userEditedCombined = false;
   let writingCombinedOutput = false;
   let localPreviewChinese = "";
+  let localPreviewCompleteChinese = "";
   const PERSISTED_CACHE_KEY = "dwss.french.translation-cache.v1";
   const PERSISTED_CACHE_MAX = 60;
   const PERSISTED_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
@@ -140,6 +141,7 @@
       spelling.value = french;
       lastMachineFrench = "";
       localPreviewChinese = chinese;
+      localPreviewCompleteChinese = Array.isArray(draft.misses) && draft.misses.length === 0 ? chinese : "";
       setFrenchResult(draft.reading);
       setMeta("");
       setGrammarStatus(
@@ -159,7 +161,7 @@
       } catch (_) {}
     }
     if (typeof tools.prepareOfflineChinese === "function") {
-      tools.prepareOfflineChinese(chinese).then(displayDraft).catch(() => {}); return true;
+      tools.prepareOfflineChinese(chinese).then(displayDraft).catch(() => {}); return false;
     }
     return false;
   }
@@ -174,6 +176,7 @@
     lastChinese = chinese;
     lastMachineFrench = french;
     localPreviewChinese = "";
+    localPreviewCompleteChinese = "";
     pendingChinese = "";
     userEditedCombined = false;
     spelling.value = french;
@@ -411,7 +414,7 @@
         ? numeralTools.translateOfflineChinese(chinese) : null;
       if (numberDraft && String(numberDraft.words || "").trim() && String(numberDraft.reading || "").trim()) {
         ++activeRequest; lastChinese = chinese; lastMachineFrench = String(numberDraft.words).trim();
-        localPreviewChinese = ""; pendingChinese = ""; spelling.value = lastMachineFrench;
+        localPreviewChinese = ""; localPreviewCompleteChinese = chinese; pendingChinese = ""; spelling.value = lastMachineFrench;
         setFrenchResult(numberDraft.reading); setGrammarStatus("数字已直接转换为法语读法。", "info");
         if (typeof numeralTools.renderSingleGloss === "function") numeralTools.renderSingleGloss(chinese, lastMachineFrench);
         return;
@@ -427,8 +430,15 @@
       lastChinese = "";
       lastMachineFrench = "";
       localPreviewChinese = "";
+      localPreviewCompleteChinese = "";
       const glossTools = window.DWSSFrenchTools;
       if (glossTools && typeof glossTools.renderSingleGloss === "function") glossTools.renderSingleGloss("", "");
+      return;
+    }
+    if (localPreviewCompleteChinese === chinese && localPreviewChinese === chinese && spelling.value.trim()) {
+      lastMachineFrench = spelling.value.trim();
+      pendingChinese = "";
+      setGrammarStatus("本机法语词库即时翻译，无需联网。", "info");
       return;
     }
     if (pendingChinese === chinese) return;
@@ -445,6 +455,41 @@
       setGrammarStatus("");
     }
     setMeta("");
+
+    // Resolve the dedicated French lexicon locally before any network request.
+    // A complete local hit is final; only missing terms are eligible for online completion.
+    const localTools = window.DWSSFrenchTools;
+    let localDraft = null;
+    try {
+      if (localTools && typeof localTools.translateOfflineChinese === "function") {
+        localDraft = localTools.translateOfflineChinese(chinese);
+      }
+      if ((!localDraft || !String(localDraft.words || "").trim()) &&
+          localTools && typeof localTools.prepareOfflineChinese === "function") {
+        localDraft = await localTools.prepareOfflineChinese(chinese);
+      }
+    } catch (_) {}
+    if (requestId !== activeRequest) return;
+    if (localDraft && String(localDraft.words || "").trim() && String(localDraft.reading || "").trim()) {
+      const misses = Array.isArray(localDraft.misses) ? localDraft.misses : [];
+      spelling.value = String(localDraft.words).trim();
+      localPreviewChinese = chinese;
+      setFrenchResult(localDraft.reading);
+      if (misses.length === 0) {
+        localPreviewCompleteChinese = chinese;
+        lastMachineFrench = spelling.value.trim();
+        pendingChinese = "";
+        setGrammarStatus("本机法语词库即时翻译，无需联网。", "info");
+        await renderPronunciation(spelling.value.trim(), requestId);
+        return;
+      }
+      localPreviewCompleteChinese = "";
+      lastMachineFrench = "";
+      setGrammarStatus("本机法语词库已匹配部分内容；正在联网补全未收录部分。", "info");
+    } else {
+      localPreviewCompleteChinese = "";
+    }
+
     try {
       let data = translationCache.get(chinese);
       const fromCache = !!data;
@@ -476,15 +521,11 @@
         setGrammarStatus("使用本机已保存的法语译文。", "info");
         return;
       }
-      const checkedFrench = await autoCheckFrenchGrammar(french, requestId);
-      if (requestId !== activeRequest) return;
-      if (checkedFrench && checkedFrench !== french && !userEditedCombined &&
-          String(spelling.value || "").trim() === french) {
-        spelling.value = checkedFrench;
-        lastMachineFrench = checkedFrench;
-        await renderPronunciation(checkedFrench, requestId);
+      // Do not block the visible result on a second third-party grammar request.
+      if (requestId === activeRequest) {
+        pendingChinese = "";
+        setGrammarStatus("在线法语译文已生成；已跳过额外语法校对以减少等待。", "info");
       }
-      if (requestId === activeRequest) pendingChinese = "";
     } catch (_) {
       if (requestId !== activeRequest) return;
       pendingChinese = "";
@@ -517,6 +558,7 @@
       lastChinese = "";
       lastMachineFrench = "";
       localPreviewChinese = "";
+      localPreviewCompleteChinese = "";
       if (spelling) spelling.value = "";
       setFrenchResult("");
       setMeta("");
@@ -528,18 +570,23 @@
       pendingChinese = "";
       lastChinese = chinese;
       lastMachineFrench = "";
+      localPreviewCompleteChinese = "";
       userEditedCombined = false;
-      const cached = translationCache.get(chinese);
-      if (cached && cached.translatedText) {
-        showCachedTranslation(chinese, cached);
-      } else if (!showInstantLocalDraft(chinese)) {
-        localPreviewChinese = "";
-        if (spelling) spelling.value = "";
-        setFrenchResult("");
-        const tools = window.DWSSFrenchTools;
-        if (tools && typeof tools.renderSingleGloss === "function") tools.renderSingleGloss(chinese, "");
-        setGrammarStatus("本地词库暂未匹配，正在准备在线翻译。", "info");
+      const hasLocalPreview = showInstantLocalDraft(chinese);
+      if (localPreviewCompleteChinese !== chinese) {
+        const cached = translationCache.get(chinese);
+        if (cached && cached.translatedText) {
+          showCachedTranslation(chinese, cached);
+        } else if (!hasLocalPreview) {
+          localPreviewChinese = "";
+          if (spelling) spelling.value = "";
+          setFrenchResult("");
+          const tools = window.DWSSFrenchTools;
+          if (tools && typeof tools.renderSingleGloss === "function") tools.renderSingleGloss(chinese, "");
+          setGrammarStatus("正在本地查找法语词库；未收录内容联网后补全。", "info");
+        }
       }
+      if (localPreviewCompleteChinese === chinese) return;
     }
     translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 60 : delay);
   }
@@ -602,7 +649,7 @@
     if (!$("dwssFrenchAutomaticGrammarNotice")) {
       const note = document.createElement("small");
       note.id = "dwssFrenchAutomaticGrammarNotice";
-      note.textContent = "翻译时自动检查法语语法，译文会发送至外部服务。";
+      note.textContent = "法语优先使用本机词库；未收录内容联网后调用机器翻译服务。";
       note.style.cssText = "display:block;margin:5px 2px 0;font-size:10px;line-height:1.4;color:#8995a5";
       output.insertAdjacentElement("afterend", note);
     }
