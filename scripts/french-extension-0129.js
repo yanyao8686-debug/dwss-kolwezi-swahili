@@ -192,7 +192,7 @@
 
   function normalizeFrenchGlossKey(value) {
     return String(value || "").normalize("NFKD")
-      .replace(/\\p{M}/gu, "")
+      .replace(/\p{M}/gu, "")
       .replace(/œ/gi, "oe").replace(/æ/gi, "ae")
       .toLowerCase().replace(/[^a-z0-9]/g, "");
   }
