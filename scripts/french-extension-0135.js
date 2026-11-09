@@ -451,14 +451,19 @@
     const api = window.KolweziSwahili;
     if (api && typeof api.getCustom === "function") {
       for (const item of api.getCustom()) {
-        if (!item || !item.zh || !item.french || !item.frenchReadingZh) continue;
-        const key = normalizeChinese(item.zh) + "|" + String(item.french).toLowerCase();
+        if (!item || !item.zh || !item.french) continue;
+        const word = String(item.french).trim();
+        const suppliedReading = String(item.frenchReadingZh || "").trim();
+        const generatedReading = suppliedReading ||
+          (typeof api.frenchReading === "function" ? String(api.frenchReading(word) || "").trim() : "");
+        if (!word || !generatedReading) continue;
+        const key = normalizeChinese(item.zh) + "|" + word.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
         out.push({
-          word: String(item.french).trim(),
+          word,
           ipa: "",
-          reading: String(item.frenchReadingZh).trim(),
+          reading: generatedReading,
           meanings: [String(item.zh).trim()],
           source: "本机用户修正"
         });
@@ -467,9 +472,13 @@
     const shared = window.DWSSSharedLexicon;
     if (shared && typeof shared.getTerms === "function") {
       for (const item of shared.getTerms() || []) {
+        // French and Katanga Swahili are separate shared lexicons. A French fallback
+        // stored on a Swahili row must never leak into the dedicated French dictionary.
+        if (!item || item.source_language !== "fr") continue;
         const word = String(item.french_text || "").trim();
         const zh = String(item.chinese_text || "").trim();
-        const reading = String(item.french_pronunciation_cn || "").trim();
+        // shared_terms stores the pronunciation for either language in this column.
+        const reading = String(item.local_pronunciation_cn || item.french_pronunciation_cn || item.frenchReadingZh || "").trim();
         if (!word || !zh || !reading) continue;
         const key = normalizeChinese(zh) + "|" + word.toLowerCase();
         if (seen.has(key)) continue;
