@@ -206,7 +206,8 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
 for required in ('action: "translate"', 'action: "check"', '检查法语语法',
                  '语法检查会将法语文本发送至外部服务。',
                  'window.DWSSFrenchCombinedResult', 'formatCombinedResult',
-                 'parseCombinedResult', 'mirrorSwahiliResultStyle'):
+                 'parseCombinedResult', 'mirrorSwahiliResultStyle',
+                 'output.readOnly = false;', 'output.disabled = false;'):
     if required not in runtime:
         fail("Compact French runtime is missing a required feature or notice: " + required)
 for removed in ("法语整句来源：", "逐词 IPA：", "发音来源：LeXiK", "查看校对建议",
