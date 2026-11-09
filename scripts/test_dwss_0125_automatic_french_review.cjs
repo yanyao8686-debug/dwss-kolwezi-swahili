@@ -91,7 +91,8 @@ assert(!html.includes('id="dwssFrenchCorrectionPanel"') &&
   'French shared-correction submit control must be removed from the interface');
 assert(runtime.includes('action: "translate"') && runtime.includes('action: "check"'),
   'translation or grammar-check action was removed');
-assert(runtime.includes('result.value = formatCombinedResult(french, pronunciation.reading)'), 'Chinese approximate pronunciation generation was removed');
+assert(runtime.includes('setFrenchResult(formatCombinedResult(french, pronunciation.reading))'),
+  'Chinese approximate pronunciation generation was removed');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
 assert(html.includes('id="dwss-french-ux-0125"'), '0.9.125 French result UI stylesheet missing');
@@ -154,4 +155,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const data = fs.readFileSync(path.join(root, name));
   assert(data.length > 10000, name + ' unexpectedly small');
 }
-console.log('PASS DWSS 0.9.125: the French source and Chinese approximate pronunciation share one Swahili-styled editable result field; parsing preserves both values for grammar check and shared sync.');
+console.log('PASS DWSS 0.9.125: editable French result matches Swahili styling; grammar checking is automatic; manual grammar and correction submission controls are removed; Swahili-only details are hidden in French mode.');
