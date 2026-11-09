@@ -101,8 +101,9 @@ assert(!html.includes('id="dwssFrenchCorrectionPanel"') &&
   'French shared-correction submit control must be removed from the interface');
 assert(runtime.includes('action: "translate"') && runtime.includes('action: "check"'),
   'translation or grammar-check action was removed');
-assert(runtime.includes('setFrenchResult(formatCombinedResult(french, pronunciation.reading))'),
-  'Chinese approximate pronunciation generation was removed');
+assert(runtime.includes('setFrenchResult(local.reading)') &&
+       runtime.includes('setFrenchResult(enriched.reading)'),
+  'local and final word-index pronunciation results must both update the Chinese approximate reading output');
 assert(runtime.includes('function formatCombinedResult(_french, reading)') &&
        runtime.includes('return String(reading || "").trim();'),
   'French result field must contain only the Chinese approximate pronunciation');
