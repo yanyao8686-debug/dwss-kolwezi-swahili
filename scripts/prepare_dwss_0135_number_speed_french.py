@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.135: make French translation local-first, faster, and cache base French dictionaries offline."""
+"""DWSS 0.9.136: make French translation local-first, faster, and cache base French dictionaries offline."""
 from __future__ import annotations
 
 import hashlib
@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.135"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.136"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -350,7 +350,7 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.135 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.136 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
@@ -595,8 +595,8 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
     fail("French pronunciation-query panel is missing or duplicated.")
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
-if "DWSS_AUTO_UPDATE_0_9_135" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.135.")
+if "DWSS_AUTO_UPDATE_0_9_136" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.136.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -628,12 +628,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.135" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.135.")
-if "Version: 0.9.135" not in version or "version:'0.9.135'" not in app:
-    fail("Website and app version markers do not agree at 0.9.135.")
-if "const APP_VERSION = '0.9.135';" not in sw:
-    fail("Service Worker cache version is not 0.9.135.")
+if "dwss-release=0.9.136" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.136.")
+if "Version: 0.9.136" not in version or "version:'0.9.136'" not in app:
+    fail("Website and app version markers do not agree at 0.9.136.")
+if "const APP_VERSION = '0.9.136';" not in sw:
+    fail("Service Worker cache version is not 0.9.136.")
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
@@ -650,5 +650,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.135 French translation uses instant local dictionary drafts, local-first word readings and a device-only translation cache.")
+print("PASS: DWSS 0.9.136 French translation uses instant local dictionary drafts, local-first word readings and a device-only translation cache.")
 print("PASS: main translation, reverse lookup, shared sync, cover and Android APK remain unchanged; French base dictionary assets are precached for offline use.")
