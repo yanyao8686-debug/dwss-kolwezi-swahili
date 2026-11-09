@@ -354,6 +354,13 @@
       correctionPanel.hidden = true;
       correctionPanel.style.setProperty("display", "none", "important");
     }
+    if (!$("dwssFrenchAutomaticGrammarNotice")) {
+      const note = document.createElement("small");
+      note.id = "dwssFrenchAutomaticGrammarNotice";
+      note.textContent = "翻译时自动检查法语语法，译文会发送至外部服务。";
+      note.style.cssText = "display:block;margin:5px 2px 0;font-size:10px;line-height:1.4;color:#8995a5";
+      output.insertAdjacentElement("afterend", note);
+    }
   }
   function bind() {
     addGrammarControls();
@@ -381,7 +388,7 @@
       if (french) {
         window.setTimeout(() => renderPronunciation(french, requestId), 260);
       } else {
-        $("resultFrenchReading").value = "";
+        setFrenchResult("");
         setMeta("");
       }
     });
