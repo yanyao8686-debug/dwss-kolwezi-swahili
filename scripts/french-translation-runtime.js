@@ -55,7 +55,10 @@
   let lastMachineFrench = "";
   let pendingChinese = "";
   let composing = false;
-  let grammarButton = null;
+  let combinedEditTimer = null;
+  let combinedRepronunciationPromise = Promise.resolve();
+  let userEditedCombined = false;
+  let writingCombinedOutput = false;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, c => ({
@@ -83,6 +86,15 @@
     status.dataset.status = type || "info";
     status.hidden = !visibleText;
     status.style.display = visibleText ? "block" : "none";
+  }
+  function setFrenchResult(value) {
+    const result = $("resultFrenchReading");
+    if (!result) return;
+    const text = String(value == null ? "" : value);
+    writingCombinedOutput = true;
+    result.value = text;
+    result.classList.toggle("empty", !text.trim());
+    writingCombinedOutput = false;
   }
   async function apiCall(payload) {
     const response = await fetch(ENDPOINT, {
@@ -203,10 +215,10 @@
     try {
       const pronunciation = await buildPhraseReading(french);
       if (requestId !== activeRequest || String(spelling.value || "").trim() !== french) return;
-      result.value = formatCombinedResult(french, pronunciation.reading);
+      setFrenchResult(formatCombinedResult(french, pronunciation.reading));
       setMeta("");
     } catch (_) {
-      result.value = formatCombinedResult(french, "近似音暂不可用");
+      setFrenchResult(formatCombinedResult(french, "近似音暂不可用"));
       setGrammarStatus("法语近似音暂不可用。", "error");
     }
   }
@@ -219,7 +231,7 @@
     const chinese = String(input.value || "").trim();
     if (!chinese) {
       spelling.value = "";
-      output.value = "";
+      setFrenchResult("");
       setMeta("");
       setGrammarStatus("");
       activeRequest += 1;
@@ -234,7 +246,7 @@
     pendingChinese = chinese;
     const requestId = ++activeRequest;
     spelling.value = "";
-    output.value = "";
+    setFrenchResult("");
     lastMachineFrench = "";
     setMeta("");
     setGrammarStatus("");
@@ -255,6 +267,18 @@
       spelling.value = french;
       lastMachineFrench = french;
       await renderPronunciation(french, requestId);
+      if (requestId !== activeRequest) return;
+
+      // Check spelling, agreement and word order automatically for each translation.
+      // A failed checker never blocks the translation; the original machine result remains.
+      const checkedFrench = await autoCheckFrenchGrammar(french, requestId);
+      if (requestId !== activeRequest) return;
+      if (checkedFrench && checkedFrench !== french && !userEditedCombined &&
+          String(spelling.value || "").trim() === french) {
+        spelling.value = checkedFrench;
+        lastMachineFrench = checkedFrench;
+        await renderPronunciation(checkedFrench, requestId);
+      }
       if (requestId === activeRequest) pendingChinese = "";
     } catch (_) {
       if (requestId !== activeRequest) return;
@@ -274,37 +298,15 @@
     }
     translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 700 : delay);
   }
-  async function runGrammarCheck() {
-    if (!isFrenchMode()) return;
-    const spelling = $("dwssFrenchSpelling");
-    const french = String(spelling && spelling.value || "").trim();
-    if (!french) {
-      setGrammarStatus("请先生成法语译文。", "error");
-      return;
-    }
-    grammarButton.disabled = true;
-    grammarButton.textContent = "检查中…";
-    setGrammarStatus("正在检查…", "info");
+  async function autoCheckFrenchGrammar(french, requestId) {
+    const original = String(french || "").trim();
+    if (!original) return original;
     try {
-      const result = await apiCall({ action: "check", text: french });
-      const corrected = String(result.correctedText || french);
-      const corrections = Array.isArray(result.appliedCorrections) ? result.appliedCorrections : [];
-      if (corrected !== french) {
-        spelling.value = corrected;
-        lastMachineFrench = corrected;
-        lastChinese = String($("inputText") && $("inputText").value || "").trim();
-        await renderPronunciation(corrected, activeRequest);
-      }
-      if (corrections.length) {
-        setGrammarStatus("语法校对完成，已修正 " + corrections.length + " 处。", "ok");
-      } else {
-        setGrammarStatus("未发现明显拼写或语法问题。", "ok");
-      }
+      const result = await apiCall({ action: "check", text: original });
+      if (requestId !== activeRequest) return original;
+      return String(result.correctedText || original).trim() || original;
     } catch (_) {
-      setGrammarStatus("语法检查暂不可用，译文未更改。", "error");
-    } finally {
-      grammarButton.disabled = false;
-      grammarButton.textContent = "检查法语语法";
+      return original;
     }
   }
   function mirrorSwahiliResultStyle() {
@@ -330,15 +332,12 @@
     }
   }
   function addGrammarControls() {
-    if (grammarButton) return;
     const output = $("resultFrenchReading");
     if (!output || !output.parentElement) return;
-    // The combined result field is intentionally editable so users can correct
-    // the French source line and its Chinese approximate-pronunciation line.
+    mirrorSwahiliResultStyle();
     output.readOnly = false;
     output.disabled = false;
-    mirrorSwahiliResultStyle();
-    output.placeholder = "法语原文：\n中文近似音：";
+    output.placeholder = "法语原文：\\n中文近似音：";
     const sourceBlock = $("dwssFrenchSpellingBlock");
     if (sourceBlock) {
       sourceBlock.hidden = true;
@@ -350,28 +349,11 @@
       meta.hidden = true;
       meta.style.setProperty("display", "none", "important");
     }
-    const panel = document.createElement("div");
-    panel.className = "dwss-fr-machine-tools";
-    panel.style.cssText = "display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:6px 0 2px";
-    const grammarStatus = document.createElement("div");
-    grammarStatus.id = "dwssFrenchCorrectionStatus";
-    grammarStatus.className = "dwss-french-grammar-status";
-    grammarStatus.setAttribute("role", "status");
-    grammarStatus.setAttribute("aria-live", "polite");
-    grammarStatus.hidden = true;
-    grammarStatus.style.cssText = "width:100%;font-size:12px;line-height:1.4;margin:0";
-    grammarButton = document.createElement("button");
-    grammarButton.type = "button";
-    grammarButton.className = "soft mini";
-    grammarButton.textContent = "检查法语语法";
-    grammarButton.addEventListener("click", runGrammarCheck);
-    const note = document.createElement("small");
-    note.textContent = "语法检查会将法语文本发送至外部服务。";
-    note.style.cssText = "font-size:10px;opacity:.68;line-height:1.4;margin:0";
-    panel.appendChild(grammarStatus);
-    panel.appendChild(grammarButton);
-    panel.appendChild(note);
-    output.insertAdjacentElement("afterend", panel);
+    const correctionPanel = $("dwssFrenchCorrectionPanel");
+    if (correctionPanel) {
+      correctionPanel.hidden = true;
+      correctionPanel.style.setProperty("display", "none", "important");
+    }
   }
   function bind() {
     addGrammarControls();
@@ -404,19 +386,38 @@
       }
     });
     const combinedOutput = $("resultFrenchReading");
-    let combinedEditTimer = null;
     if (combinedOutput) {
       combinedOutput.addEventListener("input", () => {
+        if (writingCombinedOutput) return;
+        userEditedCombined = true;
+        combinedOutput.classList.toggle("empty", !String(combinedOutput.value || "").trim());
         const parsed = parseCombinedResult(combinedOutput.value);
         const french = String(parsed.french || "").trim();
         if (!french || french === String(spelling.value || "").trim()) return;
         spelling.value = french;
         lastMachineFrench = french;
         pendingChinese = "";
-        setGrammarStatus("");
         const requestId = ++activeRequest;
         window.clearTimeout(combinedEditTimer);
-        combinedEditTimer = window.setTimeout(() => renderPronunciation(french, requestId), 420);
+        combinedEditTimer = window.setTimeout(() => {
+          combinedRepronunciationPromise = renderPronunciation(french, requestId).catch(() => {});
+        }, 420);
+      });
+
+      // No separate submit button: after the user finishes editing, save the
+      // French source and approximate pronunciation into the shared correction queue.
+      combinedOutput.addEventListener("blur", () => {
+        if (!userEditedCombined) return;
+        window.setTimeout(async () => {
+          await combinedRepronunciationPromise;
+          if (!userEditedCombined) return;
+          const parsed = parseCombinedResult(combinedOutput.value);
+          if (String(parsed.french || "").trim() && String(parsed.reading || "").trim()) {
+            const saveButton = $("dwssSaveFrenchCorrection");
+            if (saveButton) saveButton.click();
+          }
+          userEditedCombined = false;
+        }, 180);
       });
     }
     if (isFrenchMode()) scheduleTranslation(150);
