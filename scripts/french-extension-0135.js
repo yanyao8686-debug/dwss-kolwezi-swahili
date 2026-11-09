@@ -150,7 +150,7 @@
     }
     return {negative,integer,fraction};
   }
-  function parseNumberAt(text,start) {
+  function parseNumberAt(text, start) {
     const rest=String(text||"").slice(start);
     const a=rest.match(/^[+-]?\d+(?:,\d{3})*(?:[.,]\d+)?/);
     if(a){const p=parseNumberLiteral(a[0]);if(p)return {length:a[0].length,parts:p,raw:a[0]};}
