@@ -177,6 +177,19 @@ html = paths["index.html"].read_text(encoding="utf-8")
 app = paths["app.js"].read_text(encoding="utf-8")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
+# Remove the French "submit and sync" control from the actual DOM, not merely
+# visually hide it. The extension has been made null-safe for this optional panel.
+html, removed_panels = re.subn(
+    r'\\s*<div id="dwssFrenchCorrectionPanel"[^>]*>[\\s\\S]*?</div>',
+    '',
+    html,
+    count=1
+)
+if removed_panels != 1:
+    fail("Expected one French shared-correction submit panel to remove; found " + str(removed_panels))
+if 'id="dwssSaveFrenchCorrection"' in html or '提交法语修正并同步所有用户' in html:
+    fail("French shared-correction submit control remains in the interface.")
+
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
     fail("Live site is not the supported 0.9.123/0.9.125 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
