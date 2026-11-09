@@ -367,7 +367,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
 html = html.replace(OLD_VERSION, NEW_VERSION)
 new_marker = "DWSS_AUTO_UPDATE_0_9_133"
 if new_marker not in html:
-    old_markers = re.findall(r"DWSS_AUTO_UPDATE_0_9_\\d+", html)
+    old_markers = re.findall(r"DWSS_AUTO_UPDATE_0_9_\d+", html)
     if len(old_markers) != 1:
         fail("Expected exactly one prior DWSS auto-update marker; found " + str(len(old_markers)))
     html = html.replace(old_markers[0], new_marker, 1)
