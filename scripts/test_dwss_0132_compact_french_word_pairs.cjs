@@ -55,7 +55,7 @@ assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.
 assert(version.includes('Version: 0.9.132'), 'VERSION.txt mismatch');
 assert(app.includes("version:'0.9.132'"), 'app metadata mismatch');
 assert(sw.includes("const APP_VERSION = '0.9.132';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_131'), 'automatic-update marker mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_132'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.132'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
