@@ -227,8 +227,9 @@ for (const removedDetail of ['originalMarkup','法语原文：','中文释义：
 }
 assert(extension.includes('renderFrenchSingleGloss(currentChinese);'),
   'a new Chinese input must not temporarily reuse the previous French original');
-assert(runtime.includes('formatCombinedResult(french, pronunciation.reading)'),
-  'machine translation no longer writes both fields into the combined result');
+assert(runtime.includes('setFrenchResult(local.reading)') &&
+       runtime.includes('buildPhraseReading(french).then(enriched =>'),
+  'local French approximate pronunciation must render first, with network enrichment in the background');
 for (const token of [
   'showInstantLocalDraft(chinese)', 'PERSISTED_CACHE_KEY',
   'restorePersistentTranslations()', 'persistTranslations()',
