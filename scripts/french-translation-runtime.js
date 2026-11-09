@@ -150,22 +150,26 @@
       );
       if (typeof tools.renderSingleGloss === "function") tools.renderSingleGloss(chinese, french);
     };
-    if (typeof tools.prepareOfflineChinese === "function") {
-      tools.prepareOfflineChinese(chinese).then(displayDraft).catch(() => {});
-      return true;
+    if (typeof tools.translateOfflineChinese === "function") {
+      try {
+        const immediate = tools.translateOfflineChinese(chinese);
+        if (immediate && String(immediate.words || "").trim() && String(immediate.reading || "").trim()) {
+          displayDraft(immediate); return true;
+        }
+      } catch (_) {}
     }
-    if (typeof tools.translateOfflineChinese !== "function") return false;
-    try {
-      const draft = tools.translateOfflineChinese(chinese);
-      if (!draft || !String(draft.words || "").trim() || !String(draft.reading || "").trim()) return false;
-      displayDraft(draft);
-      return true;
-    } catch (_) { return false; }
+    if (typeof tools.prepareOfflineChinese === "function") {
+      tools.prepareOfflineChinese(chinese).then(displayDraft).catch(() => {}); return true;
+    }
+    return false;
   }
   function showCachedTranslation(chinese, data) {
     const spelling = $("dwssFrenchSpelling");
     if (!spelling || !data || !String(data.translatedText || "").trim()) return false;
-    const french = String(data.translatedText).trim();
+    const rawFrench = String(data.translatedText).trim();
+    const numberTools = window.DWSSFrenchTools;
+    const french = numberTools && typeof numberTools.expandFrenchNumerals === "function"
+      ? numberTools.expandFrenchNumerals(rawFrench) : rawFrench;
     const requestId = ++activeRequest;
     lastChinese = chinese;
     lastMachineFrench = french;
@@ -400,6 +404,19 @@
     const output = $("resultFrenchReading");
     if (!input || !spelling || !output) return;
     const chinese = String(input.value || "").trim();
+    const numeralTools = window.DWSSFrenchTools;
+    if (chinese && numeralTools && typeof numeralTools.isNumericExpression === "function" &&
+        numeralTools.isNumericExpression(chinese)) {
+      const numberDraft = typeof numeralTools.translateOfflineChinese === "function"
+        ? numeralTools.translateOfflineChinese(chinese) : null;
+      if (numberDraft && String(numberDraft.words || "").trim() && String(numberDraft.reading || "").trim()) {
+        ++activeRequest; lastChinese = chinese; lastMachineFrench = String(numberDraft.words).trim();
+        localPreviewChinese = ""; pendingChinese = ""; spelling.value = lastMachineFrench;
+        setFrenchResult(numberDraft.reading); setGrammarStatus("数字已直接转换为法语读法。", "info");
+        if (typeof numeralTools.renderSingleGloss === "function") numeralTools.renderSingleGloss(chinese, lastMachineFrench);
+        return;
+      }
+    }
     if (!chinese) {
       spelling.value = "";
       setFrenchResult("");
@@ -444,7 +461,10 @@
         pendingChinese = "";
         return;
       }
-      const french = String(data.translatedText || "").trim();
+      const rawFrench = String(data.translatedText || "").trim();
+      const numberTools = window.DWSSFrenchTools;
+      const french = numberTools && typeof numberTools.expandFrenchNumerals === "function"
+        ? numberTools.expandFrenchNumerals(rawFrench) : rawFrench;
       if (!french) throw new Error("empty translation");
       spelling.value = french;
       lastMachineFrench = french;
@@ -521,7 +541,7 @@
         setGrammarStatus("本地词库暂未匹配，正在准备在线翻译。", "info");
       }
     }
-    translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 180 : delay);
+    translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 60 : delay);
   }
   async function autoCheckFrenchGrammar(french, requestId) {
     const original = String(french || "").trim();
@@ -594,16 +614,16 @@
     const spelling = $("dwssFrenchSpelling");
     if (!input || !spelling) return;
     input.addEventListener("compositionstart", () => { composing = true; });
-    input.addEventListener("compositionend", () => { composing = false; scheduleTranslation(80); });
-    input.addEventListener("input", () => { if (!composing) scheduleTranslation(180); });
+    input.addEventListener("compositionend", () => { composing = false; scheduleTranslation(50); });
+    input.addEventListener("input", () => { if (!composing) scheduleTranslation(60); });
     const frenchMode = $("dwssMainFrMode");
-    if (frenchMode) frenchMode.addEventListener("click", () => scheduleTranslation(100));
+    if (frenchMode) frenchMode.addEventListener("click", () => scheduleTranslation(60));
     const swMode = $("dwssMainSwMode");
     if (swMode) swMode.addEventListener("click", () => { window.clearTimeout(translateTimer); pendingChinese = ""; activeRequest += 1; });
     const translateButton = $("translateBtn");
-    if (translateButton) translateButton.addEventListener("click", () => scheduleTranslation(100));
+    if (translateButton) translateButton.addEventListener("click", () => scheduleTranslation(60));
     const clearButton = $("clearBtn");
-    if (clearButton) clearButton.addEventListener("click", () => scheduleTranslation(100));
+    if (clearButton) clearButton.addEventListener("click", () => scheduleTranslation(60));
     spelling.addEventListener("input", () => {
       if (!isFrenchMode()) return;
       const french = String(spelling.value || "").trim();
