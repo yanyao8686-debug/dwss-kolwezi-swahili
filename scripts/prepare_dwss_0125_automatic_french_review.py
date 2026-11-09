@@ -212,6 +212,10 @@ for required in ('action: "translate"', 'action: "check"',
                  'output.readOnly = false;', 'output.disabled = false;'):
     if required not in runtime:
         fail("Compact French runtime is missing a required feature or notice: " + required)
+for removed in ('runGrammarCheck', 'grammarButton', 'dwssSaveFrenchCorrection',
+                'combinedOutput.addEventListener("blur"'):
+    if removed in runtime:
+        fail("Manual grammar/correction submission UI or implicit sync remains in runtime: " + removed)
 for removed in ("法语整句来源：", "逐词 IPA：", "发音来源：LeXiK", "查看校对建议",
                 "使用免密公共翻译节点和第三方法语校对"):
     if removed in runtime:
@@ -303,13 +307,35 @@ if merged_style_id not in html:
     html = html.replace("</head>", merged_style + "\n</head>", 1)
 
 ux_style = """<style id="dwss-french-ux-0125">
-/* Match the merged French textarea to the original Swahili result field exactly. */
+/* Exact visual treatment of the native Swahili result textarea (0.9.123). */
 #resultCard #resultFrenchReading{
-  font-weight:760!important;
-  background:#fff!important;
-  border:0!important;
-  box-shadow:none!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  min-height:112px!important;
+  padding:13px 14px!important;
+  border:1px solid #E4D1A5!important;
+  border-radius:16px!important;
+  background:#FFF0D2!important;
+  color:#183B60!important;
+  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif!important;
+  font-size:clamp(24px,4.8vw,28px)!important;
+  font-weight:650!important;
+  line-height:1.55!important;
+  letter-spacing:0!important;
+  box-shadow:inset 0 1px 2px rgba(86,62,21,.035)!important;
+  height:auto!important;
+  max-height:42vh!important;
+  resize:vertical!important;
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+  text-align:left!important;
+  display:block!important;
   cursor:text!important;
+}
+#resultCard #resultFrenchReading.empty{
+  font-size:15px!important;
+  font-weight:500!important;
+  color:#93a0b2!important;
 }
 #resultCard #resultFrenchReading:focus-visible{
   outline:2px solid rgba(28,86,136,.35)!important;
@@ -318,7 +344,7 @@ ux_style = """<style id="dwss-french-ux-0125">
 @media(max-width:520px){
   #resultCard #resultFrenchReading{min-height:108px!important;font-size:24px!important}
 }
-/* French mode does not show Swahili-only match details or correction controls. */
+/* Do not mix Swahili-only match details into the French translation view. */
 #resultCard[data-dwss-lang="fr"] > .stats,
 #resultCard[data-dwss-lang="fr"] > .quality-note,
 #resultCard[data-dwss-lang="fr"] > .resultlabel,
@@ -358,6 +384,8 @@ if ux_style_id not in html:
 for selector in (
     '#resultCard[data-dwss-lang="fr"] > .resultlabel',
     '#resultCard[data-dwss-lang="fr"] > .segmentlist',
+    '#resultCard[data-dwss-lang="fr"] > .stats',
+    '#resultCard[data-dwss-lang="fr"] > .quality-note',
     '#resultCard[data-dwss-lang="fr"] #dwssFrenchCorrectionPanel',
     '#resultCard #resultFrenchReading:focus-visible'
 ):
