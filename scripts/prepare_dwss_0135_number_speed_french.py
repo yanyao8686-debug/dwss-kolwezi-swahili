@@ -268,7 +268,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", "enrichedWordReadings",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'item.source_language !== "fr"', 'item.local_pronunciation_cn || item.french_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
