@@ -1,0 +1,870 @@
+(function (window, document) {
+  "use strict";
+
+  const GLOSS_URL = "./french-gloss-index.tsv.gz";
+  const META_URL = "./french-pronunciation-index.json";
+  const SHARD_BASE = "./french-pronunciation-shards/";
+  const SEPARATOR = "¦";
+  let loadPromise = null;
+  let firstKeys = [];
+  let firstKeySet = new Set();
+  let shardCache = new Map();
+  const MAX_SHARD_CACHE = 12;
+  let meaningRows = [];
+  let meaningByWord = new Map();
+  let activeMeaningIndex = new Map();
+  let activeMainMode = "sw";
+  let activeQueryMode = "sw";
+  let mainTimer = null;
+  let queryTimer = null;
+  let lastMainMatches = [];
+  const FRENCH_NEAR_INITIAL_GROUPS = [["b", "p"], ["d", "t"], ["g", "k"]];
+
+  function ipaToChinese(ipa) {
+    const vowels = ["ɑ̃","ɛ̃","ɔ̃","œ̃","ɑ","a","e","ɛ","i","o","ɔ","u","y","ø","œ","ə"];
+    const onset = {
+      b:"波",p:"普",t:"特",d:"德",k:"克",g:"格",f:"夫",v:"维",s:"斯",z:"兹",
+      "ʃ":"施","ʒ":"日",m:"姆",n:"呢",l:"勒","ʁ":"赫",j:"耶",w:"乌","ɥ":"于","ɲ":"尼","ŋ":"昂",
+      tʁ:"特赫",dʁ:"德赫",tr:"特赫",dr:"德赫",pl:"普勒",bl:"布勒",fl:"弗勒",kl:"克勒",
+      gl:"格勒",kr:"克赫",gr:"格赫",fr:"弗赫",vr:"维赫",br:"布赫",pr:"普赫",sp:"斯普",st:"斯特",sk:"斯克"
+    };
+    const rime = {
+      "ɑ̃":"昂","ɛ̃":"安","ɔ̃":"翁","œ̃":"恩","ɑ":"阿",a:"阿",e:"诶","ɛ":"艾",i:"伊",o:"欧","ɔ":"奥",u:"乌",y:"于","ø":"厄","œ":"厄","ə":"呃"
+    };
+    const coda = {
+      "ʁ":"赫","ʃ":"施",s:"斯",z:"兹",t:"特",d:"德",k:"克",g:"格",p:"普",b:"波",m:"姆",n:"恩",l:"勒",f:"夫",v:"维",j:"伊","ɲ":"尼","ŋ":"昂"
+    };
+    const cv = {
+      "bɑ̃":"邦","bɔ̃":"邦",ba:"巴","bɑ":"巴",bo:"波","bɔ":"博",bu:"布",be:"贝","bɛ":"贝","bɛ̃":"班",bi:"比",by:"比",
+      "pɑ̃":"庞","pɔ̃":"旁",pa:"帕","pɑ":"帕",po:"坡","pɔ":"泊",pu:"普",pe:"佩","pɛ":"派","pɛ̃":"潘",pi:"皮",py:"匹",
+      "tɑ̃":"唐","tɔ̃":"通",ta:"塔","tɑ":"塔",to:"托","tɔ":"托",tu:"图",te:"特","tɛ":"泰","tɛ̃":"滩",ti:"提",ty:"提",
+      "dɑ̃":"当","dɔ̃":"东",da:"达","dɑ":"达",do:"多","dɔ":"多",du:"杜",de:"德","dɛ":"代","dɛ̃":"丹",di:"迪",dy:"迪",
+      "kɑ̃":"康","kɔ̃":"空",ka:"卡","kɑ":"卡",ko:"科","kɔ":"科",ku:"库",ke:"克","kɛ":"凯","kɛ̃":"开",ki:"基",ky:"基",
+      "gɑ̃":"刚","gɔ̃":"公",ga:"嘎","gɑ":"嘎",go:"戈","gɔ":"戈",gu:"古",ge:"格","gɛ":"盖","gɛ̃":"干",gi:"吉",gy:"吉",
+      "fɑ̃":"方","fɔ̃":"丰",fa:"法","fɑ":"法",fo:"佛","fɔ":"佛",fu:"夫",fe:"费","fɛ":"费","fɛ̃":"芬",fi:"菲",fy:"菲",
+      "vɑ̃":"汪","vɔ̃":"翁",va:"瓦","vɑ":"瓦",vo:"沃","vɔ":"沃",vu:"乌",ve:"维","vɛ":"韦","vɛ̃":"万",vi:"维",vy:"维",
+      "sɑ̃":"桑","sɔ̃":"松",sa:"萨","sɑ":"萨",so:"索","sɔ":"索",su:"苏",se:"塞","sɛ":"赛","sɛ̃":"森",si:"西",sy:"西",
+      "zɑ̃":"藏","zɔ̃":"宗",za:"扎","zɑ":"扎",zo:"佐","zɔ":"佐",zu:"祖",ze:"泽","zɛ":"宅","zɛ̃":"赞",zi:"兹",zy:"兹",
+      "ʃɑ̃":"尚","ʃɔ̃":"尚","ʃa":"沙","ʃɑ":"沙","ʃo":"肖","ʃɔ":"肖","ʃu":"舒","ʃe":"谢","ʃɛ":"谢","ʃɛ̃":"山","ʃi":"西","ʃy":"许",
+      "ʒɑ̃":"让","ʒɔ̃":"让","ʒa":"扎","ʒɑ":"扎","ʒo":"热","ʒɔ":"若","ʒu":"茹","ʒe":"热","ʒɛ":"热","ʒɛ̃":"让","ʒi":"日","ʒy":"茹",
+      "mɑ̃":"芒","mɔ̃":"蒙",ma:"马","mɑ":"马",mo:"莫","mɔ":"莫",mu:"姆",me:"梅","mɛ":"麦","mɛ̃":"曼",mi:"米",my:"米",
+      "nɑ̃":"南","nɔ̃":"农",na:"纳","nɑ":"纳",no:"诺","nɔ":"诺",nu:"努",ne:"内","nɛ":"奈","nɛ̃":"南",ni:"尼",ny:"纽",
+      "lɑ̃":"朗","lɔ̃":"隆",la:"拉","lɑ":"拉",lo:"洛","lɔ":"洛",lu:"卢",le:"勒","lɛ":"莱","lɛ̃":"兰",li:"里",ly:"吕",
+      "ʁɑ̃":"让","ʁɔ̃":"让","ʁa":"拉","ʁɑ":"拉","ʁo":"若","ʁɔ":"若","ʁu":"赫","ʁe":"热","ʁɛ":"赖","ʁɛ̃":"兰","ʁi":"里","ʁy":"于",
+      wa:"瓦","wɑ":"瓦","wɛ":"韦",wi:"威","wɔ":"沃",wo:"沃","ɥi":"于伊","ɥɛ":"于艾",ja:"亚","jɑ":"亚",je:"耶","jɛ":"耶",jo:"约",ju:"优",jy:"于"
+    };
+    const phonemes = ["tʃ","dʒ","ʁ","ʃ","ʒ","ɲ","ŋ","ɥ","j","w","b","p","t","d","k","g","f","v","s","z","m","n","l","h"];
+    function tokenize(s) {
+      const out = [];
+      let i = 0;
+      while (i < s.length) {
+        const hit = phonemes.find(p => s.startsWith(p, i));
+        if (hit) { out.push(hit); i += hit.length; } else { out.push(s[i]); i += 1; }
+      }
+      return out;
+    }
+    const raw = String(ipa || "").trim().replace(/^\/|\/$/g, "").split(/[;,]/)[0]
+      .toLowerCase().replace(/[ˈˌːˑ‿]/g, "");
+    if (!raw) return "";
+    const output = [];
+    for (const syllable of raw.split(/[.\s]+/).filter(Boolean)) {
+      let nucleus = "";
+      let pos = -1;
+      for (let i = 0; i < syllable.length; i += 1) {
+        const v = vowels.find(x => syllable.startsWith(x, i));
+        if (v) { nucleus = v; pos = i; break; }
+      }
+      if (pos < 0) {
+        output.push(tokenize(syllable).map(t => coda[t] || "").join("") || "呃");
+        continue;
+      }
+      const onsetText = syllable.slice(0, pos);
+      const codaText = syllable.slice(pos + nucleus.length);
+      let rendered = cv[onsetText + nucleus];
+      if (!rendered) {
+        rendered = onset[onsetText] || tokenize(onsetText).map(t => onset[t] || "").join("");
+        rendered += rime[nucleus] || "";
+      }
+      rendered += tokenize(codaText).map(t => coda[t] || "").join("");
+      output.push(rendered || "呃");
+    }
+    return output.join("");
+  }
+
+  function normalizeChinese(value) {
+    return String(value == null ? "" : value).replace(/[\s，。！？；：、,.!?;:（）()"'“”‘’《》【】]/g, "").toLowerCase();
+  }
+
+  function translateChinese(raw, meaningIndex) {
+    const text = String(raw == null ? "" : raw);
+    const byFirst = new Map();
+    for (const key of meaningIndex.keys()) {
+      if (!key) continue;
+      const first = key[0];
+      if (!byFirst.has(first)) byFirst.set(first, []);
+      byFirst.get(first).push(key);
+    }
+    for (const keys of byFirst.values()) keys.sort((a, b) => b.length - a.length);
+    const sounds = [];
+    const words = [];
+    const ipa = [];
+    const misses = [];
+    const glossSegments = [];
+    const normalizedText = text;
+    let i = 0;
+    while (i < normalizedText.length) {
+      const char = normalizedText[i];
+      if (/[\s，。！？；：、,.!?;:（）()]/.test(char)) {
+        sounds.push(char);
+        i += 1;
+        continue;
+      }
+      const keys = byFirst.get(char) || [];
+      const matched = keys.find(key => normalizedText.startsWith(key, i));
+      if (matched) {
+        const list = meaningIndex.get(matched) || [];
+        const record = list[0];
+        if (record) {
+          sounds.push(record.reading || "【法语读音待补】");
+          words.push(record.word);
+          if (record.ipa) ipa.push(record.word + " /" + record.ipa + "/");
+          glossSegments.push({ type: "match", zh: matched, record });
+        } else {
+          sounds.push("【法语释义待补：" + matched + "】");
+          misses.push(matched);
+          glossSegments.push({ type: "missing", zh: matched });
+        }
+        i += matched.length;
+        continue;
+      }
+      let j = i + 1;
+      while (j < normalizedText.length && !/[\s，。！？；：、,.!?;:（）()]/.test(normalizedText[j]) && !(byFirst.get(normalizedText[j]) || []).length) j += 1;
+      const unknown = normalizedText.slice(i, j);
+      sounds.push("【未收录法语：" + unknown + "】");
+      misses.push(unknown);
+      glossSegments.push({ type: "missing", zh: unknown });
+      i = j;
+    }
+    return { reading: sounds.join(" "), words: words.join(" "), ipa: ipa.join("；"), misses, glossSegments };
+  }
+  function getPronunciationOverride(word, overrides) {
+    const key = normalizeFrenchGlossKey(word);
+    if (!key || !overrides) return { found: false, value: null };
+    if (typeof overrides.has === "function" && typeof overrides.get === "function" && overrides.has(key)) {
+      return { found: true, value: overrides.get(key) };
+    }
+    if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+      return { found: true, value: overrides[key] };
+    }
+    return { found: false, value: null };
+  }
+
+  function frenchWordTokens(value) {
+    const tokens = [];
+    const re = /[\\p{L}\\p{M}]+/gu;
+    let match;
+    while ((match = re.exec(String(value || ""))) !== null) tokens.push(match[0]);
+    return tokens;
+  }
+
+  function getWordChineseReading(record, pronunciationOverrides) {
+    const item = record && typeof record === "object" ? record : {};
+    const override = getPronunciationOverride(item.word || "", pronunciationOverrides);
+    if (override.found) {
+      const value = override.value;
+      return String(value && typeof value === "object" ? value.reading || "" : value || "").trim();
+    }
+    const ipa = String(item.ipa || "").trim();
+    const derived = ipa ? ipaToChinese(ipa) : "";
+    return derived || String(item.reading || "").trim();
+  }
+
+  function renderFrenchSingleGloss(raw, frenchOriginal, pronunciationOverrides) {
+    const label = $("singleReadingGlossLabel") || document.querySelector(".dwss-secondary-title");
+    const host = $("segmentList");
+    const text = String(raw || "").trim();
+    const original = String(frenchOriginal || "").trim();
+    if (label) label.textContent = "单个法语读法释义：";
+    if (!host) return;
+    const parent = host.closest(".dwss-secondary-details");
+    if (parent) parent.style.display = "block";
+    const originalMarkup = original
+      ? '<div class="dwss-french-original-in-gloss"><div class="dwss-french-original-label">法语原文：</div><div class="dwss-french-original-text">' + esc(original) + '</div></div>'
+      : "";
+    if (!text && !original) {
+      host.innerHTML = '<div class="nores">输入中文后显示对应的法语单词、中文近似音和释义。</div>';
+      return;
+    }
+
+    const result = translateChinese(text, activeMeaningIndex);
+    const sourceByWord = new Map();
+    const meaningsByWord = new Map();
+    for (const part of result.glossSegments || []) {
+      if (part.type !== "match" || !part.record) continue;
+      for (const word of frenchWordTokens(part.record.word)) {
+        const key = normalizeFrenchGlossKey(word);
+        if (!sourceByWord.has(key)) sourceByWord.set(key, part.record);
+        if (!meaningsByWord.has(key)) meaningsByWord.set(key, []);
+        if (part.zh && !meaningsByWord.get(key).includes(part.zh)) meaningsByWord.get(key).push(part.zh);
+      }
+    }
+
+    // The complete French original is the source of truth for the list. Do not
+    // drop articles, prepositions, repeated words, or words missing a Chinese
+    // headword match: every written French word gets its own row.
+    let words = frenchWordTokens(original);
+    if (!words.length) {
+      words = (result.glossSegments || [])
+        .filter(part => part.type === "match" && part.record)
+        .flatMap(part => frenchWordTokens(part.record.word));
+    }
+    if (!words.length) {
+      host.innerHTML = originalMarkup + '<div class="nores">法语原文暂未生成可识别的单词。</div>';
+      return;
+    }
+
+    host.innerHTML = originalMarkup + words.map(word => {
+      const key = normalizeFrenchGlossKey(word);
+      const sourceRecord = sourceByWord.get(key) || {};
+      const directMeanings = findFrenchGloss(word);
+      const inferredMeanings = meaningsByWord.get(key) || [];
+      const meanings = [...new Set([...directMeanings, ...inferredMeanings])];
+      const override = getPronunciationOverride(word, pronunciationOverrides);
+      const overrideValue = override.value && typeof override.value === "object" ? override.value : {};
+      const reading = getWordChineseReading({
+        word,
+        ipa: override.found ? overrideValue.ipa || "" : sourceRecord.ipa || "",
+        reading: sourceRecord.reading || ""
+      }, pronunciationOverrides);
+      const ipa = String((override.found && overrideValue.ipa) || sourceRecord.ipa || "").trim();
+      const wordReadingMarkup = reading
+        ? '<div class="dwss-french-word-reading"><span class="dwss-french-word-reading-label">法语中文谐音：</span><strong>' + esc(reading) + '</strong></div>'
+        : '<div class="dwss-french-word-reading dwss-french-word-reading-missing">该词暂缺中文近似音</div>';
+      const meaningText = meanings.length ? meanings.join("；") : "该词中文释义暂未收录";
+      return '<div class="seg dwss-french-word-gloss"><div class="zh">中文释义：' + esc(meaningText) + '</div><div class="rd">' +
+        '<strong>法语：' + esc(word) + '</strong>' +
+        wordReadingMarkup +
+        '<div class="rd-detail">IPA：' + esc(ipa ? "/" + ipa + "/" : "音标待补") + '</div>' +
+        '</div></div>';
+    }).join("");
+  }
+
+  function normalizeFrenchGlossKey(value) {
+    return String(value || "").normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .replace(/œ/gi, "oe").replace(/æ/gi, "ae")
+      .toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  function buildFrenchGlossLookup(sourceRows) {
+    const map = new Map();
+    for (const row of Array.isArray(sourceRows) ? sourceRows : []) {
+      const key = normalizeFrenchGlossKey(row && row.word);
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, []);
+      const list = map.get(key);
+      const meanings = Array.isArray(row.meanings) ? row.meanings.filter(Boolean) : [];
+      for (const meaning of meanings) if (!list.includes(meaning)) list.push(meaning);
+    }
+    return map;
+  }
+
+  function findFrenchGloss(word) {
+    const exact = meaningByWord.get(normalizeFrenchGlossKey(word));
+    return exact && exact.length ? exact : [];
+  }
+
+  window.DWSSFrenchMeaningTools = Object.freeze({
+    normalizeWord: normalizeFrenchGlossKey,
+    buildLookup: buildFrenchGlossLookup
+  });
+
+  window.DWSSFrenchTools = Object.freeze({ ipaToChinese, normalizeChinese, translateChinese, getWordChineseReading, frenchWordTokens, getPronunciationOverride, renderSingleGloss: renderFrenchSingleGloss });
+  window.DWSSFrenchQueryTools = Object.freeze({
+    syllableDistance: frenchSyllableDistance,
+    nearFirstKeys,
+    search: searchFrenchCandidates
+  });
+  if (!document || !document.getElementById) return;
+
+  const $ = id => document.getElementById(id);
+  const esc = value => String(value == null ? "" : value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+  const cleanIpa = value => String(value || "").replace(/^\/|\/$/g, "");
+  function notifyStatus(message, type) {
+    const el = $("dwssFrenchCorrectionStatus");
+    if (el) {
+      el.textContent = message;
+      el.dataset.status = type || "info";
+    }
+  }
+  function activeRows() {
+    const out = [];
+    const seen = new Set();
+    const api = window.KolweziSwahili;
+    if (api && typeof api.getCustom === "function") {
+      for (const item of api.getCustom()) {
+        if (!item || !item.zh || !item.french || !item.frenchReadingZh) continue;
+        const key = normalizeChinese(item.zh) + "|" + String(item.french).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          word: String(item.french).trim(),
+          ipa: "",
+          reading: String(item.frenchReadingZh).trim(),
+          meanings: [String(item.zh).trim()],
+          source: "本机用户修正"
+        });
+      }
+    }
+    const shared = window.DWSSSharedLexicon;
+    if (shared && typeof shared.getTerms === "function") {
+      for (const item of shared.getTerms() || []) {
+        const word = String(item.french_text || "").trim();
+        const zh = String(item.chinese_text || "").trim();
+        const reading = String(item.french_pronunciation_cn || "").trim();
+        if (!word || !zh || !reading) continue;
+        const key = normalizeChinese(zh) + "|" + word.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ word, ipa: "", reading, meanings: [zh], source: item.__pending ? "待同步法语修正" : "云端共享修正" });
+      }
+    }
+    return out;
+  }
+
+  function createMeaningIndex() {
+    const map = new Map();
+    const custom = activeRows();
+    for (const item of custom) {
+      for (const meaning of item.meanings || []) {
+        const key = normalizeChinese(meaning);
+        if (!key) continue;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).unshift(item);
+      }
+    }
+    for (const row of meaningRows) {
+      const meanings = row.meanings || [];
+      for (const meaning of meanings) {
+        const key = normalizeChinese(meaning);
+        if (!key) continue;
+        if (!map.has(key)) map.set(key, []);
+        const list = map.get(key);
+        if (!list.some(x => String(x.word).toLowerCase() === String(row.word).toLowerCase())) list.push(row);
+      }
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        const ap = a.source && a.source.indexOf("修正") >= 0 ? 0 : 1;
+        const bp = b.source && b.source.indexOf("修正") >= 0 ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+        const aw = String(a.word || "");
+        const bw = String(b.word || "");
+        return aw.length - bw.length || aw.localeCompare(bw);
+      });
+    }
+    return map;
+  }
+
+  async function decompressGzip(response, label) {
+    if (!response.ok) throw new Error(label + "加载失败（HTTP " + response.status + "）。");
+    if (typeof DecompressionStream === "undefined") throw new Error("当前浏览器不支持离线词库解压，请更新安卓 WebView 或浏览器。");
+    return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).text();
+  }
+
+  async function loadLexicon() {
+    if (loadPromise) return loadPromise;
+    loadPromise = (async () => {
+      const [metaResponse, glossResponse] = await Promise.all([
+        fetch(META_URL, { cache: "no-cache" }),
+        fetch(GLOSS_URL, { cache: "no-cache" })
+      ]);
+      if (!metaResponse.ok) throw new Error("法语发音索引加载失败（HTTP " + metaResponse.status + "）。");
+      const meta = await metaResponse.json();
+      const decompressed = await decompressGzip(glossResponse, "法语中译词典");
+      const lines = decompressed.split(/\r?\n/);
+      meaningRows = [];
+      for (const line of lines) {
+        if (!line) continue;
+        const fields = line.split("\t");
+        if (fields.length < 5 || !fields[1] || !fields[4]) continue;
+        const meanings = (fields[4] || "").split("¦").map(x => x.trim()).filter(Boolean);
+        if (!meanings.length) continue;
+        meaningRows.push({
+          word: fields[1],
+          ipa: cleanIpa(fields[2]),
+          reading: fields[3],
+          meanings,
+          confidence: fields[5] || "I",
+          source: "FreeDict 法中释义 + LeXiK/IPA 发音"
+        });
+      }
+      firstKeys = Array.isArray(meta.firstKeys) ? meta.firstKeys : [];
+      firstKeySet = new Set(firstKeys);
+      if (firstKeys.length < 100 || meaningRows.length < 9000 || Number(meta.formsWithIpa || 0) < 2000000) {
+        throw new Error("法语分片词库或中译词典数量异常，已停止使用不完整词库。");
+      }
+      meaningByWord = buildFrenchGlossLookup(meaningRows);
+      activeMeaningIndex = createMeaningIndex();
+      return {
+        forms: meta.formsWithIpa,
+        glossed: meaningRows.length,
+        shards: firstKeys.length,
+        confidence: meta.confidenceCounts || {}
+      };
+    })().catch(error => {
+      loadPromise = null;
+      throw error;
+    });
+    return loadPromise;
+  }
+
+  async function loadPronunciationShard(first) {
+    if (!firstKeySet.has(first)) return [];
+    if (shardCache.has(first)) {
+      const cached = shardCache.get(first);
+      shardCache.delete(first);
+      shardCache.set(first, cached);
+      return cached;
+    }
+    const response = await fetch(SHARD_BASE + encodeURIComponent(first) + ".tsv.gz");
+    const decompressed = await decompressGzip(response, "法语发音分片 " + first);
+    const parsed = decompressed.split(/\r?\n/).filter(Boolean);
+    shardCache.set(first, parsed);
+    while (shardCache.size > MAX_SHARD_CACHE) {
+      shardCache.delete(shardCache.keys().next().value);
+    }
+    return parsed;
+  }
+
+
+  function formatCombinedFrenchResult(french, reading) {
+    const helper = window.DWSSFrenchCombinedResult;
+    if (helper && typeof helper.format === "function") return helper.format(french, reading);
+    return "法语原文：" + String(french || "") + "\n中文近似音：" + String(reading || "");
+  }
+
+  function renderMainFrench() {
+    // The sentence-level translation runtime is authoritative for the main result.
+    // Keep this legacy dictionary renderer only as a fallback when that runtime
+    // is absent; otherwise both modules race to overwrite the same result field.
+    const machineRuntime = window.DWSSFrenchMachineTranslationController;
+    if (machineRuntime && typeof machineRuntime.translateCurrentChinese === "function") return;
+
+    const input = $("inputText");
+    const output = $("resultFrenchReading");
+    if (!input || !output || activeMainMode !== "fr") return;
+    if (!rows.length) {
+      output.value = "";
+      output.placeholder = "法语词库加载中…";
+      return;
+    }
+    const raw = String(input.value || "").trim();
+    const spelling = $("dwssFrenchSpelling");
+    if (!raw) {
+      output.value = "";
+      output.classList.add("empty");
+      output.placeholder = "法语原文：\n中文近似音：";
+      if (spelling) spelling.value = "";
+      const meta = $("dwssFrenchIpaMeta");
+      if (meta) meta.textContent = "";
+      lastMainMatches = [];
+      return;
+    }
+    const result = translateChinese(raw, activeMeaningIndex);
+    output.value = formatCombinedFrenchResult(result.words, result.reading);
+    output.classList.toggle("empty", !result.reading);
+    if (spelling) spelling.value = result.words;
+    const meta = $("dwssFrenchIpaMeta");
+    if (meta) meta.textContent = "";
+    lastMainMatches = result.words ? result.words.split(/\s+/).filter(Boolean) : [];
+    const resultCard = $("resultCard");
+    if (resultCard) resultCard.dataset.dwssLang = "fr";
+  }
+
+  function setMainMode(mode) {
+    activeMainMode = mode === "fr" ? "fr" : "sw";
+    const card = $("resultCard");
+    const heading = card && card.querySelector(".sectionTitle h2");
+    const sw = $("dwssMainSwMode");
+    const fr = $("dwssMainFrMode");
+    if (card) {
+      if (activeMainMode === "fr") card.dataset.dwssLang = "fr";
+      else delete card.dataset.dwssLang;
+    }
+    if (heading) heading.textContent = activeMainMode === "fr" ? "法语翻译中文谐音：" : "斯语翻译中文谐音：";
+    if (sw) { sw.classList.toggle("active", activeMainMode === "sw"); sw.setAttribute("aria-pressed", activeMainMode === "sw" ? "true" : "false"); }
+    if (fr) { fr.classList.toggle("active", activeMainMode === "fr"); fr.setAttribute("aria-pressed", activeMainMode === "fr" ? "true" : "false"); }
+    if (activeMainMode === "fr") {
+      $("resultFrenchReading").hidden = false;
+      $("dwssFrenchSpellingBlock").hidden = true;
+      $("dwssFrenchSpellingBlock").style.setProperty("display", "none", "important");
+      const frenchCorrectionPanel = $("dwssFrenchCorrectionPanel");
+      if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;
+      $("translationCorrectionPanel").hidden = true;
+      $("resultReading").hidden = true;
+      const currentChinese = String($("inputText") && $("inputText").value || "").trim();
+      const refreshFrenchMode = () => {
+        renderMainFrench();
+        renderFrenchSingleGloss(currentChinese);
+      };
+      loadLexicon().then(refreshFrenchMode).catch(error => {
+        $("resultFrenchReading").value = "";
+        $("resultFrenchReading").placeholder = "法语词库暂时无法加载";
+        $("dwssFrenchIpaMeta").textContent = error.message || String(error);
+        renderFrenchSingleGloss(currentChinese);
+      });
+      refreshFrenchMode();
+      const machine = window.DWSSFrenchMachineTranslationController;
+      if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(80);
+    } else {
+      $("resultFrenchReading").hidden = true;
+      $("dwssFrenchSpellingBlock").hidden = true;
+      const frenchCorrectionPanel = $("dwssFrenchCorrectionPanel");
+      if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;
+      $("resultReading").hidden = false;
+      $("translationCorrectionPanel").hidden = false;
+      const glossLabel = $("singleReadingGlossLabel") || document.querySelector(".dwss-secondary-title");
+      if (glossLabel) glossLabel.textContent = "单个斯语读法释义：";
+      if (typeof window.DWSSRenderTranslation === "function") window.DWSSRenderTranslation();
+    }
+  }
+
+  async function saveFrenchCorrection() {
+    const raw = String($("inputText") && $("inputText").value || "").trim();
+    const combined = String($("resultFrenchReading") && $("resultFrenchReading").value || "").trim();
+    const parsed = window.DWSSFrenchCombinedResult && typeof window.DWSSFrenchCombinedResult.parse === "function"
+      ? window.DWSSFrenchCombinedResult.parse(combined) : {};
+    const french = String(parsed.french || ($("dwssFrenchSpelling") && $("dwssFrenchSpelling").value) || "").trim();
+    const reading = String(parsed.reading || (!parsed.french ? combined : "")).trim();
+    if (!raw || !french || !reading) {
+      notifyStatus("请确认法语原文和中文近似音都已填写。", "error");
+      return;
+    }
+    if (raw.length > 100 || french.length > 200 || reading.length > 200) {
+      notifyStatus("共享词条长度有限：中文最多 100 字，法语原文和中文谐音各最多 200 字。请缩短或拆分后再提交。", "error");
+      return;
+    }
+    const api = window.KolweziSwahili;
+    if (!api || typeof api.addCustom !== "function") {
+      notifyStatus("本机词库接口暂未就绪。请刷新应用后重试。", "error");
+      return;
+    }
+    const button = $("dwssSaveFrenchCorrection");
+    button.disabled = true;
+    button.textContent = "正在保存并同步…";
+    try {
+      const result = api.addCustom({
+        zh: raw,
+        reading: "",
+        latin: "",
+        french,
+        frenchReadingZh: reading,
+        category: "日常生活",
+        source: "DWSS 法语词典用户修正",
+        note: "用户修正法语原文与中文近似音"
+      });
+      if (!result || !result.ok) {
+        notifyStatus(result && result.error ? result.error : "法语修正保存失败，请重试。", "error");
+        return;
+      }
+      const spelling = $("dwssFrenchSpelling");
+      if (spelling) spelling.value = french;
+      activeMeaningIndex = createMeaningIndex();
+      notifyStatus("法语修正已保存到本机，并已进入共享同步队列；联网后同步给所有用户。", "ok");
+      renderMainFrench();
+    } catch (error) {
+      notifyStatus("保存失败：" + String(error && error.message || error), "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "提交法语修正并同步所有用户";
+    }
+  }
+
+
+  function splitPinyinInitial(value) {
+    const syllable = String(value || "").toLowerCase();
+    const initials = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
+    const initial = initials.find(item => syllable.startsWith(item)) || "";
+    return { initial, final: syllable.slice(initial.length) };
+  }
+
+  function frenchSyllableDistance(leftValue, rightValue, engine) {
+    const left = String(leftValue || "").toLowerCase();
+    const right = String(rightValue || "").toLowerCase();
+    if (left === right) return 0;
+    if (!engine || typeof engine.syllableDistance !== "function") return 1;
+    const baseDistance = engine.syllableDistance(left, right);
+    const a = splitPinyinInitial(left);
+    const b = splitPinyinInitial(right);
+    const sharedPlaceGroup = FRENCH_NEAR_INITIAL_GROUPS.some(group =>
+      group.includes(a.initial) && group.includes(b.initial)
+    );
+    if (!sharedPlaceGroup) return baseDistance;
+
+    // Re-use the pronunciation engine's final-sound distance while softening
+    // only close consonants (b/p, d/t, g/k). Unrelated initials stay strict.
+    const finalDistance = Math.max(0, Math.min(1, (baseDistance - 0.92 * 0.43) / 0.57));
+    return Math.min(baseDistance, 0.18 * 0.43 + finalDistance * 0.57);
+  }
+
+  function nearFirstKeys(first, engine, availableKeys) {
+    const keys = [];
+    const pool = availableKeys || firstKeys;
+    for (const key of pool) {
+      const distance = frenchSyllableDistance(first, key, engine);
+      if (distance <= 0.38) keys.push({ key, distance });
+    }
+    keys.sort((a, b) => a.distance - b.distance || a.key.localeCompare(b.key));
+    // Always include exact and close first-syllable buckets; exact no longer
+    // prevents nearby sounds from being considered.
+    return keys.slice(0, 6).map(item => item.key);
+  }
+
+  function searchFrenchCandidates(query, entries, engine, limit) {
+    const querySyllables = engine.toSyllables(query, true) || [];
+    if (!querySyllables.length || querySyllables.length > 30) return [];
+    const maxResults = Math.max(1, Math.min(30, Number(limit) || 20));
+    const maxSyllableDistance = 0.38;
+    const minimumScore = 0.84;
+    const unique = new Map();
+
+    for (const item of Array.isArray(entries) ? entries : []) {
+      let best = null;
+      for (const variant of Array.isArray(item.variants) ? item.variants : []) {
+        const reading = String(variant.reading || "").trim();
+        if (!reading) continue;
+        const candidateSyllables = engine.toSyllables(reading, false) || [];
+        if (candidateSyllables.length !== querySyllables.length) continue;
+        let total = 0;
+        let worst = 0;
+        let valid = true;
+        for (let i = 0; i < querySyllables.length; i += 1) {
+          const distance = frenchSyllableDistance(querySyllables[i], candidateSyllables[i], engine);
+          total += distance;
+          worst = Math.max(worst, distance);
+          if (distance > maxSyllableDistance) { valid = false; break; }
+        }
+        if (!valid) continue;
+        const score = 1 - total / querySyllables.length;
+        if (!best || score > best.score) {
+          best = { score, reading, variant, pinyin: candidateSyllables.join(" ") };
+        }
+      }
+      if (!best || best.score < minimumScore) continue;
+      const zh = String(item.zh || "");
+      const result = {
+        zh,
+        category: String(item.category || "法语"),
+        score: best.score,
+        matchedReading: best.reading,
+        matchedPinyin: best.pinyin,
+        variant: best.variant,
+        latin: best.variant.latin || "",
+        source: best.variant.source || "法语词库"
+      };
+      const key = zh.normalize("NFKC").replace(/\s+/g, "").toLowerCase() + "\u0000" + best.pinyin;
+      const previous = unique.get(key);
+      if (!previous || result.score > previous.score) unique.set(key, result);
+    }
+    return Array.from(unique.values())
+      .sort((a, b) => b.score - a.score || a.zh.localeCompare(b.zh, "fr"))
+      .slice(0, maxResults);
+  }
+
+  function rowsForShards(shards, cap) {
+    const candidates = [];
+    const seenWords = new Set();
+    for (const lines of shards) {
+      for (const line of lines) {
+        if (candidates.length >= cap) return candidates;
+        const fields = line.split("\t");
+        if (fields.length < 5 || !fields[0] || !fields[2]) continue;
+        const word = fields[0].trim();
+        const key = normalizeFrenchGlossKey(word);
+        if (!key || seenWords.has(key)) continue;
+        seenWords.add(key);
+        const confidence = fields[3] || "";
+        const kind = fields[4] || "词形";
+        candidates.push({
+          zh: word,
+          category: "法语" + kind,
+          variants: [{
+            reading: fields[2],
+            latin: cleanIpa(fields[1]),
+            source: "LeXiK · " + confidence,
+            kind,
+            status: "canonical",
+            confidence
+          }]
+        });
+      }
+    }
+    return candidates;
+  }
+  function customQueryCandidates() {
+    return activeRows().map(item => ({
+      zh: item.word,
+      category: "法语共享修正",
+      variants: [{ reading: item.reading, latin: item.ipa || "", source: item.source || "用户修正", kind: "法语共享修正", status: "confirmed" }]
+    }));
+  }
+
+  function copyText(value, button) {
+    const original = button.textContent;
+    const copy = async () => {
+      try {
+        await navigator.clipboard.writeText(value);
+        button.textContent = "已复制";
+      } catch (_) {
+        const field = document.createElement("textarea");
+        field.value = value;
+        document.body.appendChild(field);
+        field.select();
+        const ok = document.execCommand("copy");
+        field.remove();
+        button.textContent = ok ? "已复制" : "复制失败";
+      }
+      window.setTimeout(() => { button.textContent = original; }, 1300);
+    };
+    copy();
+  }
+
+  async function renderFrenchQuery() {
+    const input = $("pronunciationFrenchSearch");
+    const host = $("pronunciationFrenchResults");
+    if (!input || !host || activeQueryMode !== "fr") return;
+    const query = String(input.value || "").trim();
+    if (!query) { host.innerHTML = ""; return; }
+    const engine = window.DWSSPronunciationSearch;
+    if (!engine || typeof engine.search !== "function" || typeof engine.toSyllables !== "function") {
+      host.innerHTML = '<div class="nores">法语发音匹配组件尚未载入，请检查更新后重试。</div>';
+      return;
+    }
+    await loadLexicon();
+    const syllables = engine.toSyllables(query, true) || [];
+    const first = syllables[0];
+    if (!first) { host.innerHTML = '<div class="nores">没有识别到有效的中文近似音，请换一种同音字输入。</div>'; return; }
+    const matchingFirstKeys = nearFirstKeys(first, engine, firstKeys);
+    const shardLines = await Promise.all(matchingFirstKeys.map(loadPronunciationShard));
+    const candidates = rowsForShards(shardLines, 24000);
+    candidates.push(...customQueryCandidates());
+    const results = searchFrenchCandidates(query, candidates, engine, 20);
+    const sourceMap = new Map();
+    for (const item of candidates) sourceMap.set(String(item.zh).toLowerCase(), item);
+    const unique = [];
+    const seen = new Set();
+    for (const result of results) {
+      const key = String(result.zh || "").toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(result);
+    }
+    host.innerHTML = unique.map(result => {
+      const item = sourceMap.get(String(result.zh || "").toLowerCase());
+      const variant = item && item.variants && item.variants[0] || {};
+      const score = Math.round((result.score || 0) * 100);
+      const label = score >= 99 ? "读音一致" : "近似读音 " + score + "%";
+      const meanings = (() => {
+        const found = findFrenchGloss(result.zh);
+        if (found.length) return found.slice(0, 4).join("；");
+        const custom = activeRows().find(x =>
+          normalizeFrenchGlossKey(x.word) === normalizeFrenchGlossKey(result.zh)
+        );
+        if (custom && custom.meanings && custom.meanings.length) return custom.meanings.join("；");
+        return "该法语词形暂未收录中文释义（法中词典没有对应词条）";
+      })();
+      const ipa = variant.latin ? "/" + variant.latin + "/" : "音标待补";
+      const reading = variant.reading || result.matchedReading || "";
+      return '<article class="pronunciation-hit"><div class="pronunciation-hit-main">' +
+        '<div class="pronunciation-hit-zh">法语：' + esc(result.zh) + '<span class="pronunciation-match-chip">' + label + '</span></div>' +
+        '<div class="pronunciation-hit-reading">中文近似发音：' + esc(reading) + '</div>' +
+        '<div class="pronunciation-hit-meta">IPA 音标：' + esc(ipa) + '</div>' +
+        '<div class="pronunciation-hit-meta pronunciation-hit-meaning"><strong>中文释义：</strong>' + esc(meanings) + '</div>' +
+        '<div class="pronunciation-hit-meta">匹配读音：' + esc(result.matchedReading || reading) + '</div>' +
+        '</div><div class="pronunciation-hit-actions">' +
+        '<button class="soft mini" type="button" data-copy-french="' + esc(result.zh) + '">复制法语</button>' +
+        '<button class="soft mini" type="button" data-copy-french-reading="' + esc(reading) + '">复制谐音</button>' +
+        '</div></article>';
+    }).join("") || '<div class="nores">没有找到足够接近的法语读音。可换一个同音或近音的中文字符再试；自动拟音只作参考。</div>';
+    host.querySelectorAll("[data-copy-french]").forEach(button => button.addEventListener("click", () => copyText(button.dataset.copyFrench || "", button)));
+    host.querySelectorAll("[data-copy-french-reading]").forEach(button => button.addEventListener("click", () => copyText(button.dataset.copyFrenchReading || "", button)));
+  }
+
+  function setQueryMode(mode) {
+    activeQueryMode = mode === "fr" ? "fr" : "sw";
+    const fr = activeQueryMode === "fr";
+    const swButton = $("dwssPronSwMode");
+    const frButton = $("dwssPronFrMode");
+    const swInput = $("pronunciationSearch");
+    const swResults = $("pronunciationResults");
+    const swInstruction = document.querySelector("#pronunciation .pronunciation-lookup-instruction");
+    const swMaint = document.querySelector("#pronunciation .pronunciation-maintenance-entry");
+    const frPanel = $("dwssFrenchQueryPanel");
+    if (swButton) { swButton.classList.toggle("active", !fr); swButton.setAttribute("aria-pressed", fr ? "false" : "true"); }
+    if (frButton) { frButton.classList.toggle("active", fr); frButton.setAttribute("aria-pressed", fr ? "true" : "false"); }
+    if (swInput) swInput.hidden = fr;
+    if (swResults) swResults.hidden = fr;
+    if (swInstruction) swInstruction.hidden = fr;
+    if (swMaint) swMaint.hidden = fr;
+    if (frPanel) frPanel.hidden = !fr;
+    if (fr) {
+      loadLexicon().then(() => renderFrenchQuery()).catch(error => {
+        $("pronunciationFrenchResults").innerHTML = '<div class="nores">' + esc(error.message || String(error)) + '</div>';
+      });
+    }
+  }
+
+  function bind() {
+    const frenchQueryInstruction = document.querySelector("#dwssFrenchQueryPanel .pronunciation-lookup-instruction");
+    if (frenchQueryInstruction) {
+      frenchQueryInstruction.textContent = "输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语";
+    }
+    $("dwssMainSwMode").addEventListener("click", () => setMainMode("sw"));
+    $("dwssMainFrMode").addEventListener("click", () => setMainMode("fr"));
+    const frenchCorrectionButton = $("dwssSaveFrenchCorrection");
+    if (frenchCorrectionButton) frenchCorrectionButton.addEventListener("click", saveFrenchCorrection);
+    $("dwssPronSwMode").addEventListener("click", () => setQueryMode("sw"));
+    $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
+    const scheduleMain = () => {
+      if (activeMainMode !== "fr") return;
+      window.clearTimeout(mainTimer);
+      mainTimer = window.setTimeout(() => {
+        const currentChinese = String($("inputText") && $("inputText").value || "").trim();
+        const refreshFrenchMode = () => {
+          renderMainFrench();
+          // The sentence-level runtime supplies the original French text after
+          // translation; do not show a stale previous translation during refresh.
+          renderFrenchSingleGloss(currentChinese);
+        };
+        if (!rows.length) loadLexicon().then(refreshFrenchMode).catch(error => {
+          $("dwssFrenchIpaMeta").textContent = error.message || String(error);
+          renderFrenchSingleGloss(currentChinese);
+        });
+        else refreshFrenchMode();
+      }, 180);
+    };
+    $("inputText").addEventListener("input", scheduleMain);
+    $("inputText").addEventListener("compositionend", scheduleMain);
+    $("translateBtn").addEventListener("click", () => window.setTimeout(scheduleMain, 20));
+    $("clearBtn").addEventListener("click", () => window.setTimeout(scheduleMain, 20));
+    $("pronunciationFrenchSearch").addEventListener("input", () => {
+      window.clearTimeout(queryTimer);
+      queryTimer = window.setTimeout(() => renderFrenchQuery().catch(error => {
+        $("pronunciationFrenchResults").innerHTML = '<div class="nores">' + esc(error.message || String(error)) + '</div>';
+      }), 180);
+    });
+    const refresh = () => {
+      if (rows.length) activeMeaningIndex = createMeaningIndex();
+      if (activeMainMode === "fr") renderMainFrench();
+      if (activeQueryMode === "fr" && $("pronunciationFrenchSearch").value.trim()) renderFrenchQuery().catch(() => {});
+    };
+    window.addEventListener("dwss:shared-terms-updated", refresh);
+    window.addEventListener("dwss:personal-term-added", refresh);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind, { once: true });
+  else bind();
+})(window, document);
