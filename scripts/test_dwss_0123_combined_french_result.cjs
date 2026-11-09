@@ -54,7 +54,7 @@ assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.
 assert(version.includes('Version: 0.9.123'), 'VERSION.txt mismatch');
 assert(app.includes("version:'0.9.123'"), 'app metadata mismatch');
 assert(sw.includes("const APP_VERSION = '0.9.123';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_122'), 'automatic-update marker mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_123'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.123'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
@@ -72,13 +72,13 @@ for (const key of wordMeta.prefixes) {
 }
 assert(fs.existsSync(path.join(root, 'french-gloss-index.tsv.gz')), 'French-Chinese gloss index missing');
 assert(fs.existsSync(path.join(root, 'french-LEXIK-LICENSE.txt')), 'LeXiK licence file missing');
-assert(html.includes('id="dwss-french-compact-ui-0123"'), 'compact French UI stylesheet missing');
+assert(html.includes('id="dwss-french-compact-ui-0122"'), 'compact French UI stylesheet missing');
 assert(html.includes('#resultCard #dwssFrenchIpaMeta{display:none!important}'), 'verbose provider/IPA meta should be hidden');
 assert(runtime.includes('检查法语语法'), 'grammar-check button removed');
 assert(runtime.includes('语法检查会将法语文本发送至外部服务。'), 'one-line privacy note missing');
 assert(runtime.includes('action: "translate"') && runtime.includes('action: "check"'),
   'translation or grammar-check action was removed');
-assert(runtime.includes('result.value = pronunciation.reading'), 'Chinese approximate pronunciation generation was removed');
+assert(runtime.includes('result.value = formatCombinedResult(french, pronunciation.reading)'), 'Chinese approximate pronunciation generation was removed');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
 assert(html.includes('#resultCard #dwssFrenchSpellingBlock{display:none!important}'),
