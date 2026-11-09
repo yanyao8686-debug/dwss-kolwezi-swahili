@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.132: render a compact French word-by-word grid with only the original word and its Chinese approximate reading."""
+"""DWSS 0.9.133: render a compact French word-by-word grid with only the original word and its Chinese approximate reading."""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.131"
-NEW_VERSION = "0.9.132"
+OLD_VERSION = "0.9.132"
+NEW_VERSION = "0.9.133"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.132"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.133"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -177,6 +177,20 @@ html = paths["index.html"].read_text(encoding="utf-8")
 app = paths["app.js"].read_text(encoding="utf-8")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
+def ensure_precache_asset(source: str, asset_name: str) -> str:
+    match = re.search(r"(const\s+PRECACHE_URLS\s*=\s*\[)([\s\S]*?)(\];)", source)
+    if not match:
+        fail("Service Worker PRECACHE_URLS is missing while adding French offline dictionary files.")
+    asset_url = urljoin(BASE_URL, asset_name)
+    body = match.group(2)
+    if asset_url not in body and asset_name not in body:
+        source = source[:match.start(2)] + body + f'\n  "{asset_url}",' + source[match.end(2):]
+    return source
+
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
+    sw = ensure_precache_asset(sw, offline_asset)
+
+
 # In French mode, stop the Swahili renderer from overwriting the French result
 # and French single-word gloss after each input event. Preserve local history on blur.
 render_guard = "const frenchModeButton=document.getElementById('dwssMainFrMode');if(frenchModeButton&&frenchModeButton.classList.contains('active')){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}"
@@ -218,11 +232,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.131/0.9.132 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.131/0.9.133 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.131 or 0.9.132.")
+    fail("Live app.js version is not 0.9.131 or 0.9.133.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.131 or 0.9.132.")
+    fail("Live Service Worker version is not 0.9.131 or 0.9.133.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -233,7 +247,7 @@ if not runtime_source.is_file() or runtime_source.stat().st_size < 10000:
     fail("Updated French translation runtime source is missing or unexpectedly small.")
 write_asset("french-translation-runtime.js", runtime_source.read_bytes())
 runtime = (ROOT / "french-translation-runtime.js").read_text(encoding="utf-8")
-extension_source = Path(__file__).with_name("french-extension-0132.js")
+extension_source = Path(__file__).with_name("french-extension-0133.js")
 if not extension_source.is_file() or extension_source.stat().st_size < 20000:
     fail("Merged French extension source is missing or unexpectedly small.")
 write_asset("french-extension.js", extension_source.read_bytes())
@@ -254,7 +268,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
@@ -288,7 +302,10 @@ for required in ('action: "translate"', 'action: "check"',
                  'return String(reading || "").trim();',
                  'glossTools.renderSingleGloss(lastChinese, french)',
                  'output.placeholder = "输入中文后翻译结果中文谐音会显示在这里";',
-                 'output.readOnly = false;', 'output.disabled = false;'):
+                 'function showInstantLocalDraft(chinese)', 'PERSISTED_CACHE_KEY',
+                 'restorePersistentTranslations()', 'persistTranslations()',
+                 'buildLocalPhraseReading(french)', 'delay == null ? 180 : delay',
+'output.readOnly = false;', 'output.disabled = false;'):
     if required not in runtime:
         fail("Compact French runtime is missing a required feature or notice: " + required)
 for removed in ('runGrammarCheck', 'grammarButton', 'dwssSaveFrenchCorrection',
@@ -333,12 +350,12 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.132 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.133 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.132: Simplified the French word glossary to a compact responsive grid showing only each French word and its own Chinese approximate pronunciation. The original sentence, Chinese definitions, IPA details and repeated explanatory labels are no longer repeated in this section.\n"
+        "\n\n0.9.133: Simplified the French word glossary to a compact responsive grid showing only each French word and its own Chinese approximate pronunciation. The original sentence, Chinese definitions, IPA details and repeated explanatory labels are no longer repeated in this section.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -348,11 +365,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_131"
+old_marker = "DWSS_AUTO_UPDATE_0_9_132"
 new_marker = "DWSS_AUTO_UPDATE_0_9_132"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.131 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.132 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -579,7 +596,7 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
 if "DWSS_AUTO_UPDATE_0_9_132" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.132.")
+    fail("Automatic-update marker was not advanced to 0.9.133.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -611,12 +628,16 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.132" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.132.")
-if "Version: 0.9.132" not in version or "version:'0.9.132'" not in app:
-    fail("Website and app version markers do not agree at 0.9.132.")
-if "const APP_VERSION = '0.9.132';" not in sw:
-    fail("Service Worker cache version is not 0.9.132.")
+if "dwss-release=0.9.133" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.133.")
+if "Version: 0.9.133" not in version or "version:'0.9.133'" not in app:
+    fail("Website and app version markers do not agree at 0.9.133.")
+if "const APP_VERSION = '0.9.133';" not in sw:
+    fail("Service Worker cache version is not 0.9.133.")
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
+    if offline_asset not in sw:
+        fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
+
 
 paths["VERSION.txt"].write_text(version, encoding="utf-8", newline="\n")
 paths["index.html"].write_text(html, encoding="utf-8", newline="\n")
@@ -629,5 +650,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.132 French glossary renders a compact per-word grid with only the French original and its own Chinese approximate pronunciation.")
-print("PASS: main translation, reverse lookup, shared sync, vocabulary indexes, cover and Android APK remain unchanged.")
+print("PASS: DWSS 0.9.133 French translation uses instant local dictionary drafts, local-first word readings and a device-only translation cache.")
+print("PASS: main translation, reverse lookup, shared sync, cover and Android APK remain unchanged; French base dictionary assets are precached for offline use.")
