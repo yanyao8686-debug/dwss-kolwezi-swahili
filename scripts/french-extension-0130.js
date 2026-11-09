@@ -415,7 +415,7 @@
     if (!raw) {
       output.value = "";
       output.classList.add("empty");
-      output.placeholder = "法语原文：\n中文近似音：";
+      output.placeholder = "输入中文后翻译结果中文谐音会显示在这里";
       if (spelling) spelling.value = "";
       const meta = $("dwssFrenchIpaMeta");
       if (meta) meta.textContent = "";
