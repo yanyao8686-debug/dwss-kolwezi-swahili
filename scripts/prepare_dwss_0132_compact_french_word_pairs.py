@@ -232,11 +232,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.131/0.9.133 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.132/0.9.133 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.131 or 0.9.133.")
+    fail("Live app.js version is not 0.9.132 or 0.9.133.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.131 or 0.9.133.")
+    fail("Live Service Worker version is not 0.9.132 or 0.9.133.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -355,7 +355,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.133: Simplified the French word glossary to a compact responsive grid showing only each French word and its own Chinese approximate pronunciation. The original sentence, Chinese definitions, IPA details and repeated explanatory labels are no longer repeated in this section.\n"
+        "\n\n0.9.133: French input now displays a local dictionary draft first, online translation providers race in parallel, local French word readings are shown before network enrichment, and successful machine translations are saved only on this device for offline reuse. The base French glossary and index metadata are precached for limited offline dictionary translation.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -366,7 +366,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
 old_marker = "DWSS_AUTO_UPDATE_0_9_132"
-new_marker = "DWSS_AUTO_UPDATE_0_9_132"
+new_marker = "DWSS_AUTO_UPDATE_0_9_133"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.132 auto-update marker; found " + str(html.count(old_marker)))
