@@ -227,8 +227,9 @@ for (const removedDetail of ['originalMarkup','法语原文：','中文释义：
 }
 assert(extension.includes('renderFrenchSingleGloss(currentChinese);'),
   'a new Chinese input must not temporarily reuse the previous French original');
-assert(runtime.includes('formatCombinedResult(french, pronunciation.reading)'),
-  'machine translation no longer writes both fields into the combined result');
+assert(runtime.includes('await renderPronunciation(french, requestId)') &&
+       runtime.includes('setFrenchResult(enriched.reading)'),
+  'machine translation must render the local pronunciation and replace it with the completed word-index pronunciation');
 assert(extension.includes('translateOfflineChinese(raw)') &&
        extension.includes('getPhraseWordPairs(phrase)') &&
        extension.includes('chineseMatcherCache = new WeakMap()'),
