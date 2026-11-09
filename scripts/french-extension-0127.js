@@ -549,10 +549,12 @@
   function rowsForFirst(firstKeys, cap) {
     const candidates = [];
     const seenWords = new Set();
+    const bucketCap = Math.max(1, Math.floor(cap / Math.max(1, firstKeys.length)));
     for (const first of firstKeys) {
       const range = firstRanges.get(first);
       if (!range) continue;
-      for (let i = range.start; i < range.end && candidates.length < cap; i += 1) {
+      let addedFromBucket = 0;
+      for (let i = range.start; i < range.end && candidates.length < cap && addedFromBucket < bucketCap; i += 1) {
         const fields = rows[i].split("\t");
         if (fields.length < 4 || !fields[1] || !fields[3]) continue;
         const key = fields[1].toLowerCase();
@@ -567,11 +569,11 @@
             status: "canonical"
           }]
         });
+        addedFromBucket += 1;
       }
     }
     return candidates;
   }
-
   function customQueryCandidates() {
     return activeRows().map(item => ({
       zh: item.word,
