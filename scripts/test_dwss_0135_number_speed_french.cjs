@@ -234,6 +234,9 @@ assert(extension.includes('translateOfflineChinese(raw)') &&
        extension.includes('getPhraseWordPairs(phrase)') &&
        extension.includes('refreshActiveMeaningIndex()') &&
        extension.includes('activeRowsSignature') &&
+       extension.includes('item.source_language !== "fr"') &&
+       extension.includes('item.local_pronunciation_cn || item.french_pronunciation_cn') &&
+       extension.includes('api.frenchReading(word)') &&
        extension.includes('chineseMatcherCache = new WeakMap()'),
   'fast local Chinese-to-French dictionary translation helpers are missing');
 for (const token of ['showInstantLocalDraft(chinese)','localPreviewCompleteChinese','misses.length === 0','await localTools.prepareOfflineChinese(chinese)','PERSISTED_CACHE_KEY',
