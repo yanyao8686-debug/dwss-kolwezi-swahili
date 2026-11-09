@@ -173,9 +173,9 @@
       const ipa = record.ipa ? "/" + record.ipa + "/" : "音标待补";
       return '<div class="seg"><div class="zh">' + esc(part.zh) + '</div><div class="rd">' +
         '<strong>法语：' + esc(record.word || "待补") + '</strong>' +
-        '<div class="src">中文近似音：' + esc(record.reading || "读音待补") + '</div>' +
-        '<div class="src">IPA：' + esc(ipa) + '</div>' +
-        '<div class="src">中文释义：' + esc(meanings || part.zh) + '</div>' +
+        '<div class="rd-detail">中文近似音：' + esc(record.reading || "读音待补") + '</div>' +
+        '<div class="rd-detail">IPA：' + esc(ipa) + '</div>' +
+        '<div class="rd-detail">中文释义：' + esc(meanings || part.zh) + '</div>' +
         '</div></div>';
     }).join("");
   }
