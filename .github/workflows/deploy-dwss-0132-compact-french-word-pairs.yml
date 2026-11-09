@@ -41,7 +41,7 @@ jobs:
           node --check public/french-extension.js
           node --check public/french-translation-runtime.js
 
-      - name: Run DOM, Per-word French pronunciation display and regression checks
+      - name: Run compact French word-pair glossary regression checks
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +58,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify each French word has its own Chinese approximate pronunciation, including IPA fallback, and protected assets
+      - name: Verify compact French word-pair glossary and protected assets
         shell: bash
         run: |
           set -euxo pipefail
