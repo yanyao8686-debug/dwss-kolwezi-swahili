@@ -180,7 +180,7 @@ sw = paths["sw.js"].read_text(encoding="utf-8")
 # Remove the French "submit and sync" control from the actual DOM, not merely
 # visually hide it. The extension has been made null-safe for this optional panel.
 html, removed_panels = re.subn(
-    r'\\s*<div id="dwssFrenchCorrectionPanel"[^>]*>[\\s\\S]*?</div>',
+    r'\s*<div id="dwssFrenchCorrectionPanel"[^>]*>[\s\S]*?</div>',
     '',
     html,
     count=1
