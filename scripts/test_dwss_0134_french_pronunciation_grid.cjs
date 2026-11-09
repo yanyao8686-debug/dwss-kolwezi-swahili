@@ -194,7 +194,7 @@ assert(extension.includes('function tokenizeFrenchPhrase(value)') &&
        extension.includes('function buildFrenchWordReadingLookup(sourceRows)') &&
        extension.includes('function buildFrenchWordPairs(phrase, wordLookup, glossSegments, enrichedWordReadings)'),
   'word-level French tokenization and pronunciation lookup helpers are missing');
-assert(extension.includes('buildFrenchWordPairs(phrase, frenchWordReadingByWord, result.glossSegments)'),
+assert(extension.includes('buildFrenchWordPairs(phrase, frenchWordReadingByWord, result.glossSegments, enrichedWordReadings)'),
   'the glossary must pair each actual French sentence word with its own pronunciation');
 assert(extension.includes('dwss-french-word-pair') && extension.includes('dwss-french-word-original') &&
        extension.includes('dwss-french-word-pronunciation'),
