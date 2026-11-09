@@ -1,0 +1,101 @@
+name: Deploy DWSS 0.9.125 French result parity and automatic grammar
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-dwss-0125-automatic-french-review.yml'
+      - 'scripts/prepare_dwss_0125_automatic_french_review.py'
+      - 'scripts/test_dwss_0125_automatic_french_review.cjs'
+      - 'scripts/french-translation-runtime.js'
+      - 'scripts/french-extension-0123.js'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dwss-pages-deploy-0125-automatic-french-review
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mirror site, preserve French indexes and build combined result runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/prepare_dwss_0125_automatic_french_review.py
+          python3 scripts/prepare_dwss_0125_automatic_french_review.py
+          python3 -m py_compile scripts/prepare_dwss_0125_automatic_french_review.py
+          node --check public/app.js
+          node --check public/sw.js
+          node --check public/french-extension.js
+          node --check public/french-translation-runtime.js
+
+      - name: Run DOM, French result styling, automatic grammar and mode-isolation regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock jsdom@26.1.0
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_0125_automatic_french_review.cjs
+          unzip -t public/DWSS-Android-Installer.apk >/dev/null
+
+      - name: Upload DWSS Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy DWSS 0.9.125
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live French styling, automatic grammar, removed controls and protected assets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
+          LIVE="$RUNNER_TEMP/dwss-live-0125"
+          mkdir -p "$LIVE"
+          for file in VERSION.txt index.html app.js sw.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
+            curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          grep -Fxq 'Version: 0.9.125' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_125' "$LIVE/index.html"
+          grep -Fq "version:'0.9.125'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.125';" "$LIVE/sw.js"
+          grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
+          grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
+          grep -Fq '翻译时自动检查法语语法，译文会发送至外部服务。' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq '检查法语语法' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq 'runGrammarCheck' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq 'id="dwssFrenchCorrectionPanel"' "$LIVE/index.html"
+          ! grep -Fq '提交法语修正并同步所有用户' "$LIVE/index.html"
+          grep -Fq 'id="dwss-french-ux-0125"' "$LIVE/index.html"
+          grep -Fq '#resultCard[data-dwss-lang="fr"] > .segmentlist' "$LIVE/index.html"
+          grep -Fq '#resultCard[data-dwss-lang="fr"] > .quality-note' "$LIVE/index.html"
+          grep -Fq 'background:#FFF0D2!important' "$LIVE/index.html"
+          ! grep -Fq 'combinedOutput.addEventListener("blur"' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq '法语整句来源：' "$LIVE/french-translation-runtime.js"
+          ! grep -Fq '查看校对建议' "$LIVE/french-translation-runtime.js"
+          node --check "$LIVE/app.js"
+          node --check "$LIVE/sw.js"
+          node --check "$LIVE/french-extension.js"
+          node --check "$LIVE/french-translation-runtime.js"
+          COVER_SHA="$(sha256sum "$LIVE/cover.webp" | cut -d' ' -f1)"
+          APK_SHA="$(sha256sum "$LIVE/DWSS-Android-Installer.apk" | cut -d' ' -f1)"
+          echo "Live cover SHA-256: $COVER_SHA"
+          echo "Live Android APK SHA-256: $APK_SHA"
+          test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
+          test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
+          echo 'PASS: live DWSS 0.9.125 French result styling, automatic grammar, removed manual controls, French-mode-only details, versioning, cover and Android installer verified.'
