@@ -133,7 +133,7 @@
     if (!tools || !spelling) return false;
     const displayDraft = draft => {
       // Never let a late local draft overwrite a pending or already-returned cloud translation.
-      if (!draft || pendingChinese === chinese || (lastChinese === chinese && lastMachineFrench)) return;
+      if (!draft || (lastChinese === chinese && lastMachineFrench)) return;
       if (!String(draft.words || "").trim() || !String(draft.reading || "").trim()) return;
       if (!isFrenchMode() || String(input && input.value || "").trim() !== chinese) return;
       const french = String(draft.words).trim();
