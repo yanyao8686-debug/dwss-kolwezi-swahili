@@ -1,13 +1,16 @@
-name: Deploy DWSS 0.9.132 compact French word pairs
+name: Deploy DWSS 0.9.133 compact French word pairs
 
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-dwss-0132-compact-french-word-pairs.yml'
+      - '.github/workflows/deploy-dwss-0133-fast-offline-french.yml'
       - 'scripts/prepare_dwss_0132_compact_french_word_pairs.py'
       - 'scripts/test_dwss_0132_compact_french_word_pairs.cjs'
-      - 'scripts/french-extension-0132.js'
+      - 'scripts/french-extension-0133.js'
+      - 'scripts/french-translation-runtime.js'
+      - 'supabase/functions/dwss-french-language/index.ts'
+      - 'scripts/test_dwss_0133_french_edge_fast.cjs'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0132-compact-french-word-pairs
+  group: dwss-pages-deploy-0133-fast-offline-french
   cancel-in-progress: true
 
 jobs:
@@ -41,11 +44,12 @@ jobs:
           node --check public/french-extension.js
           node --check public/french-translation-runtime.js
 
-      - name: Run compact French word-pair glossary regression checks
+      - name: Run fast French translation and offline regression checks
         shell: bash
         run: |
           set -euo pipefail
           npm install --no-save --no-package-lock jsdom@26.1.0
+          node scripts/test_dwss_0133_french_edge_fast.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0132_compact_french_word_pairs.cjs
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
 
@@ -54,11 +58,11 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.132
+      - name: Deploy DWSS 0.9.133
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify compact French word-pair glossary and protected assets
+      - name: Verify fast French translation, offline cache and protected assets
         shell: bash
         run: |
           set -euxo pipefail
@@ -68,10 +72,10 @@ jobs:
           for file in VERSION.txt index.html app.js sw.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.132' "$LIVE/VERSION.txt"
+          grep -Fxq 'Version: 0.9.133' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_132' "$LIVE/index.html"
-          grep -Fq "version:'0.9.132'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.132';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.133'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.133';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '翻译时自动检查法语语法，译文会发送至外部服务。' "$LIVE/french-translation-runtime.js"
@@ -109,6 +113,15 @@ jobs:
           ! grep -Fq 'dwss-french-original-in-gloss' "$LIVE/french-extension.js"
           grep -Fq '法语逐词对照：' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-word-pairs-0132"' "$LIVE/index.html"
+          grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
+          grep -Fq 'prepareOfflineChinese(raw)' "$LIVE/french-extension.js"
+          grep -Fq 'getPhraseWordPairs(phrase)' "$LIVE/french-extension.js"
+          grep -Fq 'PERSISTED_CACHE_KEY' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'showInstantLocalDraft(chinese)' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'buildLocalPhraseReading(french)' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'french-gloss-index.tsv.gz' "$LIVE/sw.js"
+          grep -Fq 'french-pronunciation-index.json' "$LIVE/sw.js"
+          grep -Fq 'french-word-index.json' "$LIVE/sw.js"
           grep -Fq 'grid-template-columns:repeat(2,minmax(0,1fr))!important' "$LIVE/index.html"
           grep -Fq 'const GLOSS_URL = "./french-gloss-index.tsv.gz";' "$LIVE/french-extension.js"
           grep -Fq 'const META_URL = "./french-pronunciation-index.json";' "$LIVE/french-extension.js"
@@ -136,4 +149,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.132 French glossary is a compact per-word grid showing only French original and its own Chinese approximate pronunciation. Main translation, reverse lookup, vocabulary, cover and Android installer are unchanged."
+          echo "PASS: DWSS 0.9.133 French translation now has local-first drafts, parallel cloud providers, local-first readings, device-only offline cache and precached dictionary data. Existing Swahili, shared vocabulary, cover and Android installer remain protected."
