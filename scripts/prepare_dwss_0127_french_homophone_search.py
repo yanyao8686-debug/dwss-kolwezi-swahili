@@ -245,7 +245,8 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "glossSegments", "window.DWSSRenderTranslation",
                  "machine.scheduleTranslation(80)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
-                 "nearFirstKeys", "输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语"):
+                 "nearFirstKeys", "bucketCap",
+                 "输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语"):
     if required not in extension:
         fail("Merged French extension is missing: " + required)
 
