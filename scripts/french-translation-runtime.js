@@ -56,7 +56,6 @@
   let pendingChinese = "";
   let composing = false;
   let combinedEditTimer = null;
-  let combinedRepronunciationPromise = Promise.resolve();
   let userEditedCombined = false;
   let writingCombinedOutput = false;
 
@@ -244,6 +243,7 @@
     if (chinese === lastChinese && spelling.value.trim() && spelling.value.trim() === lastMachineFrench) return;
     lastChinese = chinese;
     pendingChinese = chinese;
+    userEditedCombined = false;
     const requestId = ++activeRequest;
     spelling.value = "";
     setFrenchResult("");
@@ -337,7 +337,7 @@
     mirrorSwahiliResultStyle();
     output.readOnly = false;
     output.disabled = false;
-    output.placeholder = "法语原文：\\n中文近似音：";
+    output.placeholder = "法语原文：\n中文近似音：";
     const sourceBlock = $("dwssFrenchSpellingBlock");
     if (sourceBlock) {
       sourceBlock.hidden = true;
@@ -407,25 +407,10 @@
         const requestId = ++activeRequest;
         window.clearTimeout(combinedEditTimer);
         combinedEditTimer = window.setTimeout(() => {
-          combinedRepronunciationPromise = renderPronunciation(french, requestId).catch(() => {});
+          renderPronunciation(french, requestId).catch(() => {});
         }, 420);
       });
 
-      // No separate submit button: after the user finishes editing, save the
-      // French source and approximate pronunciation into the shared correction queue.
-      combinedOutput.addEventListener("blur", () => {
-        if (!userEditedCombined) return;
-        window.setTimeout(async () => {
-          await combinedRepronunciationPromise;
-          if (!userEditedCombined) return;
-          const parsed = parseCombinedResult(combinedOutput.value);
-          if (String(parsed.french || "").trim() && String(parsed.reading || "").trim()) {
-            const saveButton = $("dwssSaveFrenchCorrection");
-            if (saveButton) saveButton.click();
-          }
-          userEditedCombined = false;
-        }, 180);
-      });
     }
     if (isFrenchMode()) scheduleTranslation(150);
   }
