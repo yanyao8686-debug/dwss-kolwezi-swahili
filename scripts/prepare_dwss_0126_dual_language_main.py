@@ -193,7 +193,7 @@ if render_hook not in app:
     anchor = "window.KolweziSwahili={"
     if app.count(anchor) != 1:
         fail("Cannot locate the single public dictionary API for the language-switch render hook.")
-    app = app.replace(anchor, render_hook + "\\n" + anchor, 1)
+    app = app.replace(anchor, render_hook + chr(10) + anchor, 1)
 
 # The French shared-correction submit panel was removed in 0.9.125. Accept
 # either an older baseline (remove it once) or the current baseline (already absent).
