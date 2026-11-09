@@ -244,7 +244,7 @@ assert(meaningFixture.get(meaningTools.normalizeWord('école'))?.includes('学�
 
 const glossBytes = fs.readFileSync(path.join(root, 'french-gloss-index.tsv.gz'));
 const glossText = zlib.gunzipSync(glossBytes).toString('utf8');
-const glossRows = glossText.split(/\\r?\\n/).filter(Boolean).map(line => line.split('\\t'));
+const glossRows = glossText.split(/\r?\n/).filter(Boolean).map(line => line.split('\t'));
 assert(glossRows.length >= 9000, 'French-Chinese gloss index must contain at least 9,000 entries');
 for (const headword of ['bonjour','merci']) {
   assert(glossRows.some(fields => String(fields[1] || '').toLowerCase() === headword && String(fields[4] || '').trim()),
