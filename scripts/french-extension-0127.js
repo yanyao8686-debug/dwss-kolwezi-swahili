@@ -183,6 +183,7 @@
   window.DWSSFrenchTools = Object.freeze({ ipaToChinese, normalizeChinese, translateChinese, renderSingleGloss: renderFrenchSingleGloss });
   window.DWSSFrenchQueryTools = Object.freeze({
     syllableDistance: frenchSyllableDistance,
+    nearFirstKeys,
     search: searchFrenchCandidates
   });
   if (!document || !document.getElementById) return;
@@ -481,9 +482,10 @@
     return Math.min(baseDistance, 0.18 * 0.43 + finalDistance * 0.57);
   }
 
-  function nearFirstKeys(first, engine) {
+  function nearFirstKeys(first, engine, availableKeys) {
     const keys = [];
-    for (const key of firstRanges.keys()) {
+    const pool = availableKeys || firstRanges.keys();
+    for (const key of pool) {
       const distance = frenchSyllableDistance(first, key, engine);
       if (distance <= 0.38) keys.push({ key, distance });
     }
