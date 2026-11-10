@@ -201,8 +201,11 @@ assert(html.includes('.dwss-french-word-edit') && html.includes('.dwss-french-wo
   'French word and homophone controls must use inline editable fields with the Swahili-style row layout');
 assert(html.includes('.dwss-french-word-edit:focus'),
   'French word and homophone fields must have a visible edit focus state');
-const frenchPairStyle = html.match(/<style id="dwss-french-word-pairs-0132">([\\s\\S]*?)<\\/style>/);
-assert(frenchPairStyle && !frenchPairStyle[1].includes('grid-template-columns'),
+const frenchPairStyleStart = html.indexOf('<style id="dwss-french-word-pairs-0132">');
+const frenchPairStyleEnd = html.indexOf('</style>', frenchPairStyleStart);
+const frenchPairStyle = frenchPairStyleStart >= 0 && frenchPairStyleEnd > frenchPairStyleStart
+  ? html.slice(frenchPairStyleStart, frenchPairStyleEnd) : '';
+assert(!!frenchPairStyle && !frenchPairStyle.includes('grid-template-columns'),
   'the French-only word-pair style must not impose a card grid on the Swahili-style rows');
 
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
