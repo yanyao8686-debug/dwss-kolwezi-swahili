@@ -663,11 +663,6 @@ if french_word_pairs_style_id in html:
 else:
     if "</head>" not in html:
         fail("Cannot find </head> for compact French word-pair styles.")
-    html = html.replace("</head>", french_word_pairs_style + "\n</head>", 1)if html.count(french_word_pairs_style_id) > 1:
-    fail("Duplicate compact French word-pair styles found.")
-if french_word_pairs_style_id not in html:
-    if "</head>" not in html:
-        fail("Cannot find </head> for compact French word-pair styles.")
     html = html.replace("</head>", french_word_pairs_style + "\n</head>", 1)
 for selector in (
     "#resultCard #resultFrenchReading[hidden]",
