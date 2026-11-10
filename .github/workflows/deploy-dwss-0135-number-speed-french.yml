@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.142 fast offline-aware French translation
+name: Deploy DWSS 0.9.143 fast offline-aware French translation
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.142
+      - name: Deploy DWSS 0.9.143
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -70,10 +70,10 @@ jobs:
           for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.142' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_142' "$LIVE/index.html"
-          grep -Fq "version:'0.9.142'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.142';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.143' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_143' "$LIVE/index.html"
+          grep -Fq "version:'0.9.143'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.143';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
@@ -159,7 +159,7 @@ jobs:
           grep -Fq '.dwss-french-word-edit:focus' "$LIVE/index.html"
           grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
           grep -Fq '.dwss-french-edit-hint' "$LIVE/index.html"
-          grep -Fq '可直接修改框内法语单词和中文谐音' "$LIVE/french-extension.js"
+          grep -Fq '法语单词可直接修改；中文谐音请在上方结果框修改。' "$LIVE/french-extension.js"
           grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
           grep -Fq 'refreshActiveMeaningIndex()' "$LIVE/french-extension.js"
           grep -Fq 'activeRowsSignature' "$LIVE/french-extension.js"
@@ -202,4 +202,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.142 has clean borderless Swahili/French save controls with no extra explanation; save actions, offline sync, language isolation and protected installer assets are verified."
+          echo "PASS: live DWSS 0.9.143 has a borderless grey French edit hint, spelling-only editable word rows, and the shared save button below the list; main-result homophone, offline sync, language isolation and protected assets are verified."
