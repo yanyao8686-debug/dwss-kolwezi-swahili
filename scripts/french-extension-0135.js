@@ -773,7 +773,7 @@
 
     const style = document.createElement("style");
     style.textContent = [
-      "#dwssFrenchPronunciationEditor{margin:7px 0 2px}",
+      "#dwssFrenchPronunciationEditor{margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}",
       "#dwssFrenchPronunciationEditor[hidden],#dwssFrenchPronunciationStatus[hidden]{display:none!important}"
     ].join("\n");
     document.head.appendChild(style);
@@ -785,7 +785,6 @@
       '<div class="translation-correction-actions">' +
       '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步所有用户</button>' +
       '</div>' +
-      '<p class="translation-correction-hint">可直接修改上方中文谐音，也可在下方逐词释义中修改法语单词及对应谐音；点击此按钮一次保存。离线时先保存在本机，联网后自动同步。</p>' +
       '<div id="dwssFrenchPronunciationStatus" class="translation-correction-status" role="status" aria-live="polite" hidden></div>';
     output.insertAdjacentElement("afterend", wrap);
 
