@@ -79,7 +79,7 @@ assert(extension.includes('api.submitFrenchPronunciationCorrection({') &&
        extension.includes('french_pronunciation_cn: values.reading') &&
        extension.includes('const rowsEdited = sameSource && rows.some(row =>') &&
        extension.includes('法语单词') && extension.includes('中文谐音：'),
-  'one French save action must sync combined edits from the result box and each French/homophone row');
+  'one French save action must sync the corrected French phrase and the main result box homophone');
 assert(runtime.includes('mirrorSwahiliResultStyle') &&
        runtime.includes('output.readOnly = false;') &&
        runtime.includes('output.disabled = false;'),
@@ -316,10 +316,11 @@ assert(extension.includes('buildFrenchWordPairs(phrase, frenchWordReadingByWord,
 assert(extension.includes('dwss-french-word-pair') && extension.includes('dwss-french-word-original') &&
        extension.includes('dwss-french-word-pronunciation') &&
        extension.includes('type="text" maxlength="100"') &&
-       extension.includes('type="text" maxlength="200"') &&
        extension.includes('aria-label="法语单词') &&
-       extension.includes('aria-label="法语单词') && extension.includes('中文谐音：'),
-  'each French word and its Chinese approximate pronunciation must be editable inline');
+       extension.includes('中文谐音：') &&
+       extension.includes('span class="dwss-french-word-pronunciation"') &&
+       !extension.includes('input class="dwss-french-word-edit dwss-french-word-pronunciation"'),
+  'French spelling alone must be editable; per-word Chinese homophones remain display-only');
 assert(extension.includes('host.classList.remove("dwss-french-word-grid")') &&
        extension.includes('class="seg dwss-french-word-pair"'),
   'French gloss output must use the same stacked segment-row presentation as Swahili');
@@ -588,4 +589,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.143: editable French word/homophone rows, punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.143: editable French spelling-only rows, main-result homophone save and punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
