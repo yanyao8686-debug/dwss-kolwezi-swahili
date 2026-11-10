@@ -246,8 +246,9 @@ assert(extension.includes('if (frenchCorrectionPanel) frenchCorrectionPanel.hidd
 assert(extension.includes('formatCombinedFrenchResult(result.words, result.reading)'),
   'legacy French dictionary extension did not merge its results');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
-       extension.includes('french_pronunciation_cn: reading'),
-  'French pronunciation corrections must use the dedicated shared French reading field');
+       extension.includes('french_pronunciation_cn: values.reading') &&
+       extension.includes('reading: String(output.value || "").trim()'),
+  'French pronunciation corrections must submit the value edited directly in the main result field to the dedicated French field');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
 assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
