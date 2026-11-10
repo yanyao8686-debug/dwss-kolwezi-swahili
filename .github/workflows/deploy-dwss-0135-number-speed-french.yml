@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.136 fast offline-aware French translation
+name: Deploy DWSS 0.9.137 fast offline-aware French translation
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - 'scripts/test_dwss_0135_number_speed_french.cjs'
       - 'scripts/french-extension-0135.js'
       - 'scripts/french-translation-runtime.js'
+      - 'shared-lexicon.js'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0136-local-first-french
+  group: dwss-pages-deploy-0137-local-first-french
   cancel-in-progress: true
 
 jobs:
@@ -55,7 +56,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.136
+      - name: Deploy DWSS 0.9.137
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -64,23 +65,29 @@ jobs:
         run: |
           set -euxo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0136"
+          LIVE="$RUNNER_TEMP/dwss-live-0137"
           mkdir -p "$LIVE"
-          for file in VERSION.txt index.html app.js sw.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
+          for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.136' "$LIVE/VERSION.txt"
+          grep -Fxq 'Version: 0.9.137' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_136' "$LIVE/index.html"
-          grep -Fq "version:'0.9.136'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.136';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.137'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.137';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'function setupFrenchPronunciationEditor()' "$LIVE/french-extension.js"
+          grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/french-extension.js"
+          grep -Fq 'async function submitFrenchPronunciationCorrection(entry)' "$LIVE/shared-lexicon.js"
+          grep -Fq 'french_pronunciation_cn: reading' "$LIVE/shared-lexicon.js"
+          grep -Fq 'queue.unshift(payload)' "$LIVE/shared-lexicon.js"
           ! grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'grammarButton.textContent = "检查法语语法"' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'runGrammarCheck' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'id="dwssFrenchCorrectionPanel"' "$LIVE/index.html"
-          ! grep -Fq '提交法语修正并同步所有用户' "$LIVE/index.html"
+          ! grep -Fq 'id="dwssFrenchCorrectionPanel"' "$LIVE/index.html"
+          ! grep -Fq 'id="dwssSaveFrenchCorrection"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-ux-0125"' "$LIVE/index.html"
           grep -Fq '#resultCard[data-dwss-lang="fr"] > .segmentlist' "$LIVE/index.html"
           grep -Fq '#resultCard[data-dwss-lang="fr"] > .quality-note' "$LIVE/index.html"
@@ -161,4 +168,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.136 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
+          echo "PASS: live DWSS 0.9.137 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
