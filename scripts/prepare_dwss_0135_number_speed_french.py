@@ -689,7 +689,7 @@ if html.count(save_sync_clean_style_id) > 1:
     fail("Duplicate compact save-and-sync styles found.")
 if save_sync_clean_style_id in html:
     html, count = re.subn(
-        r'<style id="dwss-save-sync-clean-0142">[\\s\\S]*?</style>',
+        r'<style id="dwss-save-sync-clean-0142">[\s\S]*?</style>',
         lambda _: save_sync_clean_style, html, count=1
     )
     if count != 1:
@@ -697,7 +697,7 @@ if save_sync_clean_style_id in html:
 else:
     if "</head>" not in html:
         fail("Cannot find </head> for compact save-and-sync styles.")
-    html = html.replace("</head>", save_sync_clean_style + "\\n</head>", 1)
+    html = html.replace("</head>", save_sync_clean_style + "\n</head>", 1)
 
 french_word_pairs_style_id = 'id="dwss-french-word-pairs-0132"'
 if html.count(french_word_pairs_style_id) > 1:
@@ -737,7 +737,7 @@ for selector in (
 ):
     if selector not in html:
         fail("Save-and-sync cleanup selector is missing: " + selector)
-if '可直接修改上方中文谐音' in french_extension or '离线时先保存在本机' in french_extension:
+if '可直接修改上方中文谐音' in extension or '离线时先保存在本机' in extension:
     fail("Verbose French save panel explanation remains in the extension.")
 if "DWSS_AUTO_UPDATE_0_9_142" not in html:
     fail("Automatic-update marker was not advanced to 0.9.142.")
