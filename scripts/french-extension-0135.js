@@ -902,6 +902,9 @@
           readWordRows().forEach(row => {
             row.wordInput.dataset.originalWord = row.word;
           });
+          if (tools && typeof tools.renderSingleGloss === "function") {
+            tools.renderSingleGloss(values.chinese, values.french);
+          }
         }
         if (sameContext) {
           if (result && result.synced) {
@@ -911,7 +914,7 @@
           }
         }
       } catch (error) {
-        setStatus("保存失败：" + String(error && error.message || error) + "。已修改的法语单词和中文谐音仍保留。", "error");
+        setStatus("保存失败：" + String(error && error.message || error) + "。已修改的法语单词和主结果框内容仍保留。", "error");
       } finally {
         saving = false;
         saveButton.disabled = false;
