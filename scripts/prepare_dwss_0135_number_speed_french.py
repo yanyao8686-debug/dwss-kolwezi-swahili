@@ -354,7 +354,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
                  "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.frenchReadingZh', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
-                 'reading: String(output.value || "").trim()', 'output.insertAdjacentElement("afterend", wrap);', 'output.readOnly = false;',
+                 'const readingFromResult = String(output.value || "").trim()', 'output.insertAdjacentElement("afterend", wrap);', 'output.readOnly = false;',
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation", "replaceFrenchPhraseWords", "中文谐音：",
                  "谐音待补",
                  "const phrase = original || result.words",
@@ -747,5 +747,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.139 edits French Chinese-homophone text directly in the original result box and uses one save-and-sync action.")
+print("PASS: DWSS 0.9.140 supports direct edits to French words and their paired Chinese homophones in Swahili-style gloss rows.")
 print("PASS: no secondary French edit field remains; offline-first French sync and strict language separation are preserved.")
