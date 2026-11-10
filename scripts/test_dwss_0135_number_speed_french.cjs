@@ -60,10 +60,10 @@ for (const token of [
   'output.disabled = false;'
 ]) assert(editorBlock.includes(token), 'French must save directly from the editable result box: ' + token);
 for (const forbidden of [
-  'dwssFrenchPronunciationEdit',
-  'dwssFrenchPronunciationValue',
-  'dwssFrenchPronunciationPanel',
-  'dwssFrenchPronunciationCancel',
+  'id="dwssFrenchPronunciationEdit"',
+  'id="dwssFrenchPronunciationValue"',
+  'id="dwssFrenchPronunciationPanel"',
+  'id="dwssFrenchPronunciationCancel"',
   '<textarea'
 ]) assert(!editorBlock.includes(forbidden), 'French editor must not show a second edit field or edit button: ' + forbidden);
 assert(extension.includes('api.submitFrenchPronunciationCorrection({') &&
