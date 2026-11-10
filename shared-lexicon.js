@@ -363,6 +363,10 @@ async function submitFrenchPronunciationCorrection(entry) {
   };
   queue.unshift(payload);
   save(QUEUE_KEY, queue);
+  if (!readArray(QUEUE_KEY).some(item => item && item.client_submit_id === payload.client_submit_id)) {
+    queue = readArray(QUEUE_KEY);
+    throw new Error("设备没有成功写入本机待同步记录，请检查浏览器存储空间后重试。");
+  }
   render(); count(); notifyApp();
 
   if (!navigator.onLine) {
