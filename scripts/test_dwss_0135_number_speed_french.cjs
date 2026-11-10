@@ -170,7 +170,7 @@ assert(html.includes('id="dwss-save-sync-clean-0142"') &&
        html.includes('border:0!important') &&
        html.includes('margin-top:0!important;margin-bottom:0!important') &&
        html.includes('#translationCorrectionPanel[hidden]') &&
-       html.includes('#dwssFrenchPronunciationEditor[hidden]{display:none!important}') ,
+       html.includes('#dwssFrenchPronunciationEditor[hidden]{display:none!important;}') ,
   'both save-and-sync panels must be borderless, hide explanatory copy, and move buttons up');
 assert(extension.includes('id="dwssFrenchPronunciationStatus"') &&
        extension.includes('role="status"'),
