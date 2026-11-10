@@ -287,8 +287,26 @@
       const prefix = source.slice(cursor, start).replace(/\s+/g, "");
       const suffix = source.slice(start + match[0].length, nextStart).replace(/\s+/g, "");
       cursor = nextStart;
-      return { word: match[0], display: prefix + match[0] + suffix };
+      return { word: match[0], display: prefix + match[0] + suffix, start, end: start + match[0].length };
     });
+  }
+
+  function replaceFrenchPhraseWords(phrase, replacements) {
+    const source = String(phrase || "");
+    const tokens = tokenizeFrenchPhrase(source);
+    const values = Array.isArray(replacements) ? replacements : [];
+    if (tokens.length !== values.length) {
+      throw new Error("法语单词数量已变化，请重新生成逐词释义后再保存。");
+    }
+    let cursor = 0;
+    let result = "";
+    tokens.forEach((token, index) => {
+      result += source.slice(cursor, token.start);
+      result += String(values[index] == null ? "" : values[index]);
+      cursor = token.end;
+    });
+    result += source.slice(cursor);
+    return result;
   }
 
   function buildFrenchWordReadingLookup(sourceRows) {
@@ -338,7 +356,10 @@
       const enrichedReading = enrichedRecord ? getWordChineseReading(enrichedRecord) : "";
       const record = enrichedReading ? enrichedRecord : (lookup.get(key) || fallback.get(key) || null);
       const reading = record ? getWordChineseReading(record) : getFrenchNumberWordReading(token.word);
-      return { word: token.display, token: token.word, reading: reading || "谐音待补" };
+      return {
+        word: token.display, token: token.word, reading: reading || "谐音待补",
+        start: token.start, end: token.end
+      };
     });
   }
 
@@ -347,31 +368,62 @@
     const host = $("segmentList");
     const text = String(raw || "").trim();
     const original = String(frenchOriginal || "").trim();
-    if (label) label.textContent = "法语逐词对照：";
+    if (label) label.textContent = "单个法语读法释义：";
     if (!host) return;
     const parent = host.closest(".dwss-secondary-details");
     if (parent) parent.style.display = "block";
-    host.classList.add("dwss-french-word-grid");
+    host.classList.remove("dwss-french-word-grid");
     if (!text && !original) {
-      host.innerHTML = '<div class="nores">输入中文后显示法语逐词对照。</div>';
+      host.dataset.frenchSourcePhrase = "";
+      host.innerHTML = '<div class="nores">输入中文后显示单个法语读法释义。</div>';
       return;
     }
     const result = text ? translateChinese(text, activeMeaningIndex) : { words: "", glossSegments: [] };
     const phrase = original || result.words;
     const pairs = buildFrenchWordPairs(phrase, frenchWordReadingByWord, result.glossSegments, enrichedWordReadings);
     if (!pairs.length) {
+      host.dataset.frenchSourcePhrase = phrase;
       host.innerHTML = '<div class="nores">暂未找到法语单词。</div>';
       return;
     }
+    const samePhrase = String(host.dataset.frenchSourcePhrase || "") === phrase;
+    const preserved = new Map();
+    if (samePhrase) {
+      host.querySelectorAll(".dwss-french-word-pair").forEach(row => {
+        const index = Number(row.dataset.wordIndex);
+        const wordInput = row.querySelector(".dwss-french-word-original");
+        const readingInput = row.querySelector(".dwss-french-word-pronunciation");
+        if (!wordInput || !readingInput) return;
+        const originalWord = String(wordInput.dataset.originalWord || "");
+        const originalReading = String(readingInput.dataset.originalReading || "");
+        const word = String(wordInput.value || "");
+        const reading = String(readingInput.value || "");
+        if (word !== originalWord || reading !== originalReading) {
+          preserved.set(index, { originalWord, word, reading });
+        }
+      });
+    }
+    host.dataset.frenchSourcePhrase = phrase;
     const hasFinalReadings = !!(enrichedWordReadings && typeof enrichedWordReadings.get === "function");
     const isOnline = typeof navigator === "undefined" || navigator.onLine !== false;
-    host.innerHTML = pairs.map(pair => {
-      const reading = pair.reading === "谐音待补"
+    host.innerHTML = pairs.map((pair, index) => {
+      const token = String(pair.token || pair.word || "").trim();
+      const rawReading = String(pair.reading || "").trim();
+      const reading = rawReading === "谐音待补"
         ? (!hasFinalReadings && isOnline ? "匹配中…" : (!isOnline ? "离线未缓存" : "未找到读音"))
-        : pair.reading;
-      return '<div class="dwss-french-word-pair"><span class="dwss-french-word-original">' +
-        esc(pair.word) + '</span><span class="dwss-french-word-pronunciation">' +
-        esc(reading) + '</span></div>';
+        : rawReading;
+      const previous = preserved.get(index);
+      const keepPrevious = !!previous &&
+        normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
+      const wordValue = keepPrevious ? previous.word : token;
+      const readingValue = keepPrevious ? previous.reading : reading;
+      return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
+        '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
+        'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
+        '<div class="rd"><span class="dwss-french-word-reading-label">中文谐音：</span>' +
+        '<input class="dwss-french-word-edit dwss-french-word-pronunciation" type="text" maxlength="200" ' +
+        'data-original-reading="' + esc(reading) + '" value="' + esc(readingValue) + '" aria-label="法语单词' + (index + 1) + '的中文谐音" autocomplete="off"></div>' +
+        '</div>';
     }).join("");
   }
 
@@ -424,7 +476,7 @@
     ipaToChinese, normalizeChinese, translateChinese, translateOfflineChinese, prepareOfflineChinese,
     getWordChineseReading, tokenizeFrenchPhrase, buildFrenchWordReadingLookup,
     buildFrenchWordPairs, getPhraseWordPairs, numberToFrench, isNumericExpression, expandFrenchNumerals,
-    renderSingleGloss: renderFrenchSingleGloss
+    renderSingleGloss: renderFrenchSingleGloss, replaceFrenchPhraseWords
   });
   window.DWSSFrenchQueryTools = Object.freeze({
     syllableDistance: frenchSyllableDistance,
@@ -713,8 +765,8 @@
     const output = $("resultFrenchReading");
     if (!output || !output.parentElement || $("dwssFrenchPronunciationEditor")) return;
 
-    // The French result itself is the editable field, exactly like the Swahili result.
-    // There is no second textarea, edit button, or secondary save step.
+    // Keep the main French result editable, and let the single-word gloss edit
+    // both the French spelling and its paired Chinese homophone in the same row.
     output.readOnly = false;
     output.disabled = false;
 
@@ -732,12 +784,13 @@
       '<div class="translation-correction-actions">' +
       '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步所有用户</button>' +
       '</div>' +
-      '<p class="translation-correction-hint">直接修改上方结果框中的法语中文谐音，再点击此按钮保存；离线时先保存在本机，联网后自动同步所有用户。</p>' +
+      '<p class="translation-correction-hint">可直接修改上方中文谐音，也可在下方逐词释义中修改法语单词及对应谐音；点击此按钮一次保存。离线时先保存在本机，联网后自动同步。</p>' +
       '<div id="dwssFrenchPronunciationStatus" class="translation-correction-status" role="status" aria-live="polite" hidden></div>';
     output.insertAdjacentElement("afterend", wrap);
 
     const input = $("inputText");
     const spelling = $("dwssFrenchSpelling");
+    const glossHost = $("segmentList");
     const saveButton = $("dwssFrenchPronunciationSave");
     const status = $("dwssFrenchPronunciationStatus");
     let saving = false;
@@ -747,11 +800,49 @@
       const mode = $("dwssMainFrMode");
       return !output.hidden && (!mode || mode.classList.contains("active"));
     };
-    const currentValues = () => ({
-      chinese: String(input && input.value || "").trim(),
-      french: String(spelling && spelling.value || "").trim(),
-      reading: String(output.value || "").trim()
-    });
+    const readWordRows = () => {
+      if (!glossHost) return [];
+      return Array.from(glossHost.querySelectorAll(".dwss-french-word-pair")).map(row => {
+        const wordInput = row.querySelector(".dwss-french-word-original");
+        const readingInput = row.querySelector(".dwss-french-word-pronunciation");
+        if (!wordInput || !readingInput) return null;
+        return {
+          row,
+          wordInput,
+          readingInput,
+          word: String(wordInput.value || "").trim(),
+          reading: String(readingInput.value || "").trim(),
+          originalWord: String(wordInput.dataset.originalWord || ""),
+          originalReading: String(readingInput.dataset.originalReading || "")
+        };
+      }).filter(Boolean);
+    };
+    const isPlaceholderReading = value => {
+      const text = String(value || "").trim();
+      return !text || ["谐音待补", "匹配中…", "离线未缓存", "未找到读音", "〔发音待补〕"].includes(text);
+    };
+    const currentValues = () => {
+      const chinese = String(input && input.value || "").trim();
+      const baseFrench = String(spelling && spelling.value || "").trim();
+      const readingFromResult = String(output.value || "").trim();
+      const rows = readWordRows();
+      const tools = window.DWSSFrenchTools;
+      const tokens = tools && typeof tools.tokenizeFrenchPhrase === "function"
+        ? tools.tokenizeFrenchPhrase(baseFrench) : [];
+      const sameSource = !!baseFrench && !!glossHost &&
+        String(glossHost.dataset.frenchSourcePhrase || "") === baseFrench &&
+        tokens.length > 0 && tokens.length === rows.length;
+      const rowsEdited = sameSource && rows.some(row =>
+        row.word !== row.originalWord || row.reading !== row.originalReading
+      );
+      let french = baseFrench;
+      let reading = readingFromResult;
+      if (rowsEdited && tools && typeof tools.replaceFrenchPhraseWords === "function") {
+        french = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word));
+        reading = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading));
+      }
+      return { chinese, french, reading, baseFrench, rows, rowsEdited };
+    };
     const setStatus = (message, kind) => {
       status.textContent = message || "";
       status.className = "translation-correction-status" + (kind ? " " + kind : "");
@@ -759,8 +850,7 @@
     };
     const refresh = () => {
       const values = currentValues();
-      const placeholder = values.reading === "输入中文后，翻译结果中文谐音会显示在这里" ||
-        values.reading === "输入中文后翻译结果中文谐音会显示在这里";
+      const placeholder = isPlaceholderReading(values.reading);
       const valid = isFrenchMode() && !!values.chinese && !!values.french &&
         !!values.reading && !placeholder;
       const signature = JSON.stringify([values.chinese, values.french, values.reading]);
@@ -772,13 +862,49 @@
 
     saveButton.addEventListener("click", async () => {
       if (saving) return;
-      const values = currentValues();
-      if (!isFrenchMode() || !values.chinese || !values.french) {
+      if (!isFrenchMode()) return;
+      let values = currentValues();
+      if (!values.chinese || !values.french) {
         setStatus("请先输入中文并等待法语翻译结果生成。", "error");
         return;
       }
-      if (!values.reading || values.reading.length > 500) {
-        setStatus("请直接在上方法语翻译结果框中填写 1–500 个字符的中文谐音。", "error");
+
+      const tools = window.DWSSFrenchTools;
+      if (values.rowsEdited) {
+        for (const row of values.rows) {
+          if (!row.word || row.word.length > 100 || /[\r\n]/.test(row.word)) {
+            setStatus("法语单词不能为空，且每个单词最多 100 个字符。", "error");
+            return;
+          }
+          const wordChanged = row.word !== row.originalWord;
+          const readingChanged = row.reading !== row.originalReading;
+          if (wordChanged && !readingChanged) {
+            let matchedReading = "";
+            try {
+              if (tools && typeof tools.getPhraseWordPairs === "function") {
+                const candidates = await tools.getPhraseWordPairs(row.word);
+                if (candidates.length === 1) matchedReading = String(candidates[0].reading || "").trim();
+              }
+            } catch (_) {}
+            if (!matchedReading || isPlaceholderReading(matchedReading)) {
+              setStatus("法语单词“" + row.word + "”已修改，但没有查到可靠的中文谐音。请手动填写这一行右侧的中文谐音后再保存。", "error");
+              row.readingInput.focus();
+              return;
+            }
+            row.readingInput.value = matchedReading;
+          }
+          const finalRowReading = String(row.readingInput.value || "").trim();
+          if (!finalRowReading || finalRowReading.length > 200 || isPlaceholderReading(finalRowReading)) {
+            setStatus("请补全每个法语单词右侧的中文谐音后再保存。", "error");
+            row.readingInput.focus();
+            return;
+          }
+        }
+        values = currentValues();
+      }
+
+      if (!values.reading || values.reading.length > 500 || isPlaceholderReading(values.reading)) {
+        setStatus("请填写有效的法语中文谐音，最多 500 个字符。", "error");
         return;
       }
       const api = window.DWSSSharedLexicon;
@@ -799,15 +925,27 @@
         });
         const current = currentValues();
         const sameContext = current.chinese === values.chinese && current.french === values.french;
+        if (sameContext && values.rowsEdited) {
+          // Commit the successful row edits as the new baseline so the same
+          // phrase can be corrected again without requiring a re-translation.
+          spelling.value = values.french;
+          output.value = values.reading;
+          output.classList.toggle("empty", !values.reading);
+          if (glossHost) glossHost.dataset.frenchSourcePhrase = values.french;
+          readWordRows().forEach(row => {
+            row.wordInput.dataset.originalWord = row.word;
+            row.readingInput.dataset.originalReading = row.reading;
+          });
+        }
         if (sameContext) {
           if (result && result.synced) {
-            setStatus("保存成功，已同步到云端共享词库，所有用户都能使用这条法语谐音。");
+            setStatus("保存成功，已同步到云端共享词库，所有用户都能使用这条法语修正。");
           } else {
             setStatus("已保存在本机；联网后会自动同步给所有用户。", "warning");
           }
         }
       } catch (error) {
-        setStatus("保存失败：" + String(error && error.message || error) + "。上方结果框中的修改仍保留。", "error");
+        setStatus("保存失败：" + String(error && error.message || error) + "。已修改的法语单词和中文谐音仍保留。", "error");
       } finally {
         saving = false;
         saveButton.disabled = false;
@@ -818,6 +956,7 @@
 
     if (input) input.addEventListener("input", refresh);
     if (spelling) spelling.addEventListener("input", refresh);
+    if (glossHost) glossHost.addEventListener("input", refresh);
     output.addEventListener("input", refresh);
     output.addEventListener("dwss:french-result-updated", refresh);
     window.addEventListener("dwss:shared-terms-updated", refresh);

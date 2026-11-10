@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.139 fast offline-aware French translation
+name: Deploy DWSS 0.9.140 fast offline-aware French translation
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0139-local-first-french
+  group: dwss-pages-deploy-0140-editable-french-gloss
   cancel-in-progress: true
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.139
+      - name: Deploy DWSS 0.9.140
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -65,15 +65,15 @@ jobs:
         run: |
           set -euxo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0139"
+          LIVE="$RUNNER_TEMP/dwss-live-0140"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.139' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_139' "$LIVE/index.html"
-          grep -Fq "version:'0.9.139'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.139';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.140' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_140' "$LIVE/index.html"
+          grep -Fq "version:'0.9.140'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.140';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
@@ -87,7 +87,7 @@ jobs:
           grep -Fq 'class="translation-correction-actions"' "$LIVE/french-extension.js"
           grep -Fq 'class="primary mini"' "$LIVE/french-extension.js"
           grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
-          grep -Fq 'reading: String(output.value || "").trim()' "$LIVE/french-extension.js"
+          grep -Fq 'const readingFromResult = String(output.value || "").trim()' "$LIVE/french-extension.js"
           ! grep -Fq 'dwssFrenchPronunciationValue' "$LIVE/french-extension.js"
           ! grep -Fq 'id="dwssFrenchPronunciationEdit"' "$LIVE/french-extension.js"
           grep -Fq 'output.readOnly = false;' "$LIVE/french-translation-runtime.js"
@@ -108,7 +108,7 @@ jobs:
           grep -Fq 'id="dwss-dual-language-gloss-0126"' "$LIVE/index.html"
           grep -Fq 'window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});' "$LIVE/app.js"
           grep -Fq 'renderFrenchSingleGloss' "$LIVE/french-extension.js"
-          grep -Fq '法语逐词对照：' "$LIVE/french-extension.js"
+          grep -Fq '单个法语读法释义：' "$LIVE/french-extension.js"
           grep -Fq 'window.DWSSRenderTranslation();' "$LIVE/french-extension.js"
           grep -Fq 'machine.scheduleTranslation(50)' "$LIVE/french-extension.js"
           grep -Fq 'glossSegments.push({ type: "match", zh: matched, record });' "$LIVE/french-extension.js"
@@ -130,15 +130,22 @@ jobs:
           grep -Fq 'function frenchIntegerToWords(n)' "$LIVE/french-extension.js"
           grep -Fq 'output.placeholder = "输入中文后翻译结果中文谐音会显示在这里";' "$LIVE/french-translation-runtime.js"
           grep -Fq 'function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)' "$LIVE/french-extension.js"
-          grep -Fq 'host.innerHTML = pairs.map(pair =>' "$LIVE/french-extension.js"
+          grep -Fq 'host.innerHTML = pairs.map((pair, index) =>' "$LIVE/french-extension.js"
+          grep -Fq 'host.classList.remove("dwss-french-word-grid")' "$LIVE/french-extension.js"
+          grep -Fq 'class="seg dwss-french-word-pair"' "$LIVE/french-extension.js"
+          grep -Fq 'type="text" maxlength="100"' "$LIVE/french-extension.js"
+          grep -Fq 'type="text" maxlength="200"' "$LIVE/french-extension.js"
+          grep -Fq 'replaceFrenchPhraseWords(phrase, replacements)' "$LIVE/french-extension.js"
+          grep -Fq 'aria-label="法语单词' "$LIVE/french-extension.js"
+          grep -Fq '中文谐音：' "$LIVE/french-extension.js"
           grep -Fq 'function tokenizeFrenchPhrase(value)' "$LIVE/french-extension.js"
           grep -Fq 'function buildFrenchWordReadingLookup(sourceRows)' "$LIVE/french-extension.js"
           grep -Fq 'function buildFrenchWordPairs(phrase, wordLookup, glossSegments, enrichedWordReadings)' "$LIVE/french-extension.js"
           ! grep -Fq 'originalMarkup' "$LIVE/french-extension.js"
           ! grep -Fq 'dwss-french-original-in-gloss' "$LIVE/french-extension.js"
-          grep -Fq '法语逐词对照：' "$LIVE/french-extension.js"
+          grep -Fq '单个法语读法释义：' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-word-pairs-0132"' "$LIVE/index.html"
-          grep -Fq 'grid-template-columns:repeat(2,minmax(0,1fr))!important' "$LIVE/index.html"
+          grep -Fq '.dwss-french-word-edit:focus' "$LIVE/index.html"
           grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
           grep -Fq 'refreshActiveMeaningIndex()' "$LIVE/french-extension.js"
           grep -Fq 'activeRowsSignature' "$LIVE/french-extension.js"
@@ -181,4 +188,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.139 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
+          echo "PASS: live DWSS 0.9.140 supports directly editable French words and Chinese homophones in Swahili-style rows; language fields, offline sync and protected installer assets are verified."
