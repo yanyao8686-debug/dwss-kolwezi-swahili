@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.138 fast offline-aware French translation
+name: Deploy DWSS 0.9.139 fast offline-aware French translation
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0138-local-first-french
+  group: dwss-pages-deploy-0139-local-first-french
   cancel-in-progress: true
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.138
+      - name: Deploy DWSS 0.9.139
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -65,15 +65,15 @@ jobs:
         run: |
           set -euxo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0138"
+          LIVE="$RUNNER_TEMP/dwss-live-0139"
           mkdir -p "$LIVE"
           for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.138' "$LIVE/VERSION.txt"
+          grep -Fxq 'Version: 0.9.139' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_138' "$LIVE/index.html"
-          grep -Fq "version:'0.9.138'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.138';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.139'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.139';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
@@ -84,10 +84,14 @@ jobs:
           grep -Fq 'normalizeSharedText(item.french_pronunciation_cn) === normalizeSharedText(reading)' "$LIVE/shared-lexicon.js"
           ! grep -Fq 'french_pronunciation_cn || item.local_pronunciation_cn' "$LIVE/shared-lexicon.js"
           grep -Fq 'class="translation-correction-panel"' "$LIVE/french-extension.js"
+          grep -Fq 'class="translation-correction-actions"' "$LIVE/french-extension.js"
           grep -Fq 'class="primary mini"' "$LIVE/french-extension.js"
-          grep -Fq 'border:1px solid #E4D1A5' "$LIVE/french-extension.js"
-          grep -Fq 'background:#FFF0D2' "$LIVE/french-extension.js"
-          grep -Fq 'color:#183B60' "$LIVE/french-extension.js"
+          grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
+          grep -Fq 'const reading = String(output.value || "").trim();' "$LIVE/french-extension.js"
+          ! grep -Fq 'dwssFrenchPronunciationValue' "$LIVE/french-extension.js"
+          ! grep -Fq 'dwssFrenchPronunciationEdit' "$LIVE/french-extension.js"
+          grep -Fq 'output.readOnly = false;' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'mirrorSwahiliResultStyle' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'if(frenchMatch){' "$LIVE/app.js"
           grep -Fq '斯语翻译只使用科卢韦齐当地斯语词条和对应中文谐音。法语词条及法语中文谐音只在法语翻译选项中使用，两种语言分别保存、互不替代。系统不会自动猜测当地读音。重要安保指令请当地人员复核。' "$LIVE/index.html"
           grep -Fq 'queue.unshift(payload)' "$LIVE/shared-lexicon.js"
@@ -177,4 +181,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.138 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
+          echo "PASS: live DWSS 0.9.139 shows immediate local French dictionary drafts, uses fast parallel cloud translation, stores translated sentences on-device and precaches French base dictionaries for offline lookup. Main UI, cover and Android installer are preserved."
