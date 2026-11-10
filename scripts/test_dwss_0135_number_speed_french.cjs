@@ -54,7 +54,7 @@ for (const token of [
   'class="primary mini"',
   'id="dwssFrenchPronunciationSave"',
   '保存并同步所有用户',
-  'const reading = String(output.value || "").trim();',
+  'reading: String(output.value || "").trim()',
   'output.insertAdjacentElement("afterend", wrap);',
   'output.readOnly = false;',
   'output.disabled = false;'
