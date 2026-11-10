@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.137"
-NEW_VERSION = "0.9.138"
+OLD_VERSION = "0.9.138"
+NEW_VERSION = "0.9.139"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.138"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.139"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -304,11 +304,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.137/0.9.138 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.138/0.9.139 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.137 or 0.9.138.")
+    fail("Live app.js version is not 0.9.138 or 0.9.139.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.137 or 0.9.138.")
+    fail("Live Service Worker version is not 0.9.138 or 0.9.139.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -354,12 +354,17 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
                  "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.frenchReadingZh', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
+                 "const reading = String(output.value || \\"\\").trim();", "output.insertAdjacentElement(\\"afterend\\", wrap);", "output.readOnly = false;",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
                  "输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语"):
     if required not in extension:
         fail("Merged French extension is missing: " + required)
+
+for forbidden in ('dwssFrenchPronunciationEdit', 'dwssFrenchPronunciationValue', 'dwssFrenchPronunciationPanel', 'dwssFrenchPronunciationCancel'):
+    if forbidden in extension:
+        fail("French editor must not create a second edit control or text field: " + forbidden)
 
 if 'const results = searchFrenchCandidates(query, candidates, engine, 20);' not in extension:
     fail("French pronunciation query is still using the overly strict generic matcher.")
@@ -440,7 +445,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.138: French pronunciation editor styling now matches the Swahili correction controls. Swahili and French pronunciations are strictly separated; Swahili translation no longer substitutes French readings. Offline-first French correction sync remains enabled.\n"
+        "\n\n0.9.139: The French Chinese-homophone result is directly editable in its original result box. A single save-and-sync button stores the edited value locally and automatically shares it after reconnection; no secondary edit field is shown. French and Swahili pronunciation data remain strictly separated.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -450,8 +455,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_137"
-new_marker = "DWSS_AUTO_UPDATE_0_9_138"
+old_marker = "DWSS_AUTO_UPDATE_0_9_138"
+new_marker = "DWSS_AUTO_UPDATE_0_9_139"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.136 auto-update marker; found " + str(html.count(old_marker)))
@@ -680,8 +685,8 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
     fail("French pronunciation-query panel is missing or duplicated.")
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
-if "DWSS_AUTO_UPDATE_0_9_138" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.138.")
+if "DWSS_AUTO_UPDATE_0_9_139" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.139.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -713,12 +718,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.138" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.138.")
-if "Version: 0.9.138" not in version or "version:'0.9.138'" not in app:
-    fail("Website and app version markers do not agree at 0.9.138.")
-if "const APP_VERSION = '0.9.138';" not in sw:
-    fail("Service Worker cache version is not 0.9.138.")
+if "dwss-release=0.9.139" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.139.")
+if "Version: 0.9.139" not in version or "version:'0.9.139'" not in app:
+    fail("Website and app version markers do not agree at 0.9.139.")
+if "const APP_VERSION = '0.9.139';" not in sw:
+    fail("Service Worker cache version is not 0.9.139.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -744,5 +749,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.138 uses Swahili-matched French editor styling and strict language-separated pronunciation fields.")
-print("PASS: Swahili translation no longer uses French fallback; French edits remain offline-first and are shared to all users.")
+print("PASS: DWSS 0.9.139 edits French Chinese-homophone text directly in the original result box and uses one save-and-sync action.")
+print("PASS: no secondary French edit field remains; offline-first French sync and strict language separation are preserved.")
