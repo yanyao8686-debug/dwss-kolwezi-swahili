@@ -140,10 +140,12 @@ assert(!html.includes('id="dwssFrenchCorrectionPanel"') &&
        !html.includes('id="dwssSaveFrenchCorrection"'),
   'The retired French correction panel must remain removed from static HTML');
 assert(extension.includes('function setupFrenchPronunciationEditor()') &&
-       extension.includes('id="dwssFrenchPronunciationEdit"') &&
-       extension.includes('id="dwssFrenchPronunciationValue"') &&
+       extension.includes('id="dwssFrenchPronunciationSave"') &&
+       extension.includes('reading: String(output.value || "").trim()') &&
+       !extension.includes('id="dwssFrenchPronunciationEdit"') &&
+       !extension.includes('id="dwssFrenchPronunciationValue"') &&
        extension.includes('保存并同步所有用户'),
-  'French pronunciation edit/save controls are missing');
+  'French direct result editing and one-click save controls are missing');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
        extension.includes('dwss:french-result-updated'),
   'French pronunciation editor is not bound to the shared queue and translated result');
