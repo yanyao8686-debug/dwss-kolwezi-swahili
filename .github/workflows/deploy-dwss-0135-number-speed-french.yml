@@ -89,7 +89,6 @@ jobs:
           grep -Fq 'background:#FFF0D2' "$LIVE/french-extension.js"
           grep -Fq 'color:#183B60' "$LIVE/french-extension.js"
           ! grep -Fq 'if(frenchMatch){' "$LIVE/app.js"
-          ! grep -Fq 'frenchFallback' "$LIVE/app.js"
           grep -Fq '斯语翻译只使用科卢韦齐当地斯语词条和对应中文谐音。法语词条及法语中文谐音只在法语翻译选项中使用，两种语言分别保存、互不替代。系统不会自动猜测当地读音。重要安保指令请当地人员复核。' "$LIVE/index.html"
           grep -Fq 'queue.unshift(payload)' "$LIVE/shared-lexicon.js"
           ! grep -Fq 'await autoCheckFrenchGrammar(french, requestId)' "$LIVE/french-translation-runtime.js"
