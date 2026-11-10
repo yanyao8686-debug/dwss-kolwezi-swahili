@@ -267,7 +267,7 @@ write_asset("french-extension.js", extension_source.read_bytes())
 extension = (ROOT / "french-extension.js").read_text(encoding="utf-8")
 for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentChinese === \"function\") return;",
                  "formatCombinedFrenchResult(result.words, result.reading)",
-                 "DWSSFrenchCombinedResult.parse", "dwssFrenchSpellingBlock",
+                 "dwssFrenchSpellingBlock",
                  "renderFrenchSingleGloss", "法语逐词对照：",
                  "glossSegments", "window.DWSSRenderTranslation", "function parseNumberAt(text, start)", "function frenchIntegerToWords(n)", "function expandFrenchNumerals(value)", "numberToFrench", "isNumericExpression",
                  "machine.scheduleTranslation(50)",
