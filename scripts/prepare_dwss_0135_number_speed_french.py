@@ -680,8 +680,8 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
     fail("French pronunciation-query panel is missing or duplicated.")
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
-if "DWSS_AUTO_UPDATE_0_9_137" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.137.")
+if "DWSS_AUTO_UPDATE_0_9_138" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.138.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
