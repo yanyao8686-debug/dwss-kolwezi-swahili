@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.141 fast offline-aware French translation
+name: Deploy DWSS 0.9.142 fast offline-aware French translation
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.141
+      - name: Deploy DWSS 0.9.142
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -70,10 +70,10 @@ jobs:
           for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
-          grep -Fxq 'Version: 0.9.141' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_141' "$LIVE/index.html"
-          grep -Fq "version:'0.9.141'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.141';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.142' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_142' "$LIVE/index.html"
+          grep -Fq "version:'0.9.142'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.142';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
@@ -87,6 +87,17 @@ jobs:
           grep -Fq 'class="translation-correction-actions"' "$LIVE/french-extension.js"
           grep -Fq 'class="primary mini"' "$LIVE/french-extension.js"
           grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
+          ! grep -Fq 'translation-correction-hint' "$LIVE/french-extension.js"
+          ! grep -Fq '可直接修改上方中文谐音' "$LIVE/french-extension.js"
+          ! grep -Fq '修改上方读音后点“保存并同步”' "$LIVE/index.html"
+          ! grep -Fq '其他读音会列在下方' "$LIVE/index.html"
+          grep -Fq 'id="dwss-save-sync-clean-0142"' "$LIVE/index.html"
+          grep -Fq '#translationCorrectionPanel .translation-correction-hint' "$LIVE/index.html"
+          grep -Fq '#dwssFrenchPronunciationEditor .translation-correction-hint' "$LIVE/index.html"
+          grep -Fq 'border:0!important' "$LIVE/index.html"
+          grep -Fq 'margin-top:0!important;margin-bottom:0!important' "$LIVE/index.html"
+          grep -Fq '#translationCorrectionPanel[hidden]' "$LIVE/index.html"
+          grep -Fq '#dwssFrenchPronunciationEditor[hidden]{display:none!important}' "$LIVE/index.html"
           grep -Fq 'const readingFromResult = String(output.value || "").trim()' "$LIVE/french-extension.js"
           ! grep -Fq 'dwssFrenchPronunciationValue' "$LIVE/french-extension.js"
           ! grep -Fq 'id="dwssFrenchPronunciationEdit"' "$LIVE/french-extension.js"
@@ -191,4 +202,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.141 supports directly editable French words and Chinese homophones in Swahili-style rows; language fields, offline sync and protected installer assets are verified."
+          echo "PASS: live DWSS 0.9.142 has clean borderless Swahili/French save controls with no extra explanation; save actions, offline sync, language isolation and protected installer assets are verified."
