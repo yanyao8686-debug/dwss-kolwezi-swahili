@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.136"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.137"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -281,7 +281,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'item.source_language !== "fr"', 'item.french_pronunciation_cn || item.local_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.local_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
