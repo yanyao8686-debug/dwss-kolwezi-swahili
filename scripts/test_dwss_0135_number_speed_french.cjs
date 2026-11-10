@@ -16,7 +16,7 @@ const runtime = read('french-translation-runtime.js');
 const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.137 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.138 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -44,6 +44,32 @@ assert(frReading.hasAttribute('hidden'), 'French result should be hidden when Sw
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden'),
   'French pronunciation panel should be hidden when Swahili lookup is selected by default');
 
+const editorStart = extension.indexOf('function setupFrenchPronunciationEditor()');
+const editorEnd = extension.indexOf('function splitPinyinInitial(', editorStart);
+assert(editorStart >= 0 && editorEnd > editorStart, 'French inline editor block is missing');
+const editorBlock = extension.slice(editorStart, editorEnd);
+for (const token of [
+  'class="translation-correction-panel"',
+  'class="translation-correction-actions"',
+  'class="primary mini"',
+  'class="soft mini"',
+  'class="plain mini"',
+  'border:1px solid #E4D1A5',
+  'background:#FFF0D2',
+  'color:#183B60'
+]) assert(editorBlock.includes(token), 'French editor must reuse Swahili styling: ' + token);
+assert(!editorBlock.includes('#dwssFrenchPronunciationSave{background:'), 'French save button must not have a separate colour scheme');
+
+const tokenizerStart = app.indexOf('function tokenize(raw){');
+const tokenizerEnd = app.indexOf('function joinParts(parts){', tokenizerStart);
+assert(tokenizerStart >= 0 && tokenizerEnd > tokenizerStart, 'Swahili tokenizer block is missing');
+const swTokenizer = app.slice(tokenizerStart, tokenizerEnd);
+assert(!swTokenizer.includes('lookupFrenchPronunciationAt') && !swTokenizer.includes('frenchFallback'),
+  'Swahili tokenizer must not use French pronunciation as a fallback');
+const separationNote = '斯语翻译只使用科卢韦齐当地斯语词条和对应中文谐音。法语词条及法语中文谐音只在法语翻译选项中使用，两种语言分别保存、互不替代。系统不会自动猜测当地读音。重要安保指令请当地人员复核。';
+assert(html.includes(separationNote), 'the UI must explain strict Swahili/French language separation');
+assert(!html.includes('才使用“添加新词”中手动填写的法语中文谐音作为替代'), 'obsolete French-as-Swahili fallback notice remains');
+
 const instructions = [...doc.querySelectorAll('#pronunciation .pronunciation-lookup-instruction')];
 assert(instructions.length === 2, 'expected one Swahili and one French mode-specific instruction in the DOM');
 const swInstruction = instructions.find(el => !el.closest('#dwssFrenchQueryPanel'));
@@ -53,11 +79,11 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.137'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.137'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.137';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_137'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.137'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.138'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.138'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.138';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_138'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.138'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
@@ -115,6 +141,11 @@ assert(shared.includes('async function submitFrenchPronunciationCorrection(entry
 assert(shared.includes('french_pronunciation_cn: src === "fr" ? pron : null') &&
        shared.includes('local_pronunciation_cn: src === "sw" ? pron : null'),
   'French and Swahili shared pronunciation fields must remain isolated');
+assert(shared.includes('normalizeSharedText(item.french_pronunciation_cn) === normalizeSharedText(reading)') &&
+       !shared.includes('french_pronunciation_cn || item.local_pronunciation_cn'),
+  'French correction matching must never read the Swahili pronunciation column');
+assert(shared.includes('local_pronunciation_cn: null') && shared.includes('french_pronunciation_cn: reading'),
+  'French corrections must write only to the dedicated French pronunciation field');
 assert(runtime.includes('action: "translate"') && runtime.includes('action: "check"'),
   'translation or grammar-check action was removed');
 assert(runtime.includes('setFrenchResult(local.reading)') &&
@@ -133,7 +164,7 @@ assert(runtime.includes('enrichedGlossTools.renderSingleGloss(lastChinese, frenc
   'background pronunciation enrichment must refresh every word in the lower French word grid');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
-assert(html.includes('id="dwss-french-ux-0125"'), '0.9.137 French result UI stylesheet missing');
+assert(html.includes('id="dwss-french-ux-0125"'), '0.9.138 French result UI stylesheet missing');
 assert(html.includes('id="singleReadingGlossLabel"'), 'language-aware single-word gloss title must be present exactly once');
 assert((html.match(/id="singleReadingGlossLabel"/g) || []).length === 1,
   'single-word gloss title ID must not be duplicated');
@@ -152,7 +183,7 @@ assert(html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
   'Chinese meaning result row styling is missing');
 
-assert(html.includes('dwss-release=0.9.137'), 'French pronunciation update cache-busting version missing');
+assert(html.includes('dwss-release=0.9.138'), 'French pronunciation update cache-busting version missing');
 assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
   'the mobile-moved single-word gloss wrapper must remain visible in both modes');
 
@@ -253,7 +284,7 @@ assert(extension.includes('translateOfflineChinese(raw)') &&
        extension.includes('refreshActiveMeaningIndex()') &&
        extension.includes('activeRowsSignature') &&
        extension.includes('item.source_language === "fr"') &&
-       extension.includes('item.french_pronunciation_cn || item.local_pronunciation_cn') &&
+       extension.includes('item.french_pronunciation_cn || item.frenchReadingZh') &&
        extension.includes('api.frenchReading(word)') &&
        extension.includes('chineseMatcherCache = new WeakMap()'),
   'fast local Chinese-to-French dictionary translation helpers are missing');
@@ -475,4 +506,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.137: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.138: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');

@@ -345,7 +345,7 @@ async function submitFrenchPronunciationCorrection(entry) {
     normalizeSharedText(item.chinese_text) === normalizeSharedText(chinese) &&
     normalizeSharedText(item.french_text) === normalizeSharedText(french);
   const same = item => sameSource(item) &&
-    normalizeSharedText(item.french_pronunciation_cn || item.local_pronunciation_cn) === normalizeSharedText(reading);
+    normalizeSharedText(item.french_pronunciation_cn) === normalizeSharedText(reading);
 
   const cloudMatch = terms.find(same);
   const queuedMatches = queue.filter(sameSource);
