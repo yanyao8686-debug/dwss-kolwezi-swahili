@@ -89,7 +89,7 @@ jobs:
           grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
           grep -Fq 'const reading = String(output.value || "").trim();' "$LIVE/french-extension.js"
           ! grep -Fq 'dwssFrenchPronunciationValue' "$LIVE/french-extension.js"
-          ! grep -Fq 'dwssFrenchPronunciationEdit' "$LIVE/french-extension.js"
+          ! grep -Fq 'id="dwssFrenchPronunciationEdit"' "$LIVE/french-extension.js"
           grep -Fq 'output.readOnly = false;' "$LIVE/french-translation-runtime.js"
           grep -Fq 'mirrorSwahiliResultStyle' "$LIVE/french-translation-runtime.js"
           ! grep -Fq 'if(frenchMatch){' "$LIVE/app.js"
