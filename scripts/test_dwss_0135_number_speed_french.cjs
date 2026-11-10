@@ -161,6 +161,9 @@ assert(!frenchEditorBlock.includes('translation-correction-hint') &&
        !frenchEditorBlock.includes('可直接修改上方中文谐音') &&
        !frenchEditorBlock.includes('离线时先保存在本机'),
   'French save panel explanatory paragraph must be removed');
+assert(!html.includes('修改上方读音后点“保存并同步”') &&
+       !html.includes('其他读音会列在下方'),
+  'Swahili save-and-sync explanation must be removed from the generated HTML');
 assert(html.includes('id="dwss-save-sync-clean-0142"') &&
        html.includes('#translationCorrectionPanel .translation-correction-hint') &&
        html.includes('#dwssFrenchPronunciationEditor .translation-correction-hint') &&
