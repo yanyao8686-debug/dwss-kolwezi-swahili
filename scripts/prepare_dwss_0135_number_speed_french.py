@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.136: make French translation local-first, faster, and cache base French dictionaries offline."""
+"""DWSS 0.9.137: add offline-first French pronunciation editing and shared sync."""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.135"
-NEW_VERSION = "0.9.136"
+OLD_VERSION = "0.9.136"
+NEW_VERSION = "0.9.137"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -31,7 +31,7 @@ REQUIRED = [
 ]
 PROTECTED = [
     "cover.webp", "DWSS-Android-Installer.apk", "dictionary.js.gz",
-    "dictionary-overrides.js", "shared-lexicon.js", "pwa.js", "boot.js",
+    "dictionary-overrides.js", "pwa.js", "boot.js",
     "manifest.webmanifest", "pronunciation-search.js",
     "dwss-pronunciation-controls.js", "supabase.min.js",
 ]
@@ -232,14 +232,27 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.135/0.9.136 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.136/0.9.137 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.135 or 0.9.136.")
+    fail("Live app.js version is not 0.9.136 or 0.9.137.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.135 or 0.9.136.")
+    fail("Live Service Worker version is not 0.9.136 or 0.9.137.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
+
+# Package the French-aware shared queue from repository source rather than the older mirrored site copy.
+shared_lexicon_source = Path("shared-lexicon.js")
+if not shared_lexicon_source.is_file() or shared_lexicon_source.stat().st_size < 10000:
+    fail("Updated shared lexicon source is missing or unexpectedly small.")
+write_asset("shared-lexicon.js", shared_lexicon_source.read_bytes())
+shared_lexicon = (ROOT / "shared-lexicon.js").read_text(encoding="utf-8")
+for required in ("async function submitFrenchPronunciationCorrection(entry)",
+                 "french_pronunciation_cn: reading",
+                 "queue.unshift(payload)",
+                 "submitFrenchPronunciationCorrection,"):
+    if required not in shared_lexicon:
+        fail("Shared lexicon is missing offline French correction sync: " + required)
 
 # Use the compact translation UI runtime maintained in this repository.
 runtime_source = Path(__file__).with_name("french-translation-runtime.js")
@@ -268,7 +281,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'item.source_language !== "fr"', 'item.local_pronunciation_cn || item.french_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'item.source_language !== "fr"', 'item.french_pronunciation_cn || item.local_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
@@ -350,12 +363,12 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.136 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.137 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.136: Complete French dictionary matches now finish locally without waiting for cloud translation or a separate grammar request. Unmatched Chinese is resolved against the local French lexicon first and only then sent to online translation when available. French personal and queued/shared terms are re-indexed after local additions, and base French dictionaries remain precached for offline use.\n"
+        "\n\n0.9.137: French pronunciation can now be edited directly below the French Chinese-homophone result. Corrections are saved to the device first, queued while offline, and automatically shared to all users after reconnecting. French readings use the dedicated french_pronunciation_cn column and never overwrite Swahili readings.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -365,11 +378,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_135"
-new_marker = "DWSS_AUTO_UPDATE_0_9_136"
+old_marker = "DWSS_AUTO_UPDATE_0_9_136"
+new_marker = "DWSS_AUTO_UPDATE_0_9_137"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.135 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.136 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -595,8 +608,8 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
     fail("French pronunciation-query panel is missing or duplicated.")
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
-if "DWSS_AUTO_UPDATE_0_9_136" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.136.")
+if "DWSS_AUTO_UPDATE_0_9_137" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.137.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -628,12 +641,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.136" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.136.")
-if "Version: 0.9.136" not in version or "version:'0.9.136'" not in app:
-    fail("Website and app version markers do not agree at 0.9.136.")
-if "const APP_VERSION = '0.9.136';" not in sw:
-    fail("Service Worker cache version is not 0.9.136.")
+if "dwss-release=0.9.137" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.137.")
+if "Version: 0.9.137" not in version or "version:'0.9.137'" not in app:
+    fail("Website and app version markers do not agree at 0.9.137.")
+if "const APP_VERSION = '0.9.137';" not in sw:
+    fail("Service Worker cache version is not 0.9.137.")
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
@@ -650,5 +663,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.136 French translation uses instant local dictionary drafts, local-first word readings and a device-only translation cache.")
-print("PASS: main translation, reverse lookup, shared sync, cover and Android APK remain unchanged; French base dictionary assets are precached for offline use.")
+print("PASS: DWSS 0.9.137 adds offline-first French pronunciation editing and all-user shared sync.")
+print("PASS: main translation, reverse lookup, cover and Android APK remain unchanged; French pronunciation corrections use their own cloud field and offline queue.")
