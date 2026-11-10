@@ -99,6 +99,7 @@
     result.value = text;
     result.classList.toggle("empty", !text.trim());
     writingCombinedOutput = false;
+    result.dispatchEvent(new Event("dwss:french-result-updated"));
   }
   function restorePersistentTranslations() {
     try {
