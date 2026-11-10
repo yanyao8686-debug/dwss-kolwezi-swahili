@@ -89,6 +89,8 @@ jobs:
           grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
           ! grep -Fq 'translation-correction-hint' "$LIVE/french-extension.js"
           ! grep -Fq '可直接修改上方中文谐音' "$LIVE/french-extension.js"
+          ! grep -Fq '修改上方读音后点“保存并同步”' "$LIVE/index.html"
+          ! grep -Fq '其他读音会列在下方' "$LIVE/index.html"
           grep -Fq 'id="dwss-save-sync-clean-0142"' "$LIVE/index.html"
           grep -Fq '#translationCorrectionPanel .translation-correction-hint' "$LIVE/index.html"
           grep -Fq '#dwssFrenchPronunciationEditor .translation-correction-hint' "$LIVE/index.html"
