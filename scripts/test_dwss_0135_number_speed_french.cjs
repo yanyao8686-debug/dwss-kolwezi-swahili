@@ -16,7 +16,7 @@ const runtime = read('french-translation-runtime.js');
 const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.139 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.140 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -93,11 +93,11 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.139'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.139'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.139';"), 'Service Worker cache version mismatch');
+assert(version.includes('Version: 0.9.140'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.140'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.140';"), 'Service Worker cache version mismatch');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_139'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.139'), 'cache-busted page assets were not advanced');
+assert(html.includes('dwss-release=0.9.140'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
@@ -180,7 +180,7 @@ assert(runtime.includes('enrichedGlossTools.renderSingleGloss(lastChinese, frenc
   'background pronunciation enrichment must refresh every word in the lower French word grid');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
-assert(html.includes('id="dwss-french-ux-0125"'), '0.9.139 French result UI stylesheet missing');
+assert(html.includes('id="dwss-french-ux-0125"'), '0.9.140 French result UI stylesheet missing');
 assert(html.includes('id="singleReadingGlossLabel"'), 'language-aware single-word gloss title must be present exactly once');
 assert((html.match(/id="singleReadingGlossLabel"/g) || []).length === 1,
   'single-word gloss title ID must not be duplicated');
@@ -199,7 +199,7 @@ assert(html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
   'Chinese meaning result row styling is missing');
 
-assert(html.includes('dwss-release=0.9.139'), 'French pronunciation update cache-busting version missing');
+assert(html.includes('dwss-release=0.9.140'), 'French pronunciation update cache-busting version missing');
 assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
   'the mobile-moved single-word gloss wrapper must remain visible in both modes');
 
@@ -228,13 +228,13 @@ assert(html.includes('#resultCard #dwssFrenchSpellingBlock{display:none!importan
 assert(extension.includes('if (machineRuntime && typeof machineRuntime.translateCurrentChinese === "function") return;'),
   'legacy French glossary must not race with the sentence-level machine translation runtime');
 assert(extension.includes('renderFrenchSingleGloss'), 'French mode must render its own single-word gloss list');
-assert(extension.includes('法语逐词对照：'), 'French gloss title must change with the selected language');
+assert(extension.includes('单个法语读法释义：'), 'French gloss title must change with the selected language');
 assert(extension.includes('window.DWSSRenderTranslation();'), 'Swahili mode must redraw from the retained Chinese input');
 assert(extension.includes('machine.scheduleTranslation(50)'), 'French mode must refresh the French result from the retained Chinese input');
 assert(extension.includes('glossSegments.push({ type: "match", zh: matched, record });'),
   'French word-level matches must retain dictionary word, IPA, reading and Chinese meaning data');
 assert(extension.includes('renderFrenchSingleGloss'), 'French mode must render its own single-word gloss list');
-assert(extension.includes('法语逐词对照：'), 'French gloss title must change with the selected language');
+assert(extension.includes('单个法语读法释义：'), 'French gloss title must change with the selected language');
 assert(extension.includes('window.DWSSRenderTranslation();'), 'Swahili mode must redraw from the retained Chinese input');
 assert(extension.includes('machine.scheduleTranslation(50)'), 'French mode must refresh the French result from the retained Chinese input');
 assert(extension.includes('glossSegments.push({ type: "match", zh: matched, record });'),
@@ -263,10 +263,15 @@ assert(extension.includes('function tokenizeFrenchPhrase(value)') &&
 assert(extension.includes('buildFrenchWordPairs(phrase, frenchWordReadingByWord, result.glossSegments, enrichedWordReadings)'),
   'the glossary must pair each actual French sentence word with its own pronunciation');
 assert(extension.includes('dwss-french-word-pair') && extension.includes('dwss-french-word-original') &&
-       extension.includes('dwss-french-word-pronunciation'),
-  'compact word-pair markup must contain only French original and Chinese approximate pronunciation');
-assert(extension.includes('host.classList.add("dwss-french-word-grid")'),
-  'French gloss output must use the compact responsive word grid');
+       extension.includes('dwss-french-word-pronunciation') &&
+       extension.includes('type="text" maxlength="100"') &&
+       extension.includes('type="text" maxlength="200"') &&
+       extension.includes('aria-label="法语单词') &&
+       extension.includes('aria-label="法语单词') && extension.includes('中文谐音：'),
+  'each French word and its Chinese approximate pronunciation must be editable inline');
+assert(extension.includes('host.classList.remove("dwss-french-word-grid")') &&
+       extension.includes('class="seg dwss-french-word-pair"'),
+  'French gloss output must use the same stacked segment-row presentation as Swahili');
 assert(extension.includes('const GLOSS_URL = "./french-gloss-index.tsv.gz";') &&
        extension.includes('const META_URL = "./french-pronunciation-index.json";'),
   'French pronunciation search must load the dedicated glossary and pronunciation metadata');
@@ -286,8 +291,8 @@ assert(!extension.includes('const DATA_URL =') && !extension.includes('firstRang
 const frenchRendererStart = extension.indexOf('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)');
 const frenchRendererEnd = extension.indexOf('function normalizeFrenchGlossKey(value)', frenchRendererStart);
 const frenchRenderer = extension.slice(frenchRendererStart, frenchRendererEnd);
-assert(frenchRenderer.includes('host.innerHTML = pairs.map(pair =>'),
-  'French sentence must render as a compact word-by-word list');
+assert(frenchRenderer.includes('host.innerHTML = pairs.map((pair, index) =>'),
+  'French sentence must render in editable word-by-word segment rows');
 for (const removedDetail of ['originalMarkup','法语原文：','中文释义：','IPA：','rd-detail','法语中文谐音：']) {
   assert(!frenchRenderer.includes(removedDetail), 'unwanted verbose detail remains in the French word list: ' + removedDetail);
 }
@@ -429,9 +434,18 @@ assert(ipaFallback === frenchTools.ipaToChinese('bɔ̃.ʒuʁ') && ipaFallback.le
 assert(frenchTools.getWordChineseReading({word:'Unknown',reading:'',ipa:''}) === '',
   'an unpronounced word must not borrow another word pronunciation');
 assert(typeof frenchTools.tokenizeFrenchPhrase === 'function' &&
+       typeof frenchTools.replaceFrenchPhraseWords === 'function' &&
        typeof frenchTools.buildFrenchWordReadingLookup === 'function' &&
        typeof frenchTools.buildFrenchWordPairs === 'function',
   'compact French word pairing helpers must be exported');
+const editedPhrase = frenchTools.replaceFrenchPhraseWords('«Bonjour, comment allez-vous !»',
+  ['Salut','comment','parlez','vous']);
+assert(editedPhrase === '«Salut, comment parlez-vous !»',
+  'edited French word spellings and pronunciations must reconstruct the full phrase while preserving punctuation and separators');
+const editedReadings = frenchTools.replaceFrenchPhraseWords('«Bonjour, comment allez-vous !»',
+  ['邦茹','科芒','阿莱','乌']);
+assert(editedReadings === '«邦茹, 科芒 阿莱-乌 !»',
+  'edited Chinese homophones must reconstruct in the same word order with punctuation preserved');
 const frenchTokens = frenchTools.tokenizeFrenchPhrase('«Bonjour, comment allez-vous !»');
 assert(frenchTokens.map(x => x.word).join('|') === 'Bonjour|comment|allez|vous',
   'French sentence tokenizer must retain every word in original order');
@@ -523,4 +537,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.139: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.140: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');
