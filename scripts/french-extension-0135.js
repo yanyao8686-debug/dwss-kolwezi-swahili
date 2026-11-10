@@ -448,6 +448,32 @@
   function activeRows() {
     const out = [];
     const seen = new Set();
+    const add = (wordValue, chineseValue, readingValue, source) => {
+      const word = String(wordValue || "").trim();
+      const zh = String(chineseValue || "").trim();
+      const reading = String(readingValue || "").trim();
+      if (!word || !zh || !reading) return;
+      const key = normalizeChinese(zh) + "|" + word.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ word, ipa: "", reading, meanings: [zh], source });
+    };
+
+    // Pending offline corrections win immediately. Published corrections are newest-first,
+    // so a later shared correction replaces an older pronunciation on every device.
+    const shared = window.DWSSSharedLexicon;
+    if (shared && typeof shared.getTerms === "function") {
+      const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr");
+      const pending = all.filter(item => item.__pending);
+      const published = all.filter(item => !item.__pending).sort((a, b) =>
+        String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
+      for (const item of pending.concat(published)) {
+        add(item.french_text, item.chinese_text,
+          item.french_pronunciation_cn || item.local_pronunciation_cn || item.frenchReadingZh,
+          item.__pending ? "待同步法语修正" : "云端共享修正");
+      }
+    }
+
     const api = window.KolweziSwahili;
     if (api && typeof api.getCustom === "function") {
       for (const item of api.getCustom()) {
@@ -456,34 +482,7 @@
         const suppliedReading = String(item.frenchReadingZh || "").trim();
         const generatedReading = suppliedReading ||
           (typeof api.frenchReading === "function" ? String(api.frenchReading(word) || "").trim() : "");
-        if (!word || !generatedReading) continue;
-        const key = normalizeChinese(item.zh) + "|" + word.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push({
-          word,
-          ipa: "",
-          reading: generatedReading,
-          meanings: [String(item.zh).trim()],
-          source: "本机用户修正"
-        });
-      }
-    }
-    const shared = window.DWSSSharedLexicon;
-    if (shared && typeof shared.getTerms === "function") {
-      for (const item of shared.getTerms() || []) {
-        // French and Katanga Swahili are separate shared lexicons. A French fallback
-        // stored on a Swahili row must never leak into the dedicated French dictionary.
-        if (!item || item.source_language !== "fr") continue;
-        const word = String(item.french_text || "").trim();
-        const zh = String(item.chinese_text || "").trim();
-        // shared_terms stores the pronunciation for either language in this column.
-        const reading = String(item.local_pronunciation_cn || item.french_pronunciation_cn || item.frenchReadingZh || "").trim();
-        if (!word || !zh || !reading) continue;
-        const key = normalizeChinese(zh) + "|" + word.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push({ word, ipa: "", reading, meanings: [zh], source: item.__pending ? "待同步法语修正" : "云端共享修正" });
+        add(word, item.zh, generatedReading, "本机用户修正");
       }
     }
     return out;
@@ -710,56 +709,160 @@
     }
   }
 
-  async function saveFrenchCorrection() {
-    const raw = String($("inputText") && $("inputText").value || "").trim();
-    const combined = String($("resultFrenchReading") && $("resultFrenchReading").value || "").trim();
-    const parsed = window.DWSSFrenchCombinedResult && typeof window.DWSSFrenchCombinedResult.parse === "function"
-      ? window.DWSSFrenchCombinedResult.parse(combined) : {};
-    const french = String(parsed.french || ($("dwssFrenchSpelling") && $("dwssFrenchSpelling").value) || "").trim();
-    const reading = String(parsed.reading || (!parsed.french ? combined : "")).trim();
-    if (!raw || !french || !reading) {
-      notifyStatus("请确认法语原文和中文近似音都已填写。", "error");
-      return;
-    }
-    if (raw.length > 100 || french.length > 200 || reading.length > 200) {
-      notifyStatus("共享词条长度有限：中文最多 100 字，法语原文和中文谐音各最多 200 字。请缩短或拆分后再提交。", "error");
-      return;
-    }
-    const api = window.KolweziSwahili;
-    if (!api || typeof api.addCustom !== "function") {
-      notifyStatus("本机词库接口暂未就绪。请刷新应用后重试。", "error");
-      return;
-    }
-    const button = $("dwssSaveFrenchCorrection");
-    button.disabled = true;
-    button.textContent = "正在保存并同步…";
-    try {
-      const result = api.addCustom({
-        zh: raw,
-        reading: "",
-        latin: "",
-        french,
-        frenchReadingZh: reading,
-        category: "日常生活",
-        source: "DWSS 法语词典用户修正",
-        note: "用户修正法语原文与中文近似音"
-      });
-      if (!result || !result.ok) {
-        notifyStatus(result && result.error ? result.error : "法语修正保存失败，请重试。", "error");
+  function setupFrenchPronunciationEditor() {
+    const output = $("resultFrenchReading");
+    if (!output || !output.parentElement || $("dwssFrenchPronunciationEditor")) return;
+    const style = document.createElement("style");
+    style.textContent = [
+      "#dwssFrenchPronunciationEditor{margin:7px 0 2px;font:12px/1.45 system-ui,sans-serif}",
+      "#dwssFrenchPronunciationEdit{border:1px solid #d8c49b;border-radius:9px;background:#fff8e9;color:#6f5428;padding:7px 11px;font:600 12px system-ui;cursor:pointer}",
+      "#dwssFrenchPronunciationPanel{margin-top:7px;padding:9px;border:1px solid #e5d7bc;border-radius:11px;background:#fffaf0}",
+      "#dwssFrenchPronunciationPanel[hidden],#dwssFrenchPronunciationEdit[hidden]{display:none!important}",
+      "#dwssFrenchPronunciationValue{display:block;width:100%;box-sizing:border-box;min-height:66px;padding:9px;border:1px solid #d7c8aa;border-radius:9px;background:#fff;color:#24384b;font:15px/1.5 system-ui,sans-serif;resize:vertical}",
+      "#dwssFrenchPronunciationActions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px}",
+      "#dwssFrenchPronunciationActions button{border:0;border-radius:8px;padding:8px 11px;font:600 12px system-ui;cursor:pointer}",
+      "#dwssFrenchPronunciationCancel{background:#e9edf0;color:#445361}",
+      "#dwssFrenchPronunciationSave{background:#173e52;color:#fff}",
+      "#dwssFrenchPronunciationStatus{display:block;margin-top:6px;color:#687987;font-size:11px}",
+      "#dwssFrenchPronunciationStatus[data-state=success]{color:#23724d}",
+      "#dwssFrenchPronunciationStatus[data-state=offline]{color:#946321}",
+      "@media(max-width:520px){#dwssFrenchPronunciationEdit{min-height:36px}}"
+    ].join("\n");
+    document.head.appendChild(style);
+
+    const wrap = document.createElement("div");
+    wrap.id = "dwssFrenchPronunciationEditor";
+    wrap.innerHTML =
+      '<button id="dwssFrenchPronunciationEdit" type="button" hidden>修改法语中文谐音</button>' +
+      '<div id="dwssFrenchPronunciationPanel" hidden>' +
+      '<label for="dwssFrenchPronunciationValue">修改法语中文发音谐音：</label>' +
+      '<textarea id="dwssFrenchPronunciationValue" maxlength="500" placeholder="在这里修改法语中文谐音"></textarea>' +
+      '<div id="dwssFrenchPronunciationActions">' +
+      '<button id="dwssFrenchPronunciationCancel" type="button">取消</button>' +
+      '<button id="dwssFrenchPronunciationSave" type="button">保存并同步所有用户</button>' +
+      '</div></div>' +
+      '<small id="dwssFrenchPronunciationStatus">修改会先保存在本机；联网后自动同步到云端共享词库。</small>';
+    output.insertAdjacentElement("afterend", wrap);
+
+    const input = $("inputText");
+    const spelling = $("dwssFrenchSpelling");
+    const edit = $("dwssFrenchPronunciationEdit");
+    const panel = $("dwssFrenchPronunciationPanel");
+    const value = $("dwssFrenchPronunciationValue");
+    const saveButton = $("dwssFrenchPronunciationSave");
+    const cancelButton = $("dwssFrenchPronunciationCancel");
+    const status = $("dwssFrenchPronunciationStatus");
+    let editingChinese = "";
+    let editingFrench = "";
+    let saving = false;
+
+    const setStatus = (message, state) => {
+      status.textContent = message || "";
+      status.dataset.state = state || "info";
+    };
+    const close = () => {
+      panel.hidden = true;
+      value.value = "";
+      editingChinese = "";
+      editingFrench = "";
+      saving = false;
+      saveButton.disabled = false;
+      saveButton.textContent = "保存并同步所有用户";
+    };
+    const refresh = () => {
+      const chinese = String(input && input.value || "").trim();
+      const french = String(spelling && spelling.value || "").trim();
+      const reading = String(output.value || "").trim();
+      const frenchMode = !output.hidden &&
+        (!$("dwssMainFrMode") || $("dwssMainFrMode").classList.contains("active"));
+      const valid = frenchMode && !!chinese && !!french && !!reading &&
+        reading !== "输入中文后，翻译结果中文谐音会显示在这里" &&
+        reading !== "输入中文后翻译结果中文谐音会显示在这里";
+      edit.hidden = !valid;
+      wrap.hidden = !valid;
+      if (!valid) close();
+    };
+
+    edit.addEventListener("click", () => {
+      editingChinese = String(input && input.value || "").trim();
+      editingFrench = String(spelling && spelling.value || "").trim();
+      value.value = String(output.value || "").trim();
+      if (!editingChinese || !editingFrench || !value.value) return;
+      panel.hidden = false;
+      setStatus("修改后的发音会先保存到本机；联网后自动上传并同步给所有用户。", "info");
+      value.focus();
+      value.setSelectionRange(value.value.length, value.value.length);
+    });
+    cancelButton.addEventListener("click", () => {
+      close();
+      setStatus("已取消本次修改。", "info");
+      refresh();
+    });
+    saveButton.addEventListener("click", async () => {
+      if (saving) return;
+      const chinese = String(input && input.value || "").trim();
+      const french = String(spelling && spelling.value || "").trim();
+      const reading = String(value.value || "").trim();
+      if (!editingChinese || chinese !== editingChinese || french !== editingFrench) {
+        setStatus("中文或法语原文已经改变，请重新打开修改框，避免保存到错误词条。", "error");
+        close();
         return;
       }
-      const spelling = $("dwssFrenchSpelling");
-      if (spelling) spelling.value = french;
-      activeMeaningIndex = createMeaningIndex();
-      notifyStatus("法语修正已保存到本机，并已进入共享同步队列；联网后同步给所有用户。", "ok");
-      renderMainFrench();
-    } catch (error) {
-      notifyStatus("保存失败：" + String(error && error.message || error), "error");
-    } finally {
-      button.disabled = false;
-      button.textContent = "提交法语修正并同步所有用户";
-    }
+      if (!chinese || chinese.length > 500 || !french || french.length > 500 || !reading || reading.length > 500) {
+        setStatus("请填写有效的中文原文、法语原文和 1–500 个字符的中文谐音。", "error");
+        return;
+      }
+      const api = window.DWSSSharedLexicon;
+      if (!api || typeof api.submitFrenchPronunciationCorrection !== "function") {
+        setStatus("共享同步模块尚未就绪，修改内容没有提交。请刷新后再保存。", "error");
+        return;
+      }
+      saving = true;
+      saveButton.disabled = true;
+      saveButton.textContent = "正在保存…";
+      setStatus("正在保存到本机并加入共享同步队列…", "info");
+      try {
+        const result = await api.submitFrenchPronunciationCorrection({
+          chinese_text: chinese,
+          french_text: french,
+          french_pronunciation_cn: reading
+        });
+        output.value = reading;
+        output.classList.toggle("empty", !reading);
+        close();
+        const machine = window.DWSSFrenchMachineTranslationController;
+        if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(60);
+        if (result && result.synced) {
+          setStatus("保存成功，已同步到云端共享词库，其他用户也会收到这条法语发音修正。", "success");
+        } else {
+          setStatus("已保存到本机；当前离线或云端暂不可用，联网后自动同步所有用户。", "offline");
+        }
+      } catch (error) {
+        saving = false;
+        saveButton.disabled = false;
+        saveButton.textContent = "保存并同步所有用户";
+        setStatus("本机或共享保存失败：" + String(error && error.message || error), "error");
+      }
+    });
+
+    if (input) input.addEventListener("input", () => {
+      if (!panel.hidden && String(input.value || "").trim() !== editingChinese) close();
+      refresh();
+    });
+    if (spelling) spelling.addEventListener("input", () => {
+      if (!panel.hidden && String(spelling.value || "").trim() !== editingFrench) close();
+      refresh();
+    });
+    output.addEventListener("input", refresh);
+    output.addEventListener("dwss:french-result-updated", refresh);
+    window.addEventListener("dwss:shared-terms-updated", refresh);
+    const swMode = $("dwssMainSwMode"), frMode = $("dwssMainFrMode");
+    if (swMode) swMode.addEventListener("click", () => window.setTimeout(refresh, 0));
+    if (frMode) frMode.addEventListener("click", () => window.setTimeout(refresh, 0));
+    refresh();
+    window.setTimeout(refresh, 600);
   }
+
 
 
   function splitPinyinInitial(value) {
@@ -1002,8 +1105,7 @@
     }
     $("dwssMainSwMode").addEventListener("click", () => setMainMode("sw"));
     $("dwssMainFrMode").addEventListener("click", () => setMainMode("fr"));
-    const frenchCorrectionButton = $("dwssSaveFrenchCorrection");
-    if (frenchCorrectionButton) frenchCorrectionButton.addEventListener("click", saveFrenchCorrection);
+    setupFrenchPronunciationEditor();
     $("dwssPronSwMode").addEventListener("click", () => setQueryMode("sw"));
     $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
     const scheduleMain = () => {
@@ -1034,8 +1136,12 @@
       }), 180);
     });
     const refresh = () => {
-      if (rows.length) activeMeaningIndex = createMeaningIndex();
-      if (activeMainMode === "fr") renderMainFrench();
+      refreshActiveMeaningIndex();
+      if (activeMainMode === "fr") {
+        renderMainFrench();
+        const machine = window.DWSSFrenchMachineTranslationController;
+        if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(60);
+      }
       if (activeQueryMode === "fr" && $("pronunciationFrenchSearch").value.trim()) renderFrenchQuery().catch(() => {});
     };
     window.addEventListener("dwss:shared-terms-updated", refresh);
