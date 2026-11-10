@@ -893,7 +893,8 @@
             }
             row.readingInput.value = matchedReading;
           }
-          if (!row.reading || row.reading.length > 200 || isPlaceholderReading(row.readingInput.value)) {
+          const finalRowReading = String(row.readingInput.value || "").trim();
+          if (!finalRowReading || finalRowReading.length > 200 || isPlaceholderReading(finalRowReading)) {
             setStatus("请补全每个法语单词右侧的中文谐音后再保存。", "error");
             row.readingInput.focus();
             return;
