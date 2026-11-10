@@ -340,18 +340,31 @@ async function submitFrenchPronunciationCorrection(entry) {
   if (!french || french.length > 500) throw new Error("法语原文不能为空，且最多 500 个字符。");
   if (!reading || reading.length > 500) throw new Error("法语中文谐音不能为空，且最多 500 个字符。");
 
-  const same = item =>
+  const sameSource = item =>
     item && item.source_language === "fr" &&
     normalizeSharedText(item.chinese_text) === normalizeSharedText(chinese) &&
-    normalizeSharedText(item.french_text) === normalizeSharedText(french) &&
+    normalizeSharedText(item.french_text) === normalizeSharedText(french);
+  const same = item => sameSource(item) &&
     normalizeSharedText(item.french_pronunciation_cn || item.local_pronunciation_cn) === normalizeSharedText(reading);
-  if (terms.some(same)) return { synced: true, existing: true };
-  if (queue.some(same)) return { synced: false, queued: true, existing: true };
 
-  // Persist the correction locally before attempting any network request.
-  // French readings are stored in french_pronunciation_cn, never in the Swahili field.
+  const cloudMatch = terms.find(same);
+  const queuedMatches = queue.filter(sameSource);
+  if (cloudMatch) {
+    if (queuedMatches.length) {
+      const ids = new Set(queuedMatches.map(item => item.client_submit_id));
+      queue = queue.filter(item => !ids.has(item.client_submit_id));
+      save(QUEUE_KEY, queue);
+      render(); count(); notifyApp();
+    }
+    return { synced: true, existing: true };
+  }
+
+  // Keep exactly one pending correction per Chinese + French pair. Re-editing while
+  // offline replaces its reading but preserves the original client ID, so an older
+  // queued pronunciation can never be uploaded later and overwrite the new one.
+  const prior = queuedMatches[0] || null;
   const payload = {
-    client_submit_id: uid(),
+    client_submit_id: String(prior && prior.client_submit_id || uid()),
     chinese_text: chinese,
     local_text: null,
     local_pronunciation_cn: null,
@@ -361,26 +374,30 @@ async function submitFrenchPronunciationCorrection(entry) {
     category: "法语发音修正",
     notes: "用户修改法语中文谐音"
   };
+  const duplicateIds = new Set(queuedMatches.map(item => item.client_submit_id));
+  queue = queue.filter(item => !duplicateIds.has(item.client_submit_id));
   queue.unshift(payload);
   save(QUEUE_KEY, queue);
-  if (!readArray(QUEUE_KEY).some(item => item && item.client_submit_id === payload.client_submit_id)) {
-    queue = readArray(QUEUE_KEY);
+  const persisted = readArray(QUEUE_KEY);
+  if (!persisted.some(item => item && item.client_submit_id === payload.client_submit_id &&
+      item.french_pronunciation_cn === reading)) {
+    queue = persisted;
     throw new Error("设备没有成功写入本机待同步记录，请检查浏览器存储空间后重试。");
   }
   render(); count(); notifyApp();
 
   if (!navigator.onLine) {
     setStatus("法语发音已保存到本机；联网后自动同步所有用户。", "offline");
-    return { synced: false, queued: true };
+    return { synced: false, queued: true, replaced: !!prior };
   }
   try {
     const client = await getClient();
     await flushQueue(client);
     const stillQueued = queue.some(q => q.client_submit_id === payload.client_submit_id);
-    return { synced: !stillQueued, queued: stillQueued };
+    return { synced: !stillQueued, queued: stillQueued, replaced: !!prior };
   } catch (error) {
     setStatus("法语发音已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
-    return { synced: false, queued: true, error: error && error.message || String(error) };
+    return { synced: false, queued: true, replaced: !!prior, error: error && error.message || String(error) };
   }
 }
 function needsAutomaticShare(entry) {
