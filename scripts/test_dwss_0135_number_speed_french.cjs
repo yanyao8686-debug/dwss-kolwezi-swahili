@@ -191,10 +191,14 @@ assert(html.includes('id="dwss-french-gloss-visible-0129"'),
   'French pronunciation Chinese meanings must have a visible and readable style');
 assert(html.includes('id="dwss-french-word-pairs-0132"'),
   'compact French word-pair grid styles are missing');
-assert(html.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important'),
-  'French word pairs must use a compact two-column mobile layout');
-assert(html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
-  'French word pairs must expand to four columns on larger screens');
+assert(html.includes('.dwss-french-word-edit') && html.includes('.dwss-french-word-original') &&
+       html.includes('.dwss-french-word-pronunciation'),
+  'French word and homophone controls must use inline editable fields with the Swahili-style row layout');
+assert(html.includes('.dwss-french-word-edit:focus'),
+  'French word and homophone fields must have a visible edit focus state');
+assert(!html.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important') &&
+       !html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
+  'the old French-only word-card grid must not override the Swahili-style row presentation');
 
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
   'Chinese meaning result row styling is missing');
