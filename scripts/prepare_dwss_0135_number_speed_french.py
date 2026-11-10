@@ -459,7 +459,7 @@ old_marker = "DWSS_AUTO_UPDATE_0_9_140"
 new_marker = "DWSS_AUTO_UPDATE_0_9_141"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.136 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.140 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
