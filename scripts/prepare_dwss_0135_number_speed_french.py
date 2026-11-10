@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.140: editable French word-by-word gloss with isolated language data."""
+"""DWSS 0.9.141: editable French word-by-word gloss with isolated language data."""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.139"
-NEW_VERSION = "0.9.140"
+OLD_VERSION = "0.9.140"
+NEW_VERSION = "0.9.141"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.140"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.141"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -304,9 +304,9 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.139/0.9.140 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.140/0.9.141 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.139 or 0.9.140.")
+    fail("Live app.js version is not 0.9.140 or 0.9.141.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
     fail("Live Service Worker version is not 0.9.139 or 0.9.140.")
 
@@ -445,7 +445,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.140: French word-by-word gloss rows use the same stacked segment layout as Swahili; French spelling and each Chinese homophone are directly editable, and one offline-first save action syncs the corrected French phrase to all users.\n"
+        "\n\n0.9.141: French spelling inputs now have a persistent visible border, with a concise hint explaining that French words and Chinese homophones can be edited directly.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -456,7 +456,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
 old_marker = "DWSS_AUTO_UPDATE_0_9_139"
-new_marker = "DWSS_AUTO_UPDATE_0_9_140"
+new_marker = "DWSS_AUTO_UPDATE_0_9_141"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.136 auto-update marker; found " + str(html.count(old_marker)))
@@ -645,10 +645,21 @@ french_word_pairs_style = """<style id="dwss-french-word-pairs-0132">
   outline:none!important;background:transparent!important;color:inherit!important;
   font:inherit!important;line-height:inherit!important;box-shadow:none!important;
 }
-#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original{color:#30465D!important;font-weight:700!important;}
+#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original{
+  color:#30465D!important;font-weight:700!important;
+  border:1px solid #D5BE96!important;border-radius:6px!important;
+  background:#FFF9ED!important;padding:4px 8px!important;min-height:28px!important;
+  box-shadow:0 1px 2px rgba(60,40,12,.06)!important;
+}
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-pronunciation{width:calc(100% - 68px)!important;max-width:calc(100% - 68px)!important;vertical-align:middle!important;color:#42566E!important;font-weight:600!important;}
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-reading-label{color:#8A6B45!important;font-size:10px!important;font-weight:700!important;white-space:nowrap!important;}
-#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-edit:focus{border-bottom-color:#D6A34B!important;background:#FFFAEF!important;outline:none!important;}
+#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original:focus{border-color:#C98B2C!important;background:#FFFBF2!important;box-shadow:0 0 0 2px rgba(201,139,44,.16)!important;outline:none!important;}
+#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-edit-hint{
+  display:block!important;box-sizing:border-box!important;margin:0 0 7px!important;
+  padding:4px 8px!important;border-left:3px solid #D5A24A!important;border-radius:4px!important;
+  background:#FFF7E8!important;color:#80623A!important;font-size:11px!important;
+  font-weight:500!important;line-height:1.5!important;
+}
 </style>"""
 french_word_pairs_style_id = 'id="dwss-french-word-pairs-0132"'
 if html.count(french_word_pairs_style_id) > 1:
