@@ -54,7 +54,7 @@ function render() {
   const q = ((document.getElementById("dwss-shared-search") || {}).value || "").trim().toLowerCase();
   const pending = queue.map(t => Object.assign({}, t, { __pending: true }));
   const filtered = terms.filter(t => !q ||
-    [t.chinese_text,t.local_text,t.local_pronunciation_cn,t.french_text,t.category,t.notes]
+    [t.chinese_text,t.local_text,t.local_pronunciation_cn,t.french_pronunciation_cn,t.french_text,t.category,t.notes]
       .join(" ").toLowerCase().includes(q));
   const rows = pending.concat(filtered).slice(0,300);
   if (!rows.length) {
@@ -66,7 +66,7 @@ function render() {
     return '<article class="dwss-shared-item"><div class="dwss-shared-item-top"><b>' +
       esc(t.chinese_text) + '</b><span>' + (t.__pending ? "待联网同步" : (fr ? "法语补位" : "科卢韦齐斯瓦西里语")) +
       '</span></div><div class="dwss-shared-local">' + esc(fr ? t.french_text : (t.local_text || "当地拼写待补（中文谐音已收录）")) +
-      '</div><div class="dwss-shared-pron">中文近似读音：' + esc(t.local_pronunciation_cn) +
+      '</div><div class="dwss-shared-pron">中文近似读音：' + esc(fr ? (t.french_pronunciation_cn || t.local_pronunciation_cn) : t.local_pronunciation_cn) +
       '</div><div class="dwss-shared-meta">' + esc(t.category || "未分类") +
       (t.notes ? " · " + esc(t.notes) : "") + '</div></article>';
   }).join("");
@@ -253,7 +253,8 @@ function buildPersonalPayload(entry, submitId) {
       client_submit_id: submitId,
       chinese_text: chinese,
       local_text: null,
-      local_pronunciation_cn: pron,
+      local_pronunciation_cn: null,
+      french_pronunciation_cn: pron,
       source_language: "fr",
       french_text: french,
       category: String(entry.category || "").trim() || "未分类",
@@ -292,7 +293,8 @@ async function submitPersonalTerm(entry) {
       normalizeSharedText(t.chinese_text) === normalizeSharedText(payload.chinese_text) &&
       (t.source_language || "sw") === payload.source_language &&
       normalizeSharedText(t.local_text) === normalizeSharedText(payload.local_text) &&
-      normalizeSharedText(t.local_pronunciation_cn) === normalizeSharedText(payload.local_pronunciation_cn) &&
+      normalizeSharedText(t.french_pronunciation_cn || t.local_pronunciation_cn) ===
+        normalizeSharedText(payload.french_pronunciation_cn || payload.local_pronunciation_cn) &&
       normalizeSharedText(t.french_text) === normalizeSharedText(payload.french_text)
     );
     if (duplicate) {
@@ -328,6 +330,53 @@ async function submitPersonalTerm(entry) {
     }
   } finally {
     personalSyncing.delete(entry.id);
+  }
+}
+async function submitFrenchPronunciationCorrection(entry) {
+  const chinese = String(entry && entry.chinese_text || "").trim();
+  const french = String(entry && entry.french_text || "").trim();
+  const reading = String(entry && entry.french_pronunciation_cn || "").trim();
+  if (!chinese || chinese.length > 500) throw new Error("中文原文不能为空，且最多 500 个字符。");
+  if (!french || french.length > 500) throw new Error("法语原文不能为空，且最多 500 个字符。");
+  if (!reading || reading.length > 500) throw new Error("法语中文谐音不能为空，且最多 500 个字符。");
+
+  const same = item =>
+    item && item.source_language === "fr" &&
+    normalizeSharedText(item.chinese_text) === normalizeSharedText(chinese) &&
+    normalizeSharedText(item.french_text) === normalizeSharedText(french) &&
+    normalizeSharedText(item.french_pronunciation_cn || item.local_pronunciation_cn) === normalizeSharedText(reading);
+  if (terms.some(same)) return { synced: true, existing: true };
+  if (queue.some(same)) return { synced: false, queued: true, existing: true };
+
+  // Persist the correction locally before attempting any network request.
+  // French readings are stored in french_pronunciation_cn, never in the Swahili field.
+  const payload = {
+    client_submit_id: uid(),
+    chinese_text: chinese,
+    local_text: null,
+    local_pronunciation_cn: null,
+    french_text: french,
+    french_pronunciation_cn: reading,
+    source_language: "fr",
+    category: "法语发音修正",
+    notes: "用户修改法语中文谐音"
+  };
+  queue.unshift(payload);
+  save(QUEUE_KEY, queue);
+  render(); count(); notifyApp();
+
+  if (!navigator.onLine) {
+    setStatus("法语发音已保存到本机；联网后自动同步所有用户。", "offline");
+    return { synced: false, queued: true };
+  }
+  try {
+    const client = await getClient();
+    await flushQueue(client);
+    const stillQueued = queue.some(q => q.client_submit_id === payload.client_submit_id);
+    return { synced: !stillQueued, queued: stillQueued };
+  } catch (error) {
+    setStatus("法语发音已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
+    return { synced: false, queued: true, error: error && error.message || String(error) };
   }
 }
 function needsAutomaticShare(entry) {
@@ -388,7 +437,9 @@ async function submitTerm(event) {
   }
   const payload = {
     client_submit_id: uid(), chinese_text: chinese,
-    local_text: src === "sw" ? (local || null) : null, local_pronunciation_cn: pron,
+    local_text: src === "sw" ? (local || null) : null,
+    local_pronunciation_cn: src === "sw" ? pron : null,
+    french_pronunciation_cn: src === "fr" ? pron : null,
     source_language: src, french_text: src === "fr" ? french : null,
     category: String(data.get("category") || "").trim() || "未分类",
     notes: String(data.get("notes") || "").trim() || null
@@ -416,6 +467,7 @@ window.DWSSSharedLexicon = Object.freeze({
   getTerms: getPublicTerms,
   refresh: connectCloud,
   submitPersonalTerm,
+  submitFrenchPronunciationCorrection,
   get count() { return terms.length + queue.length; }
 });
 function start() {
