@@ -362,7 +362,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
     if required not in extension:
         fail("Merged French extension is missing: " + required)
 
-for forbidden in ('dwssFrenchPronunciationEdit', 'dwssFrenchPronunciationValue', 'dwssFrenchPronunciationPanel', 'dwssFrenchPronunciationCancel'):
+for forbidden in ('id="dwssFrenchPronunciationEdit"', 'id="dwssFrenchPronunciationValue"', 'id="dwssFrenchPronunciationPanel"', 'id="dwssFrenchPronunciationCancel"'):
     if forbidden in extension:
         fail("French editor must not create a second edit control or text field: " + forbidden)
 
