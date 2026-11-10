@@ -54,7 +54,10 @@ for (const token of [
   'class="primary mini"',
   'id="dwssFrenchPronunciationSave"',
   '保存并同步所有用户',
-  'reading: String(output.value || "").trim()',
+  'const readingFromResult = String(output.value || "").trim()',
+  'reading: readingFromResult',
+  'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))',
+  'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))',
   'output.insertAdjacentElement("afterend", wrap);',
   'output.readOnly = false;',
   'output.disabled = false;'
@@ -67,8 +70,10 @@ for (const forbidden of [
   '<textarea'
 ]) assert(!editorBlock.includes(forbidden), 'French editor must not show a second edit field or edit button: ' + forbidden);
 assert(extension.includes('api.submitFrenchPronunciationCorrection({') &&
-       extension.includes('french_pronunciation_cn: values.reading'),
-  'French save button must submit the text currently edited in the main result box');
+       extension.includes('french_pronunciation_cn: values.reading') &&
+       extension.includes('const rowsEdited = sameSource && rows.some(row =>') &&
+       extension.includes('法语单词') && extension.includes('中文谐音：'),
+  'one French save action must sync combined edits from the result box and each French/homophone row');
 assert(runtime.includes('mirrorSwahiliResultStyle') &&
        runtime.includes('output.readOnly = false;') &&
        runtime.includes('output.disabled = false;'),
@@ -96,7 +101,7 @@ assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.
 assert(version.includes('Version: 0.9.140'), 'VERSION.txt mismatch');
 assert(app.includes("version:'0.9.140'"), 'app metadata mismatch');
 assert(sw.includes("const APP_VERSION = '0.9.140';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_139'), 'automatic-update marker mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_140'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.140'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
@@ -251,8 +256,10 @@ assert(extension.includes('formatCombinedFrenchResult(result.words, result.readi
   'legacy French dictionary extension did not merge its results');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
        extension.includes('french_pronunciation_cn: values.reading') &&
-       extension.includes('reading: String(output.value || "").trim()'),
-  'French pronunciation corrections must submit the value edited directly in the main result field to the dedicated French field');
+       extension.includes('reading: readingFromResult') &&
+       extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))') &&
+       extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))'),
+  'French pronunciation correction must submit the original result-box edit or reconstructed word-level edits to the dedicated French fields');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
 assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
