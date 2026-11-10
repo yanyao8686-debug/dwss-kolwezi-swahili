@@ -712,144 +712,112 @@
   function setupFrenchPronunciationEditor() {
     const output = $("resultFrenchReading");
     if (!output || !output.parentElement || $("dwssFrenchPronunciationEditor")) return;
+
+    // The French result itself is the editable field, exactly like the Swahili result.
+    // There is no second textarea, edit button, or secondary save step.
+    output.readOnly = false;
+    output.disabled = false;
+
     const style = document.createElement("style");
     style.textContent = [
-      "#dwssFrenchPronunciationEditor{margin:7px 0 2px;font:12px/1.45 system-ui,sans-serif}",
-      "#dwssFrenchPronunciationEdit[hidden],#dwssFrenchPronunciationPanel[hidden]{display:none!important}",
-      "#dwssFrenchPronunciationValue{display:block;width:100%;box-sizing:border-box;min-height:66px;padding:9px 10px;border:1px solid #E4D1A5;border-radius:14px;background:#FFF0D2;color:#183B60;font-family:\"Noto Sans SC\",\"PingFang SC\",\"Microsoft YaHei\",system-ui,sans-serif;font-size:clamp(20px,4.2vw,25px);font-weight:650;line-height:1.55;letter-spacing:0;resize:vertical}",
-      "#dwssFrenchPronunciationActions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px}",
-      "#dwssFrenchPronunciationStatus[hidden]{display:none!important}"
+      "#dwssFrenchPronunciationEditor{margin:7px 0 2px}",
+      "#dwssFrenchPronunciationEditor[hidden],#dwssFrenchPronunciationStatus[hidden]{display:none!important}"
     ].join("\n");
     document.head.appendChild(style);
 
     const wrap = document.createElement("div");
     wrap.id = "dwssFrenchPronunciationEditor";
+    wrap.className = "translation-correction-panel";
     wrap.innerHTML =
-      '<button id="dwssFrenchPronunciationEdit" class="soft mini" type="button" hidden>修改法语中文谐音</button>' +
-      '<div id="dwssFrenchPronunciationPanel" class="translation-correction-panel" hidden>' +
-      '<label class="translation-correction-hint" for="dwssFrenchPronunciationValue">修改法语中文发音谐音：</label>' +
-      '<textarea id="dwssFrenchPronunciationValue" class="phonetic" maxlength="500" placeholder="在这里修改法语中文谐音"></textarea>' +
-      '<div id="dwssFrenchPronunciationActions" class="translation-correction-actions">' +
-      '<button id="dwssFrenchPronunciationCancel" class="plain mini" type="button">取消</button>' +
+      '<div class="translation-correction-actions">' +
       '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步所有用户</button>' +
       '</div>' +
-      '<p class="translation-correction-hint">修改先保存在本机；联网后自动同步到云端共享词库。</p>' +
-      '</div>' +
+      '<p class="translation-correction-hint">直接修改上方结果框中的法语中文谐音，再点击此按钮保存；离线时先保存在本机，联网后自动同步所有用户。</p>' +
       '<div id="dwssFrenchPronunciationStatus" class="translation-correction-status" role="status" aria-live="polite" hidden></div>';
     output.insertAdjacentElement("afterend", wrap);
 
     const input = $("inputText");
     const spelling = $("dwssFrenchSpelling");
-    const edit = $("dwssFrenchPronunciationEdit");
-    const panel = $("dwssFrenchPronunciationPanel");
-    const value = $("dwssFrenchPronunciationValue");
     const saveButton = $("dwssFrenchPronunciationSave");
-    const cancelButton = $("dwssFrenchPronunciationCancel");
     const status = $("dwssFrenchPronunciationStatus");
-    let editingChinese = "";
-    let editingFrench = "";
     let saving = false;
+    let lastDraftSignature = "";
 
-    const setStatus = (message, state) => {
-      status.textContent = message || "";
-      status.dataset.state = state || "info";
-      status.hidden = !String(message || "").trim();
-      status.className = "translation-correction-status" +
-        (state === "error" ? " error" : (state === "offline" ? " warning" : ""));
+    const isFrenchMode = () => {
+      const mode = $("dwssMainFrMode");
+      return !output.hidden && (!mode || mode.classList.contains("active"));
     };
-    const close = () => {
-      panel.hidden = true;
-      value.value = "";
-      editingChinese = "";
-      editingFrench = "";
-      saving = false;
-      saveButton.disabled = false;
-      saveButton.textContent = "保存并同步所有用户";
+    const currentValues = () => ({
+      chinese: String(input && input.value || "").trim(),
+      french: String(spelling && spelling.value || "").trim(),
+      reading: String(output.value || "").trim()
+    });
+    const setStatus = (message, kind) => {
+      status.textContent = message || "";
+      status.className = "translation-correction-status" + (kind ? " " + kind : "");
+      status.hidden = !String(message || "").trim();
     };
     const refresh = () => {
-      const chinese = String(input && input.value || "").trim();
-      const french = String(spelling && spelling.value || "").trim();
-      const reading = String(output.value || "").trim();
-      const frenchMode = !output.hidden &&
-        (!$("dwssMainFrMode") || $("dwssMainFrMode").classList.contains("active"));
-      const valid = frenchMode && !!chinese && !!french && !!reading &&
-        reading !== "输入中文后，翻译结果中文谐音会显示在这里" &&
-        reading !== "输入中文后翻译结果中文谐音会显示在这里";
-      edit.hidden = !valid;
+      const values = currentValues();
+      const placeholder = values.reading === "输入中文后，翻译结果中文谐音会显示在这里" ||
+        values.reading === "输入中文后翻译结果中文谐音会显示在这里";
+      const valid = isFrenchMode() && !!values.chinese && !!values.french &&
+        !!values.reading && !placeholder;
+      const signature = JSON.stringify([values.chinese, values.french, values.reading]);
+      if (!saving && lastDraftSignature && signature !== lastDraftSignature) setStatus("");
+      lastDraftSignature = signature;
       wrap.hidden = !valid;
-      if (!valid) close();
+      saveButton.disabled = saving || !valid;
     };
 
-    edit.addEventListener("click", () => {
-      editingChinese = String(input && input.value || "").trim();
-      editingFrench = String(spelling && spelling.value || "").trim();
-      value.value = String(output.value || "").trim();
-      if (!editingChinese || !editingFrench || !value.value) return;
-      panel.hidden = false;
-      setStatus("修改后的发音会先保存到本机；联网后自动上传并同步给所有用户。", "info");
-      value.focus();
-      value.setSelectionRange(value.value.length, value.value.length);
-    });
-    cancelButton.addEventListener("click", () => {
-      close();
-      setStatus("已取消本次修改。", "info");
-      refresh();
-    });
     saveButton.addEventListener("click", async () => {
       if (saving) return;
-      const chinese = String(input && input.value || "").trim();
-      const french = String(spelling && spelling.value || "").trim();
-      const reading = String(value.value || "").trim();
-      if (!editingChinese || chinese !== editingChinese || french !== editingFrench) {
-        setStatus("中文或法语原文已经改变，请重新打开修改框，避免保存到错误词条。", "error");
-        close();
+      const values = currentValues();
+      if (!isFrenchMode() || !values.chinese || !values.french) {
+        setStatus("请先输入中文并等待法语翻译结果生成。", "error");
         return;
       }
-      if (!chinese || chinese.length > 500 || !french || french.length > 500 || !reading || reading.length > 500) {
-        setStatus("请填写有效的中文原文、法语原文和 1–500 个字符的中文谐音。", "error");
+      if (!values.reading || values.reading.length > 500) {
+        setStatus("请直接在上方法语翻译结果框中填写 1–500 个字符的中文谐音。", "error");
         return;
       }
       const api = window.DWSSSharedLexicon;
       if (!api || typeof api.submitFrenchPronunciationCorrection !== "function") {
-        setStatus("共享同步模块尚未就绪，修改内容没有提交。请刷新后再保存。", "error");
+        setStatus("共享同步模块尚未就绪，请联网刷新后重试。", "error");
         return;
       }
+
       saving = true;
       saveButton.disabled = true;
       saveButton.textContent = "正在保存…";
-      setStatus("正在保存到本机并加入共享同步队列…", "info");
+      setStatus("正在保存本机修改并加入共享同步队列…");
       try {
         const result = await api.submitFrenchPronunciationCorrection({
-          chinese_text: chinese,
-          french_text: french,
-          french_pronunciation_cn: reading
+          chinese_text: values.chinese,
+          french_text: values.french,
+          french_pronunciation_cn: values.reading
         });
-        output.value = reading;
-        output.classList.toggle("empty", !reading);
-        close();
-        const machine = window.DWSSFrenchMachineTranslationController;
-        if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(60);
-        if (result && result.synced) {
-          setStatus("保存成功，已同步到云端共享词库，其他用户也会收到这条法语发音修正。", "success");
-        } else {
-          setStatus("已保存到本机；当前离线或云端暂不可用，联网后自动同步所有用户。", "offline");
+        const current = currentValues();
+        const sameContext = current.chinese === values.chinese && current.french === values.french;
+        if (sameContext) {
+          if (result && result.synced) {
+            setStatus("保存成功，已同步到云端共享词库，所有用户都能使用这条法语谐音。");
+          } else {
+            setStatus("已保存在本机；联网后会自动同步给所有用户。", "warning");
+          }
         }
       } catch (error) {
+        setStatus("保存失败：" + String(error && error.message || error) + "。上方结果框中的修改仍保留。", "error");
+      } finally {
         saving = false;
         saveButton.disabled = false;
         saveButton.textContent = "保存并同步所有用户";
-        setStatus("本机或共享保存失败：" + String(error && error.message || error), "error");
+        refresh();
       }
     });
 
-    if (input) input.addEventListener("input", () => {
-      if (!panel.hidden && String(input.value || "").trim() !== editingChinese) close();
-      refresh();
-    });
-    if (spelling) spelling.addEventListener("input", () => {
-      if (!panel.hidden && String(spelling.value || "").trim() !== editingFrench) close();
-      refresh();
-    });
+    if (input) input.addEventListener("input", refresh);
+    if (spelling) spelling.addEventListener("input", refresh);
     output.addEventListener("input", refresh);
     output.addEventListener("dwss:french-result-updated", refresh);
     window.addEventListener("dwss:shared-terms-updated", refresh);
@@ -859,7 +827,6 @@
     refresh();
     window.setTimeout(refresh, 600);
   }
-
 
 
   function splitPinyinInitial(value) {
