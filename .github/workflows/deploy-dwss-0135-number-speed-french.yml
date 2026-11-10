@@ -67,8 +67,19 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           LIVE="$RUNNER_TEMP/dwss-live-0140"
           mkdir -p "$LIVE"
-          for file in VERSION.txt index.html app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
+          for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
+          done
+          # Pages/CDN may briefly return the previous index.html immediately after deployment.
+          # Fetch with a unique cache key until the new release marker is actually served.
+          for attempt in $(seq 1 12); do
+            curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
+              -H 'Cache-Control: no-cache' \
+              "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_143' "$LIVE/index.html"; then
+              break
+            fi
+            sleep 3
           done
           grep -Fxq 'Version: 0.9.143' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_143' "$LIVE/index.html"
