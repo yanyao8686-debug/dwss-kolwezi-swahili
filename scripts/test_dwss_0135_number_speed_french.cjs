@@ -466,11 +466,21 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const outcome = await syncApi.submitFrenchPronunciationCorrection({
     chinese_text: '你好', french_text: 'bonjour', french_pronunciation_cn: '邦茹'
   });
-  const queue = JSON.parse(offlineDom.window.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]');
+  let queue = JSON.parse(offlineDom.window.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]');
   assert(outcome.queued && queue.length === 1,
     'French pronunciation must be persisted locally when offline');
   assert(queue[0].source_language === 'fr' && queue[0].french_text === 'bonjour' &&
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
+  const firstSubmitId = queue[0].client_submit_id;
+  const secondOutcome = await syncApi.submitFrenchPronunciationCorrection({
+    chinese_text: '你好', french_text: 'bonjour', french_pronunciation_cn: '邦茹（新修正）'
+  });
+  queue = JSON.parse(offlineDom.window.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]');
+  assert(secondOutcome.queued && queue.length === 1,
+    'Re-editing one offline French entry must replace its pending queue row, not append a stale duplicate');
+  assert(queue[0].client_submit_id === firstSubmitId &&
+         queue[0].french_pronunciation_cn === '邦茹（新修正）',
+    'The newest offline French reading must win while retaining the idempotent submit ID');
 })().catch(error => { console.error(error); process.exitCode = 1; });
 console.log('PASS DWSS 0.9.137: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');
