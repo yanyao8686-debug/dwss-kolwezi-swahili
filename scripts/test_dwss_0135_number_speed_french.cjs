@@ -16,7 +16,7 @@ const runtime = read('french-translation-runtime.js');
 const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.142 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.143 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -53,15 +53,21 @@ for (const token of [
   'class="translation-correction-actions"',
   'class="primary mini"',
   'id="dwssFrenchPronunciationSave"',
-  '保存并同步所有用户',
+  '保存并同步给所有用户',
   'const readingFromResult = String(output.value || "").trim()',
-  'let reading = readingFromResult',
+  'const reading = readingFromResult',
   'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))',
-  'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))',
-  'output.insertAdjacentElement("afterend", wrap);',
+  'glossHost.insertAdjacentElement("afterend", wrap);',
   'output.readOnly = false;',
   'output.disabled = false;'
-]) assert(editorBlock.includes(token), 'French must save directly from the editable result box: ' + token);
+]) assert(editorBlock.includes(token), 'French save must use the main-result homophone and sit below the word list: ' + token);
+assert(!editorBlock.includes('output.insertAdjacentElement("afterend", wrap);'),
+  'French save button must no longer sit below the main result');
+assert(!editorBlock.includes('rows.map(row => row.reading)'),
+  'per-word homophone input must not override the main-result homophone');
+assert(!extension.includes('input class="dwss-french-word-edit dwss-french-word-pronunciation"') &&
+       extension.includes('span class="dwss-french-word-pronunciation"'),
+  'French word rows must display homophones as text, not editable inputs');
 for (const forbidden of [
   'id="dwssFrenchPronunciationEdit"',
   'id="dwssFrenchPronunciationValue"',
@@ -98,11 +104,11 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.142'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.142'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.142';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_142'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.142'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.143'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.143'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.143';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_143'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.143'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
@@ -149,7 +155,7 @@ assert(extension.includes('function setupFrenchPronunciationEditor()') &&
        extension.includes('const readingFromResult = String(output.value || "").trim()') &&
        !extension.includes('id="dwssFrenchPronunciationEdit"') &&
        !extension.includes('id="dwssFrenchPronunciationValue"') &&
-       extension.includes('保存并同步所有用户'),
+       extension.includes('保存并同步给所有用户'),
   'French direct result editing and one-click save controls are missing');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
        extension.includes('dwss:french-result-updated'),
@@ -206,7 +212,7 @@ assert(runtime.includes('enrichedGlossTools.renderSingleGloss(lastChinese, frenc
   'background pronunciation enrichment must refresh every word in the lower French word grid');
 assert(runtime.includes('status.hidden = !visibleText'), 'empty grammar status is not hidden');
 assert(html.includes('id="dwss-french-single-result-0123"'), 'single French result layout style missing');
-assert(html.includes('id="dwss-french-ux-0125"'), '0.9.142 French result UI stylesheet missing');
+assert(html.includes('id="dwss-french-ux-0125"'), '0.9.143 French result UI stylesheet missing');
 assert(html.includes('id="singleReadingGlossLabel"'), 'language-aware single-word gloss title must be present exactly once');
 assert((html.match(/id="singleReadingGlossLabel"/g) || []).length === 1,
   'single-word gloss title ID must not be duplicated');
@@ -219,15 +225,19 @@ assert(html.includes('id="dwss-french-word-pairs-0132"'),
   'compact French word-pair grid styles are missing');
 assert(html.includes('.dwss-french-word-edit') && html.includes('.dwss-french-word-original') &&
        html.includes('.dwss-french-word-pronunciation'),
-  'French word and homophone controls must use inline editable fields with the Swahili-style row layout');
-assert(html.includes('.dwss-french-word-edit:focus'),
-  'French word and homophone fields must have a visible edit focus state');
+   'French word input and read-only homophone display must use the Swahili-style row layout');
+assert(html.includes('.dwss-french-word-original:focus'),
+   'the editable French spelling field must have a visible focus state');
 assert(html.includes('.dwss-french-word-original{') && html.includes('border:1px solid #D5BE96!important') &&
        html.includes('background:#FFF9ED!important'),
   'French spelling field must have a persistent visible border and warm background');
 assert(html.includes('.dwss-french-edit-hint') &&
-       extension.includes('可直接修改框内法语单词和中文谐音'),
-  'the word-by-word French area must explain that both French spelling and Chinese homophones are editable');
+       extension.includes('法语单词可直接修改；中文谐音请在上方结果框修改。'),
+  'the French word list must explain that only spelling is edited there');
+assert(html.includes('border:0!important;border-width:0!important') &&
+       html.includes('background:transparent!important') &&
+       html.includes('color:var(--muted)!important;font-size:13px!important'),
+  'French edit hint must be borderless, transparent and use muted pronunciation-instruction typography');
 const frenchPairStyleStart = html.indexOf('<style id="dwss-french-word-pairs-0132">');
 const frenchPairStyleEnd = html.indexOf('</style>', frenchPairStyleStart);
 const frenchPairStyle = frenchPairStyleStart >= 0 && frenchPairStyleEnd > frenchPairStyleStart
@@ -238,7 +248,7 @@ assert(!!frenchPairStyle && !frenchPairStyle.includes('grid-template-columns'),
 assert(html.includes('#pronunciationFrenchResults .pronunciation-hit-meaning'),
   'Chinese meaning result row styling is missing');
 
-assert(html.includes('dwss-release=0.9.142'), 'French pronunciation update cache-busting version missing');
+assert(html.includes('dwss-release=0.9.143'), 'French pronunciation update cache-busting version missing');
 assert(html.includes('#resultCard .dwss-secondary-details{display:block!important}'),
   'the mobile-moved single-word gloss wrapper must remain visible in both modes');
 
@@ -578,4 +588,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.142: editable French word/homophone rows, punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.143: editable French word/homophone rows, punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
