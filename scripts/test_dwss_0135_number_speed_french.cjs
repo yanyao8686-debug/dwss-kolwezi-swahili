@@ -60,7 +60,10 @@ for (const token of [
   'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))',
   'output.insertAdjacentElement("afterend", wrap);',
   'output.readOnly = false;',
-  'output.disabled = false;'
+  'output.disabled = false;',
+  'glossHost.dataset.frenchSourcePhrase = values.french',
+  'row.wordInput.dataset.originalWord = row.word',
+  'row.readingInput.dataset.originalReading = row.reading'
 ]) assert(editorBlock.includes(token), 'French must save directly from the editable result box: ' + token);
 for (const forbidden of [
   'id="dwssFrenchPronunciationEdit"',
@@ -199,8 +202,8 @@ assert(html.includes('id="dwss-french-word-pairs-0132"'),
 assert(html.includes('.dwss-french-word-edit') && html.includes('.dwss-french-word-original') &&
        html.includes('.dwss-french-word-pronunciation'),
   'French word and homophone controls must use inline editable fields with the Swahili-style row layout');
-assert(html.includes('.dwss-french-word-edit:focus'),
-  'French word and homophone fields must have a visible edit focus state');
+assert(html.includes('.dwss-french-word-edit:focus') && html.includes('width:calc(100% - 68px)!important'),
+  'French word and homophone fields must have aligned editable styling and a visible focus state');
 assert(!html.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important') &&
        !html.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
   'the old French-only word-card grid must not override the Swahili-style row presentation');
