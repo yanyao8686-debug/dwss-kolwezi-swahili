@@ -392,15 +392,10 @@
       host.querySelectorAll(".dwss-french-word-pair").forEach(row => {
         const index = Number(row.dataset.wordIndex);
         const wordInput = row.querySelector(".dwss-french-word-original");
-        const readingInput = row.querySelector(".dwss-french-word-pronunciation");
-        if (!wordInput || !readingInput) return;
+        if (!wordInput) return;
         const originalWord = String(wordInput.dataset.originalWord || "");
-        const originalReading = String(readingInput.dataset.originalReading || "");
         const word = String(wordInput.value || "");
-        const reading = String(readingInput.value || "");
-        if (word !== originalWord || reading !== originalReading) {
-          preserved.set(index, { originalWord, word, reading });
-        }
+        if (word !== originalWord) preserved.set(index, { originalWord, word });
       });
     }
     host.dataset.frenchSourcePhrase = phrase;
@@ -416,16 +411,14 @@
       const keepPrevious = !!previous &&
         normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
       const wordValue = keepPrevious ? previous.word : token;
-      const readingValue = keepPrevious ? previous.reading : reading;
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
         '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd"><span class="dwss-french-word-reading-label">中文谐音：</span>' +
-        '<input class="dwss-french-word-edit dwss-french-word-pronunciation" type="text" maxlength="200" ' +
-        'data-original-reading="' + esc(reading) + '" value="' + esc(readingValue) + '" aria-label="法语单词' + (index + 1) + '的中文谐音" autocomplete="off"></div>' +
+        '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
         '</div>';
     }).join("");
-    host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">可直接修改框内法语单词和中文谐音</div>');
+    host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
   }
 
   function normalizeFrenchGlossKey(value) {
@@ -764,17 +757,21 @@
 
   function setupFrenchPronunciationEditor() {
     const output = $("resultFrenchReading");
-    if (!output || !output.parentElement || $("dwssFrenchPronunciationEditor")) return;
+    const glossHost = $("segmentList");
+    if (!output || !output.parentElement || !glossHost || $("dwssFrenchPronunciationEditor")) return;
 
-    // Keep the main French result editable, and let the single-word gloss edit
-    // both the French spelling and its paired Chinese homophone in the same row.
+    // The main result is the only editable Chinese-homophone field.
+    // The word gloss edits French spelling only; one save button below it
+    // submits both the corrected phrase and the main result's homophone.
     output.readOnly = false;
     output.disabled = false;
 
     const style = document.createElement("style");
     style.textContent = [
-      "#dwssFrenchPronunciationEditor{margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}",
-      "#dwssFrenchPronunciationEditor[hidden],#dwssFrenchPronunciationStatus[hidden]{display:none!important}"
+      "#dwssFrenchPronunciationEditor{margin:8px 0 0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}",
+      "#dwssFrenchPronunciationEditor[hidden],#dwssFrenchPronunciationStatus[hidden]{display:none!important}",
+      "#dwssFrenchPronunciationEditor .translation-correction-actions{justify-content:flex-start!important;margin:0!important;padding:0!important}",
+      "#dwssFrenchPronunciationEditor #dwssFrenchPronunciationSave{min-height:40px!important;margin:0!important}"
     ].join("\n");
     document.head.appendChild(style);
 
@@ -783,14 +780,13 @@
     wrap.className = "translation-correction-panel";
     wrap.innerHTML =
       '<div class="translation-correction-actions">' +
-      '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步所有用户</button>' +
+      '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步给所有用户</button>' +
       '</div>' +
       '<div id="dwssFrenchPronunciationStatus" class="translation-correction-status" role="status" aria-live="polite" hidden></div>';
-    output.insertAdjacentElement("afterend", wrap);
+    glossHost.insertAdjacentElement("afterend", wrap);
 
     const input = $("inputText");
     const spelling = $("dwssFrenchSpelling");
-    const glossHost = $("segmentList");
     const saveButton = $("dwssFrenchPronunciationSave");
     const status = $("dwssFrenchPronunciationStatus");
     let saving = false;
@@ -804,16 +800,12 @@
       if (!glossHost) return [];
       return Array.from(glossHost.querySelectorAll(".dwss-french-word-pair")).map(row => {
         const wordInput = row.querySelector(".dwss-french-word-original");
-        const readingInput = row.querySelector(".dwss-french-word-pronunciation");
-        if (!wordInput || !readingInput) return null;
+        if (!wordInput) return null;
         return {
           row,
           wordInput,
-          readingInput,
           word: String(wordInput.value || "").trim(),
-          reading: String(readingInput.value || "").trim(),
-          originalWord: String(wordInput.dataset.originalWord || ""),
-          originalReading: String(readingInput.dataset.originalReading || "")
+          originalWord: String(wordInput.dataset.originalWord || "")
         };
       }).filter(Boolean);
     };
@@ -832,14 +824,11 @@
       const sameSource = !!baseFrench && !!glossHost &&
         String(glossHost.dataset.frenchSourcePhrase || "") === baseFrench &&
         tokens.length > 0 && tokens.length === rows.length;
-      const rowsEdited = sameSource && rows.some(row =>
-        row.word !== row.originalWord || row.reading !== row.originalReading
-      );
+      const rowsEdited = sameSource && rows.some(row => row.word !== row.originalWord);
       let french = baseFrench;
-      let reading = readingFromResult;
+      const reading = readingFromResult;
       if (rowsEdited && tools && typeof tools.replaceFrenchPhraseWords === "function") {
         french = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word));
-        reading = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading));
       }
       return { chinese, french, reading, baseFrench, rows, rowsEdited };
     };
@@ -874,29 +863,7 @@
         for (const row of values.rows) {
           if (!row.word || row.word.length > 100 || /[\r\n]/.test(row.word)) {
             setStatus("法语单词不能为空，且每个单词最多 100 个字符。", "error");
-            return;
-          }
-          const wordChanged = row.word !== row.originalWord;
-          const readingChanged = row.reading !== row.originalReading;
-          if (wordChanged && !readingChanged) {
-            let matchedReading = "";
-            try {
-              if (tools && typeof tools.getPhraseWordPairs === "function") {
-                const candidates = await tools.getPhraseWordPairs(row.word);
-                if (candidates.length === 1) matchedReading = String(candidates[0].reading || "").trim();
-              }
-            } catch (_) {}
-            if (!matchedReading || isPlaceholderReading(matchedReading)) {
-              setStatus("法语单词“" + row.word + "”已修改，但没有查到可靠的中文谐音。请手动填写这一行右侧的中文谐音后再保存。", "error");
-              row.readingInput.focus();
-              return;
-            }
-            row.readingInput.value = matchedReading;
-          }
-          const finalRowReading = String(row.readingInput.value || "").trim();
-          if (!finalRowReading || finalRowReading.length > 200 || isPlaceholderReading(finalRowReading)) {
-            setStatus("请补全每个法语单词右侧的中文谐音后再保存。", "error");
-            row.readingInput.focus();
+            row.wordInput.focus();
             return;
           }
         }
@@ -934,7 +901,6 @@
           if (glossHost) glossHost.dataset.frenchSourcePhrase = values.french;
           readWordRows().forEach(row => {
             row.wordInput.dataset.originalWord = row.word;
-            row.readingInput.dataset.originalReading = row.reading;
           });
         }
         if (sameContext) {
@@ -949,7 +915,7 @@
       } finally {
         saving = false;
         saveButton.disabled = false;
-        saveButton.textContent = "保存并同步所有用户";
+        saveButton.textContent = "保存并同步给所有用户";
         refresh();
       }
     });
