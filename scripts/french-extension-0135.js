@@ -425,6 +425,7 @@
         'data-original-reading="' + esc(reading) + '" value="' + esc(readingValue) + '" aria-label="法语单词' + (index + 1) + '的中文谐音" autocomplete="off"></div>' +
         '</div>';
     }).join("");
+    host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">可直接修改框内法语单词和中文谐音</div>');
   }
 
   function normalizeFrenchGlossKey(value) {
