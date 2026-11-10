@@ -366,7 +366,7 @@ else:
 # a deployment is idempotent: it keeps 0.9.137 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
-    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-09", version, count=1, flags=re.M)
+    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
         "\n\n0.9.137: French pronunciation can now be edited directly below the French Chinese-homophone result. Corrections are saved to the device first, queued while offline, and automatically shared to all users after reconnecting. French readings use the dedicated french_pronunciation_cn column and never overwrite Swahili readings.\n"
     )
