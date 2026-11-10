@@ -49,7 +49,7 @@ const editorEnd = extension.indexOf('function splitPinyinInitial(', editorStart)
 assert(editorStart >= 0 && editorEnd > editorStart, 'French inline editor block is missing');
 const editorBlock = extension.slice(editorStart, editorEnd);
 for (const token of [
-  'class="translation-correction-panel"',
+  'wrap.className = "translation-correction-panel";',
   'class="translation-correction-actions"',
   'class="primary mini"',
   'id="dwssFrenchPronunciationSave"',
