@@ -653,6 +653,7 @@ french_word_pairs_style = """<style id="dwss-french-word-pairs-0132">
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-pronunciation{width:calc(100% - 68px)!important;max-width:calc(100% - 68px)!important;vertical-align:middle!important;color:#42566E!important;font-weight:600!important;}
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-reading-label{color:#8A6B45!important;font-size:10px!important;font-weight:700!important;white-space:nowrap!important;}
+#resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-edit:focus{border-bottom-color:#D6A34B!important;background:#FFFAEF!important;outline:none!important;}
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original:focus{border-color:#C98B2C!important;background:#FFFBF2!important;box-shadow:0 0 0 2px rgba(201,139,44,.16)!important;outline:none!important;}
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-edit-hint{
   display:block!important;box-sizing:border-box!important;margin:0 0 7px!important;
