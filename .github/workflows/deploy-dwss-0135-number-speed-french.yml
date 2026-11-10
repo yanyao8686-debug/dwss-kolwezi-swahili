@@ -71,7 +71,7 @@ jobs:
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           grep -Fxq 'Version: 0.9.141' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_140' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_141' "$LIVE/index.html"
           grep -Fq "version:'0.9.141'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.141';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
@@ -146,6 +146,9 @@ jobs:
           grep -Fq '单个法语读法释义：' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-word-pairs-0132"' "$LIVE/index.html"
           grep -Fq '.dwss-french-word-edit:focus' "$LIVE/index.html"
+          grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
+          grep -Fq '.dwss-french-edit-hint' "$LIVE/index.html"
+          grep -Fq '可直接修改框内法语单词和中文谐音' "$LIVE/french-extension.js"
           grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
           grep -Fq 'refreshActiveMeaningIndex()' "$LIVE/french-extension.js"
           grep -Fq 'activeRowsSignature' "$LIVE/french-extension.js"
