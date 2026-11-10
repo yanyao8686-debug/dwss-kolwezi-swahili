@@ -193,12 +193,14 @@ assert(extension.includes('machine.scheduleTranslation(50)'), 'French mode must 
 assert(extension.includes('glossSegments.push({ type: "match", zh: matched, record });'),
   'French word-level matches must retain dictionary word, IPA, reading and Chinese meaning data');
 assert(extension.includes('if (frenchCorrectionPanel) frenchCorrectionPanel.hidden = true;') &&
-       extension.includes('if (frenchCorrectionButton) frenchCorrectionButton.addEventListener'),
-  'legacy extension must tolerate removal of the French shared-correction panel');
+       !extension.includes('frenchCorrectionButton') &&
+       extension.includes('function setupFrenchPronunciationEditor()'),
+  'French mode must hide the retired static panel and use the new inline pronunciation editor');
 assert(extension.includes('formatCombinedFrenchResult(result.words, result.reading)'),
   'legacy French dictionary extension did not merge its results');
-assert(extension.includes('DWSSFrenchCombinedResult.parse'),
-  'French correction save no longer reads both fields from the combined result');
+assert(extension.includes('submitFrenchPronunciationCorrection') &&
+       extension.includes('french_pronunciation_cn: reading'),
+  'French pronunciation corrections must use the dedicated shared French reading field');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
 assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
