@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.141"
+OLD_VERSION = "0.9.142"
 NEW_VERSION = "0.9.143"
 ROOT = Path("public")
 
@@ -364,7 +364,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
                  "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.frenchReadingZh', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
-                 'const readingFromResult = String(output.value || "").trim()', 'output.insertAdjacentElement("afterend", wrap);', 'output.readOnly = false;',
+                 'const readingFromResult = String(output.value || "").trim()', 'glossHost.insertAdjacentElement("afterend", wrap);', 'output.readOnly = false;',
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation", "replaceFrenchPhraseWords", "中文谐音：",
                  "法语单词可直接修改；中文谐音请在上方结果框修改。", 'glossHost.insertAdjacentElement("afterend", wrap);',
                  "谐音待补",
@@ -456,7 +456,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.143: Swahili and French save-and-sync panels are borderless and compact; explanatory copy is removed and the save buttons move up without changing sync behavior.\n"
+        "\n\n0.9.143: French word rows now edit spelling only; per-word homophones display as plain text, while the main result box remains the only homophone editor. The shared save button is placed beneath the word list.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -466,7 +466,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_141"
+old_marker = "DWSS_AUTO_UPDATE_0_9_142"
 new_marker = "DWSS_AUTO_UPDATE_0_9_143"
 if new_marker not in html:
     if html.count(old_marker) != 1:
