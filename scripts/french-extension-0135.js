@@ -913,13 +913,6 @@
         return;
       }
 
-      // Keep the main result box and hidden French source in step with row-level edits.
-      if (values.rowsEdited) {
-        spelling.value = values.french;
-        output.value = values.reading;
-        output.classList.toggle("empty", !values.reading);
-      }
-
       saving = true;
       saveButton.disabled = true;
       saveButton.textContent = "正在保存…";
@@ -932,6 +925,18 @@
         });
         const current = currentValues();
         const sameContext = current.chinese === values.chinese && current.french === values.french;
+        if (sameContext && values.rowsEdited) {
+          // Commit the successful row edits as the new baseline so the same
+          // phrase can be corrected again without requiring a re-translation.
+          spelling.value = values.french;
+          output.value = values.reading;
+          output.classList.toggle("empty", !values.reading);
+          if (glossHost) glossHost.dataset.frenchSourcePhrase = values.french;
+          readWordRows().forEach(row => {
+            row.wordInput.dataset.originalWord = row.word;
+            row.readingInput.dataset.originalReading = row.reading;
+          });
+        }
         if (sameContext) {
           if (result && result.synced) {
             setStatus("保存成功，已同步到云端共享词库，所有用户都能使用这条法语修正。");
