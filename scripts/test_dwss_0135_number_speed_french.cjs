@@ -55,7 +55,7 @@ for (const token of [
   'id="dwssFrenchPronunciationSave"',
   '保存并同步所有用户',
   'const readingFromResult = String(output.value || "").trim()',
-  'reading: readingFromResult',
+  'let reading = readingFromResult',
   'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))',
   'tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))',
   'output.insertAdjacentElement("afterend", wrap);',
@@ -256,7 +256,7 @@ assert(extension.includes('formatCombinedFrenchResult(result.words, result.readi
   'legacy French dictionary extension did not merge its results');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
        extension.includes('french_pronunciation_cn: values.reading') &&
-       extension.includes('reading: readingFromResult') &&
+       extension.includes('let reading = readingFromResult') &&
        extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))') &&
        extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))'),
   'French pronunciation correction must submit the original result-box edit or reconstructed word-level edits to the dedicated French fields');
