@@ -212,7 +212,7 @@ def replace_app_fragment(source, old, new, label):
     fail("Could not apply Swahili/French separation patch: " + label)
 
 def remove_french_fallback(source):
-    pattern = r"  if\\(frenchMatch\\)\\{[\\s\\S]*?\\n  \\}\\n"
+    pattern = r"  if\(frenchMatch\)\{[\s\S]*?\n  \}\n"
     updated, count = re.subn(pattern, "", source, count=1)
     if count == 1:
         return updated
