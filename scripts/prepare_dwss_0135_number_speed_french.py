@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.137: add offline-first French pronunciation editing and shared sync."""
+"""DWSS 0.9.138: match French correction UI to Swahili and isolate both languages."""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.136"
-NEW_VERSION = "0.9.137"
+OLD_VERSION = "0.9.137"
+NEW_VERSION = "0.9.138"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -43,7 +43,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.137"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.138"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -200,6 +200,78 @@ if render_guard not in app:
         fail("Cannot locate the single main translation renderer for the French-mode guard.")
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 
+# Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
+# remains available in its own French mode, but is not an acceptable Swahili fallback.
+def replace_app_fragment(source, old, new, label):
+    old_count = source.count(old)
+    new_count = source.count(new)
+    if old_count == 1:
+        return source.replace(old, new, 1)
+    if old_count == 0 and new_count == 1:
+        return source
+    fail("Could not apply Swahili/French separation patch: " + label)
+
+def remove_french_fallback(source):
+    pattern = r"  if\\(frenchMatch\\)\\{[\\s\\S]*?\\n  \\}\\n"
+    updated, count = re.subn(pattern, "", source, count=1)
+    if count == 1:
+        return updated
+    if "if(frenchMatch){" not in source:
+        return source
+    fail("Could not remove the French fallback segment from the Swahili tokenizer.")
+
+app = replace_app_fragment(
+    app,
+    """  const localMatch=lookupLocalAt(input,i);
+  const frenchMatch=lookupFrenchPronunciationAt(input,i);
+  const reviewMatch=lookupSourceReviewAt(input,i);
+  const bestVerifiedLength=Math.max(localMatch?localMatch.length:0,frenchMatch?frenchMatch.length:0);""",
+    """  const localMatch=lookupLocalAt(input,i);
+  const reviewMatch=lookupSourceReviewAt(input,i);
+  const bestVerifiedLength=localMatch?localMatch.length:0;""",
+    "remove French candidate from Swahili tokenizer"
+)
+app = replace_app_fragment(
+    app,
+    """  // A real local Swahili phrase always wins when it is an equal or longer match.
+  // A longer French-only entry may replace a short incidental local prefix.""",
+    """  // The Swahili translator only matches verified local Swahili entries.
+  // French readings are reserved for the separate French translation mode.""",
+    "update language-selection comment"
+)
+app = replace_app_fragment(
+    app,
+    "  const useLocal=!!localMatch&&(!frenchMatch||localMatch.length>=frenchMatch.length);",
+    "  const useLocal=!!localMatch;",
+    "select local Swahili matches only"
+)
+app = remove_french_fallback(app)
+app = replace_app_fragment(
+    app,
+    "  while(j<input.length&&!isPunct(input[j])&&!lookupLocalAt(input,j)&&!lookupFrenchPronunciationAt(input,j))j++;",
+    "  while(j<input.length&&!isPunct(input[j])&&!lookupLocalAt(input,j))j++;",
+    "unknown-span scan must not split on French words"
+)
+app = replace_app_fragment(
+    app,
+    "r.unknownChars?'仍有未收录部分':r.reviewHits?'有原始资料待核对，暂不输出可疑读音':r.frenchHits?'已用法语替代缺失的当地词条':'当地斯语词条已匹配'",
+    "r.unknownChars?'仍有未收录部分':r.reviewHits?'有原始资料待核对，暂不输出可疑读音':'当地斯语词条已匹配'",
+    "remove French fallback status"
+)
+app = replace_app_fragment(
+    app,
+    "`斯语 ${r.localHits} 处 · 法语替代 ${r.frenchHits} 处 · 待核对 ${r.reviewHits} 处 · 未收录 ${r.unknownChars} 字`",
+    "`斯语 ${r.localHits} 处 · 待核对 ${r.reviewHits} 处 · 未收录 ${r.unknownChars} 字`",
+    "remove French fallback counter"
+)
+
+old_accuracy_note = "翻译时优先使用科卢韦齐当地斯语词条。当地斯语没有对应词条时，才使用“添加新词”中手动填写的法语中文谐音作为替代，并在匹配明细中标出“法语替代”。系统不会自动猜测或生成读音。重要安保指令请当地人员复核。"
+new_accuracy_note = "斯语翻译只使用科卢韦齐当地斯语词条和对应中文谐音。法语词条及法语中文谐音只在法语翻译选项中使用，两种语言分别保存、互不替代。系统不会自动猜测当地读音。重要安保指令请当地人员复核。"
+if old_accuracy_note in html:
+    html = html.replace(old_accuracy_note, new_accuracy_note, 1)
+elif new_accuracy_note not in html:
+    fail("Cannot locate the Swahili/French separation accuracy note.")
+
 # Expose a safe, no-history re-render hook so switching back to Swahili uses
 # the existing Chinese draft instead of requiring the user to type it again.
 render_hook = "window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});"
@@ -232,11 +304,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.136/0.9.137 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.137/0.9.138 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.136 or 0.9.137.")
+    fail("Live app.js version is not 0.9.137 or 0.9.138.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.136 or 0.9.137.")
+    fail("Live Service Worker version is not 0.9.137 or 0.9.138.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -281,7 +353,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "rowsForShards", "loadPronunciationShard",
                  "该法语词形暂未收录中文释义（法中词典没有对应词条）",
                  'pronunciation-hit-meaning',
-                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.local_pronunciation_cn', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
+                 "function getWordChineseReading(record)", "translateOfflineChinese(raw)", "getPhraseWordPairs(phrase)", "refreshActiveMeaningIndex()", "activeRowsSignature", 'const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr")', 'item.french_pronunciation_cn || item.frenchReadingZh', "api.frenchReading(word)", "enrichedWordReadings", "function setupFrenchPronunciationEditor()", "submitFrenchPronunciationCorrection", "保存并同步所有用户",
                  "dwss-french-word-pair", "dwss-french-word-original", "dwss-french-word-pronunciation",
                  "谐音待补",
                  "const phrase = original || result.words",
@@ -368,7 +440,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.137: French pronunciation can now be edited directly below the French Chinese-homophone result. Corrections are saved to the device first, queued while offline, and automatically shared to all users after reconnecting. French readings use the dedicated french_pronunciation_cn column and never overwrite Swahili readings.\n"
+        "\n\n0.9.138: French pronunciation editor styling now matches the Swahili correction controls. Swahili and French pronunciations are strictly separated; Swahili translation no longer substitutes French readings. Offline-first French correction sync remains enabled.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -378,8 +450,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_136"
-new_marker = "DWSS_AUTO_UPDATE_0_9_137"
+old_marker = "DWSS_AUTO_UPDATE_0_9_137"
+new_marker = "DWSS_AUTO_UPDATE_0_9_138"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.136 auto-update marker; found " + str(html.count(old_marker)))
@@ -641,12 +713,21 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.137" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.137.")
-if "Version: 0.9.137" not in version or "version:'0.9.137'" not in app:
-    fail("Website and app version markers do not agree at 0.9.137.")
-if "const APP_VERSION = '0.9.137';" not in sw:
-    fail("Service Worker cache version is not 0.9.137.")
+if "dwss-release=0.9.138" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.138.")
+if "Version: 0.9.138" not in version or "version:'0.9.138'" not in app:
+    fail("Website and app version markers do not agree at 0.9.138.")
+if "const APP_VERSION = '0.9.138';" not in sw:
+    fail("Service Worker cache version is not 0.9.138.")
+tokenize_start = app.find("function tokenize(raw){")
+tokenize_end = app.find("function joinParts(parts){", tokenize_start)
+if tokenize_start < 0 or tokenize_end <= tokenize_start:
+    fail("Cannot isolate the Swahili tokenizer for language-separation verification.")
+sw_tokenizer = app[tokenize_start:tokenize_end]
+if "lookupFrenchPronunciationAt" in sw_tokenizer or "frenchFallback" in sw_tokenizer:
+    fail("Swahili tokenizer still has a French fallback path.")
+if new_accuracy_note not in html:
+    fail("Swahili/French separation accuracy note is missing.")
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
@@ -663,5 +744,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.137 adds offline-first French pronunciation editing and all-user shared sync.")
-print("PASS: main translation, reverse lookup, cover and Android APK remain unchanged; French pronunciation corrections use their own cloud field and offline queue.")
+print("PASS: DWSS 0.9.138 uses Swahili-matched French editor styling and strict language-separated pronunciation fields.")
+print("PASS: Swahili translation no longer uses French fallback; French edits remain offline-first and are shared to all users.")
