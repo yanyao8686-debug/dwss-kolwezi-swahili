@@ -469,7 +469,7 @@
         String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
       for (const item of pending.concat(published)) {
         add(item.french_text, item.chinese_text,
-          item.french_pronunciation_cn || item.local_pronunciation_cn || item.frenchReadingZh,
+          item.french_pronunciation_cn || item.frenchReadingZh,
           item.__pending ? "待同步法语修正" : "云端共享修正");
       }
     }
@@ -715,33 +715,27 @@
     const style = document.createElement("style");
     style.textContent = [
       "#dwssFrenchPronunciationEditor{margin:7px 0 2px;font:12px/1.45 system-ui,sans-serif}",
-      "#dwssFrenchPronunciationEdit{border:1px solid #d8c49b;border-radius:9px;background:#fff8e9;color:#6f5428;padding:7px 11px;font:600 12px system-ui;cursor:pointer}",
-      "#dwssFrenchPronunciationPanel{margin-top:7px;padding:9px;border:1px solid #e5d7bc;border-radius:11px;background:#fffaf0}",
-      "#dwssFrenchPronunciationPanel[hidden],#dwssFrenchPronunciationEdit[hidden]{display:none!important}",
-      "#dwssFrenchPronunciationValue{display:block;width:100%;box-sizing:border-box;min-height:66px;padding:9px;border:1px solid #d7c8aa;border-radius:9px;background:#fff;color:#24384b;font:15px/1.5 system-ui,sans-serif;resize:vertical}",
+      "#dwssFrenchPronunciationEdit[hidden],#dwssFrenchPronunciationPanel[hidden]{display:none!important}",
+      "#dwssFrenchPronunciationValue{display:block;width:100%;box-sizing:border-box;min-height:66px;padding:9px 10px;border:1px solid #E4D1A5;border-radius:14px;background:#FFF0D2;color:#183B60;font-family:\"Noto Sans SC\",\"PingFang SC\",\"Microsoft YaHei\",system-ui,sans-serif;font-size:clamp(20px,4.2vw,25px);font-weight:650;line-height:1.55;letter-spacing:0;resize:vertical}",
       "#dwssFrenchPronunciationActions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px}",
-      "#dwssFrenchPronunciationActions button{border:0;border-radius:8px;padding:8px 11px;font:600 12px system-ui;cursor:pointer}",
-      "#dwssFrenchPronunciationCancel{background:#e9edf0;color:#445361}",
-      "#dwssFrenchPronunciationSave{background:#173e52;color:#fff}",
-      "#dwssFrenchPronunciationStatus{display:block;margin-top:6px;color:#687987;font-size:11px}",
-      "#dwssFrenchPronunciationStatus[data-state=success]{color:#23724d}",
-      "#dwssFrenchPronunciationStatus[data-state=offline]{color:#946321}",
-      "@media(max-width:520px){#dwssFrenchPronunciationEdit{min-height:36px}}"
+      "#dwssFrenchPronunciationStatus[hidden]{display:none!important}"
     ].join("\n");
     document.head.appendChild(style);
 
     const wrap = document.createElement("div");
     wrap.id = "dwssFrenchPronunciationEditor";
     wrap.innerHTML =
-      '<button id="dwssFrenchPronunciationEdit" type="button" hidden>修改法语中文谐音</button>' +
-      '<div id="dwssFrenchPronunciationPanel" hidden>' +
-      '<label for="dwssFrenchPronunciationValue">修改法语中文发音谐音：</label>' +
-      '<textarea id="dwssFrenchPronunciationValue" maxlength="500" placeholder="在这里修改法语中文谐音"></textarea>' +
-      '<div id="dwssFrenchPronunciationActions">' +
-      '<button id="dwssFrenchPronunciationCancel" type="button">取消</button>' +
-      '<button id="dwssFrenchPronunciationSave" type="button">保存并同步所有用户</button>' +
-      '</div></div>' +
-      '<small id="dwssFrenchPronunciationStatus">修改会先保存在本机；联网后自动同步到云端共享词库。</small>';
+      '<button id="dwssFrenchPronunciationEdit" class="soft mini" type="button" hidden>修改法语中文谐音</button>' +
+      '<div id="dwssFrenchPronunciationPanel" class="translation-correction-panel" hidden>' +
+      '<label class="translation-correction-hint" for="dwssFrenchPronunciationValue">修改法语中文发音谐音：</label>' +
+      '<textarea id="dwssFrenchPronunciationValue" class="phonetic" maxlength="500" placeholder="在这里修改法语中文谐音"></textarea>' +
+      '<div id="dwssFrenchPronunciationActions" class="translation-correction-actions">' +
+      '<button id="dwssFrenchPronunciationCancel" class="plain mini" type="button">取消</button>' +
+      '<button id="dwssFrenchPronunciationSave" class="primary mini" type="button">保存并同步所有用户</button>' +
+      '</div>' +
+      '<p class="translation-correction-hint">修改先保存在本机；联网后自动同步到云端共享词库。</p>' +
+      '</div>' +
+      '<div id="dwssFrenchPronunciationStatus" class="translation-correction-status" role="status" aria-live="polite" hidden></div>';
     output.insertAdjacentElement("afterend", wrap);
 
     const input = $("inputText");
@@ -759,6 +753,9 @@
     const setStatus = (message, state) => {
       status.textContent = message || "";
       status.dataset.state = state || "info";
+      status.hidden = !String(message || "").trim();
+      status.className = "translation-correction-status" +
+        (state === "error" ? " error" : (state === "offline" ? " warning" : ""));
     };
     const close = () => {
       panel.hidden = true;
