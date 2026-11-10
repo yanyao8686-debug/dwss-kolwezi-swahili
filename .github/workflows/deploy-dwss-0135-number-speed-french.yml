@@ -94,6 +94,8 @@ jobs:
           grep -Fq '#dwssFrenchPronunciationEditor .translation-correction-hint' "$LIVE/index.html"
           grep -Fq 'border:0!important' "$LIVE/index.html"
           grep -Fq 'margin-top:0!important;margin-bottom:0!important' "$LIVE/index.html"
+          grep -Fq '#translationCorrectionPanel[hidden]' "$LIVE/index.html"
+          grep -Fq '#dwssFrenchPronunciationEditor[hidden]{display:none!important}' "$LIVE/index.html"
           grep -Fq 'const readingFromResult = String(output.value || "").trim()' "$LIVE/french-extension.js"
           ! grep -Fq 'dwssFrenchPronunciationValue' "$LIVE/french-extension.js"
           ! grep -Fq 'id="dwssFrenchPronunciationEdit"' "$LIVE/french-extension.js"
