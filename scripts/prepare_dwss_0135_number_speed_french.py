@@ -308,7 +308,7 @@ if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
     fail("Live app.js version is not 0.9.140 or 0.9.141.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.139 or 0.9.140.")
+    fail("Live Service Worker version is not 0.9.140 or 0.9.141.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -455,7 +455,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_139"
+old_marker = "DWSS_AUTO_UPDATE_0_9_140"
 new_marker = "DWSS_AUTO_UPDATE_0_9_141"
 if new_marker not in html:
     if html.count(old_marker) != 1:
@@ -689,8 +689,8 @@ if html.count('id="dwssFrenchQueryPanel"') != 1:
     fail("French pronunciation-query panel is missing or duplicated.")
 if html.count('id="pronunciationSearch"') != 1 or html.count('id="pronunciationFrenchSearch"') != 1:
     fail("Swahili/French pronunciation inputs are missing or duplicated.")
-if "DWSS_AUTO_UPDATE_0_9_140" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.140.")
+if "DWSS_AUTO_UPDATE_0_9_141" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.141.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -722,12 +722,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.140" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.140.")
-if "Version: 0.9.140" not in version or "version:'0.9.140'" not in app:
-    fail("Website and app version markers do not agree at 0.9.140.")
-if "const APP_VERSION = '0.9.140';" not in sw:
-    fail("Service Worker cache version is not 0.9.140.")
+if "dwss-release=0.9.141" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.141.")
+if "Version: 0.9.141" not in version or "version:'0.9.141'" not in app:
+    fail("Website and app version markers do not agree at 0.9.141.")
+if "const APP_VERSION = '0.9.141';" not in sw:
+    fail("Service Worker cache version is not 0.9.141.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -753,5 +753,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.140 supports direct edits to French words and their paired Chinese homophones in Swahili-style gloss rows.")
+print("PASS: DWSS 0.9.141 shows a bordered French spelling field and concise edit hint; original correction and sync behavior remain intact.")
 print("PASS: no secondary French edit field remains; offline-first French sync and strict language separation are preserved.")
