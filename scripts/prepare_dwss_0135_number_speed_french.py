@@ -692,8 +692,8 @@ if french_original_style_id not in html:
     fail("French original sentence style is missing from the single-word gloss area.")
 if 'id="dwss-dual-language-gloss-0126"' not in html:
     fail("Dual-language gloss wrapper visibility styles are missing.")
-if ".dwss-french-word-edit" not in html or ".dwss-french-word-pair" not in html:
-    fail("French word-by-word fields must use the editable Swahili-style segment rows.")
+if ".dwss-french-word-edit" not in html or ".dwss-french-word-original" not in html or ".dwss-french-word-reading-label" not in html:
+    fail("French word-by-word inputs must use the editable Swahili-style segment-row appearance.")
 if render_hook not in app:
     fail("Swahili result refresh hook was not injected into app.js.")
 if render_guard not in app:
