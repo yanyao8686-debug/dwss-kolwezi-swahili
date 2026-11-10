@@ -665,10 +665,12 @@ french_word_pairs_style = """<style id="dwss-french-word-pairs-0132">
 save_sync_clean_style = """<style id="dwss-save-sync-clean-0142">
 #translationCorrectionPanel,
 #dwssFrenchPronunciationEditor{
-  display:block!important;margin:0!important;padding:0!important;
+  margin:0!important;padding:0!important;
   border:0!important;border-radius:0!important;outline:0!important;
   background:transparent!important;box-shadow:none!important;
 }
+#translationCorrectionPanel[hidden],
+#dwssFrenchPronunciationEditor[hidden]{display:none!important;}
 #translationCorrectionPanel .translation-correction-hint,
 #dwssFrenchPronunciationEditor .translation-correction-hint{
   display:none!important;visibility:hidden!important;
@@ -677,7 +679,7 @@ save_sync_clean_style = """<style id="dwss-save-sync-clean-0142">
 #translationCorrectionPanel .translation-correction-actions,
 #dwssFrenchPronunciationEditor .translation-correction-actions{
   display:flex!important;align-items:center!important;
-  margin:0!important;padding:0!important;gap:0!important;
+  margin:0!important;padding:0!important;
 }
 #translationCorrectionPanel #submitTranslationCorrection,
 #dwssFrenchPronunciationEditor #dwssFrenchPronunciationSave{
