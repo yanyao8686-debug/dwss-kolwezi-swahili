@@ -294,6 +294,16 @@ if removed_panels not in (0, 1):
 if 'id="dwssSaveFrenchCorrection"' in html or '提交法语修正并同步所有用户' in html:
     fail("French shared-correction submit control remains in the interface.")
 
+# Remove the old Swahili save-panel explanation instead of leaving dormant copy in the page.
+html, removed_sw_save_hint = re.subn(
+    r'(<div\\b[^>]*id="translationCorrectionPanel"[^>]*>[\\s\\S]*?)\\s*<p\\b[^>]*class="[^"]*\\btranslation-correction-hint\\b[^"]*"[^>]*>[\\s\\S]*?</p>',
+    r'\\1',
+    html,
+    count=1
+)
+if removed_sw_save_hint not in (0, 1):
+    fail("Unexpected number of Swahili save-panel explanations: " + str(removed_sw_save_hint))
+
 # Give the single-word explanation title a stable ID. The mobile layout script
 # moves this label into .dwss-secondary-details, so JS can switch it by language.
 old_gloss_title = '<div class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
@@ -739,7 +749,7 @@ for selector in (
 ):
     if selector not in html:
         fail("Save-and-sync cleanup selector is missing: " + selector)
-if '可直接修改上方中文谐音' in extension or '离线时先保存在本机' in extension:
+if ('可直接修改上方中文谐音' in extension or '离线时先保存在本机' in extension or\n        '修改上方读音后点“保存并同步”' in html or '其他读音会列在下方' in html):
     fail("Verbose French save panel explanation remains in the extension.")
 if "DWSS_AUTO_UPDATE_0_9_142" not in html:
     fail("Automatic-update marker was not advanced to 0.9.142.")
