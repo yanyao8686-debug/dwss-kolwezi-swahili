@@ -368,8 +368,8 @@ for forbidden in ('id="dwssFrenchPronunciationEdit"', 'id="dwssFrenchPronunciati
 
 if 'const results = searchFrenchCandidates(query, candidates, engine, 20);' not in extension:
     fail("French pronunciation query is still using the overly strict generic matcher.")
-if 'host.innerHTML = pairs.map(pair =>' not in extension:
-    fail("French original sentence is not rendered as a compact word-by-word list.")
+if 'host.innerHTML = pairs.map((pair, index) =>' not in extension or 'class="seg dwss-french-word-pair"' not in extension:
+    fail("French original sentence is not rendered as editable Swahili-style word-by-word segment rows.")
 if 'findFrenchGloss(result.zh)' not in extension:
     fail("French pronunciation result does not use the dedicated Chinese-gloss lookup.")
 if "function getWordChineseReading(record)" not in extension or "buildFrenchWordPairs" not in extension:
