@@ -146,7 +146,7 @@ assert(!html.includes('id="dwssFrenchCorrectionPanel"') &&
   'The retired French correction panel must remain removed from static HTML');
 assert(extension.includes('function setupFrenchPronunciationEditor()') &&
        extension.includes('id="dwssFrenchPronunciationSave"') &&
-       extension.includes('reading: String(output.value || "").trim()') &&
+       extension.includes('const readingFromResult = String(output.value || "").trim()') &&
        !extension.includes('id="dwssFrenchPronunciationEdit"') &&
        !extension.includes('id="dwssFrenchPronunciationValue"') &&
        extension.includes('保存并同步所有用户'),
@@ -548,4 +548,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.140: fast local-first French translation, local word pronunciation, offline French correction queue and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.140: editable French word/homophone rows, punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
