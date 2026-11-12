@@ -232,7 +232,8 @@
         const list = meaningIndex.get(matched) || [];
         const record = list[0];
         if (record) {
-          sounds.push(record.reading || "【法语读音待补】");
+          const recordReading = getWordChineseReading(record);
+          sounds.push(recordReading || "【法语读音待补】");
           words.push(record.word);
           if (record.ipa) ipa.push(record.word + " /" + record.ipa + "/");
           glossSegments.push({ type: "match", zh: matched, record });
@@ -268,7 +269,7 @@
   function getWordChineseReading(record) {
     const item = record && typeof record === "object" ? record : {};
     const supplied = String(item.reading || "").trim();
-    if (supplied) return supplied;
+    if (supplied && !/^(?:谐音待补|音标待补|读音待补)$/u.test(supplied)) return supplied;
     const ipa = String(item.ipa || "").trim();
     if (ipa) return ipaToChinese(ipa);
     return getFrenchNumberWordReading(item.word);
@@ -1041,12 +1042,16 @@
         seenWords.add(key);
         const confidence = fields[3] || "";
         const kind = fields[4] || "词形";
+        const ipa = cleanIpa(fields[1]);
+        const storedReading = String(fields[2] || "").trim();
+        const reading = storedReading && !/^(?:谐音待补|音标待补|读音待补)$/u.test(storedReading)
+          ? storedReading : ipaToChinese(ipa);
         candidates.push({
           zh: word,
           category: "法语" + kind,
           variants: [{
-            reading: fields[2],
-            latin: cleanIpa(fields[1]),
+            reading,
+            latin: ipa,
             source: confidence === "W" ? "Wiktionary IPA · 自动拟音待核对" : "LeXiK · " + confidence,
             kind,
             status: "canonical",
