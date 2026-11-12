@@ -21,6 +21,7 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             (root/"french-word-index.json").write_text(json.dumps({"wordFormsWithIpa":1,"prefixes":["bo"]}))
             (root/"french-pronunciation-index.json").write_text(json.dumps({"uniqueForms":2,"indexedRows":2,"formsWithIpa":1,"formsWithoutIpa":1,"confidenceCounts":{"A":1,"C":1},"kindCounts":{"词形":2},"firstKeys":["bang","mo"]}))
             (root/"french-lexicon-sources.txt").write_text("Existing\n")
+            (root/"french-gloss-coverage.json").write_text(json.dumps({"uniqueNormalizedPronunciationForms":2,"formsWithChineseGlossBeforeSupplement":1,"formsWithChineseGlossAfterSupplement":1,"formsStillWithoutChineseGloss":1,"glossCoveragePercentAfterSupplement":50.0}), encoding="utf-8")
             src=Path(tmp)/"tiny.jsonl.gz"
             items=[
               {"word":"bonjour","lang_code":"fr","sounds":[{"ipa":"bɔ̃.ʒuʁ"}],"translations":[{"lang_code":"zh","word":"你好"}]},
@@ -56,4 +57,10 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             self.assertIn("yi", pm["firstKeys"])
             self.assertFalse(any(x.endswith(".tsv") for x in wm["prefixes"] + pm["firstKeys"]))
             self.assertTrue((root/"french-WIKTIONARY-ATTRIBUTION.txt").is_file())
+            coverage=json.loads((root/"french-gloss-coverage.json").read_text(encoding="utf-8"))
+            self.assertEqual(coverage["uniqueNormalizedPronunciationForms"],4)
+            self.assertEqual(coverage["formsWithChineseGlossAfterSupplement"],3)
+            self.assertEqual(coverage["formsStillWithoutChineseGloss"],1)
+            self.assertEqual(coverage["glossCoveragePercentAfterSupplement"],75.0)
+            self.assertEqual(coverage["newWiktionaryGlossWordEntriesAdded"],3)
 if __name__=="__main__": unittest.main()
