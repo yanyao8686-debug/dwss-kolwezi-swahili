@@ -43,5 +43,7 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             self.assertIn("in",wm["prefixes"]); self.assertEqual(wm["wordFormsWithIpa"],2)
             pm=json.loads((root/"french-pronunciation-index.json").read_text())
             self.assertGreaterEqual(pm["indexedRows"],2)
+            self.assertIn("yi", pm["firstKeys"])
+            self.assertFalse(any(x.endswith(".tsv") for x in wm["prefixes"] + pm["firstKeys"]))
             self.assertTrue((root/"french-WIKTIONARY-ATTRIBUTION.txt").is_file())
 if __name__=="__main__": unittest.main()
