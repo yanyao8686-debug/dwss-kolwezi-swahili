@@ -649,7 +649,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_142"
+old_marker = "DWSS_AUTO_UPDATE_0_9_143"
 new_marker = "DWSS_AUTO_UPDATE_0_9_144"
 if new_marker not in html:
     if html.count(old_marker) != 1:
@@ -952,7 +952,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_143" not in html:
+if "DWSS_AUTO_UPDATE_0_9_144" not in html:
     fail("Automatic-update marker was not advanced to 0.9.144.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
@@ -1003,6 +1003,13 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
+if 'pronunciation-query-editor.js?dwss-release=0.9.144' not in html:
+    fail("Inline pronunciation query editor is not loaded by the live HTML.")
+if not (ROOT / "french-gloss-coverage.json").is_file():
+    fail("French glossary coverage audit report is missing.")
+if not (ROOT / "french-CFDICT-ATTRIBUTION.txt").is_file():
+    fail("French CFDICT attribution notice is missing.")
+
 
 
 paths["VERSION.txt"].write_text(version, encoding="utf-8", newline="\n")
