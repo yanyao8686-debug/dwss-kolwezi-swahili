@@ -719,9 +719,8 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-13", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.
-
-0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n"
+        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
+        "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
