@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.143: editable French word-by-word gloss with isolated language data."""
+"""DWSS 0.9.144: editable French word-by-word gloss with isolated language data."""
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import re
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
+from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
 OLD_VERSION = "0.9.142"
-NEW_VERSION = "0.9.143"
+NEW_VERSION = "0.9.144"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -43,7 +46,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.143"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.144"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -171,6 +174,171 @@ for folder, keys in (("french-pronunciation-shards", pron_keys), ("french-word-s
         if not target.is_file() or target.stat().st_size < 20:
             fail("French on-demand shard is missing or empty: " + name)
 
+# Audit every available French pronunciation form against the bilingual glossary.
+# Supplement ONLY with retained original CFDICT entries whose complete French
+# translation is exactly one LeXiK word form. Do not use AI-generated additions,
+# split multiword translations, or guess individual word meanings from phrases.
+CFDICT_COMMIT = "ebf1d269182d84e4068d1ce383eaf272c7adff66"
+CFDICT_BASE = "https://raw.githubusercontent.com/MityaPolianskii/french-cedict/" + CFDICT_COMMIT + "/"
+CFDICT_MANIFEST = json.loads(fetch_bytes(CFDICT_BASE + "data/manifest.json", limit=100_000).decode("utf-8"))
+CFDICT_META = CFDICT_MANIFEST.get("files", {}).get("dictionary.json.gz", {})
+if not CFDICT_META.get("sha256") or not CFDICT_META.get("bytes"):
+    fail("Pinned French-CEDICT manifest lacks the dictionary checksum/size.")
+CFDICT_BYTES = fetch_bytes(CFDICT_BASE + "data/dictionary.json.gz", limit=40 * 1024 * 1024)
+if len(CFDICT_BYTES) != int(CFDICT_META["bytes"]) or hashlib.sha256(CFDICT_BYTES).hexdigest() != str(CFDICT_META["sha256"]):
+    fail("Pinned French-CEDICT dictionary failed its published size/SHA-256 check.")
+CFDICT_ROWS = json.loads(gzip.decompress(CFDICT_BYTES).decode("utf-8"))
+if not isinstance(CFDICT_ROWS, list) or len(CFDICT_ROWS) < 50_000:
+    fail("Pinned French-CEDICT dataset is unexpectedly small.")
+
+def normalize_french_word(value: str) -> str:
+    value = unicodedata.normalize("NFKD", str(value or "").replace("’", "'").replace("œ", "oe").replace("æ", "ae"))
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+def pinyin_key_for_reading(value: str) -> str:
+    parts = lazy_pinyin(str(value or ""), style=Style.NORMAL, errors=lambda chars: list(chars))
+    return " ".join(part.lower().replace("ü", "v").replace("u:", "v")
+                    for part in parts if part and re.search(r"[a-züv]", part.lower()))
+
+# Eligible CFDICT records are explicitly separated from the 65,500 AI-generated additions.
+cfdict_retained_rows = 0
+cfdict_candidate_meanings = {}
+for record in CFDICT_ROWS:
+    review = record.get("review") if isinstance(record, dict) else None
+    if not isinstance(review, dict) or review.get("kind") != "retained_cfdict_source":
+        continue
+    cfdict_retained_rows += 1
+    french_translation = str(record.get("translation") or "").strip()
+    # Exact full-record single-token translations only; phrases and alternatives are skipped.
+    if not french_translation or re.search(r"\s|[,;/()]", french_translation):
+        continue
+    if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿŒœÆæ0-9'’\-]+", french_translation):
+        continue
+    word_key = normalize_french_word(french_translation)
+    if not word_key:
+        continue
+    meanings = []
+    for field in ("simplified", "traditional"):
+        meaning = str(record.get(field) or "").strip()
+        if meaning and meaning not in meanings:
+            meanings.append(meaning)
+    if meanings:
+        cfdict_candidate_meanings.setdefault(word_key, set()).update(meanings)
+
+if cfdict_retained_rows < 50_000:
+    fail("Pinned French-CEDICT retained source records are unexpectedly incomplete.")
+
+gloss_path = ROOT / "french-gloss-index.tsv.gz"
+existing_gloss_lines = []
+existing_gloss_keys = set()
+with gzip.open(gloss_path, "rt", encoding="utf-8", newline="") as source:
+    for line in source:
+        line = line.rstrip("\r\n")
+        if not line:
+            continue
+        fields = line.split("\t")
+        if len(fields) >= 5 and fields[1] and fields[4].strip():
+            existing_gloss_lines.append(line)
+            existing_gloss_keys.add(normalize_french_word(fields[1]))
+
+# Stream every LeXiK pronunciation shard and retain only normalized headword keys.
+pronunciation_word_keys = set()
+pronunciation_details_for_supplement = {}
+pronunciation_form_rows = 0
+for first in pron_keys:
+    shard_path = ROOT / "french-pronunciation-shards" / (first + ".tsv.gz")
+    with gzip.open(shard_path, "rt", encoding="utf-8", newline="") as shard:
+        for line in shard:
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) < 5 or not fields[0]:
+                continue
+            pronunciation_form_rows += 1
+            word = fields[0].strip()
+            word_key = normalize_french_word(word)
+            if not word_key:
+                continue
+            pronunciation_word_keys.add(word_key)
+            if word_key in cfdict_candidate_meanings and word_key not in pronunciation_details_for_supplement:
+                pronunciation_details_for_supplement[word_key] = (
+                    word, fields[1].strip(), fields[2].strip(), fields[3].strip()
+                )
+
+supplement_lines = []
+supplemented_keys = set()
+for word_key, meanings in cfdict_candidate_meanings.items():
+    if word_key in existing_gloss_keys:
+        continue
+    details = pronunciation_details_for_supplement.get(word_key)
+    if not details:
+        continue
+    word, ipa, reading, confidence = details
+    pinyin_key = pinyin_key_for_reading(reading)
+    if not reading or not pinyin_key:
+        continue
+    meaning_text = "¦".join(sorted(meanings))
+    source_label = "CFDICT 原始法中词条精确整词匹配（原始 CC BY-SA 3.0 来源）"
+    clean = lambda value: re.sub(r"[\t\r\n¦]+", " ", str(value or "")).strip()
+    supplement_lines.append("\t".join((
+        clean(pinyin_key), clean(word), clean(ipa), clean(reading),
+        clean(meaning_text), clean(confidence or "C"), source_label
+    )))
+    supplemented_keys.add(word_key)
+
+if supplement_lines:
+    combined_lines = existing_gloss_lines + supplement_lines
+    with (ROOT / "french-gloss-index.tsv.gz").open("wb") as raw_output:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw_output, compresslevel=9, mtime=0) as zipped:
+            zipped.write(("\n".join(combined_lines) + "\n").encode("utf-8"))
+
+glossed_keys_after = existing_gloss_keys | supplemented_keys
+glossed_before = pronunciation_word_keys & existing_gloss_keys
+glossed_after = pronunciation_word_keys & glossed_keys_after
+missing_after = pronunciation_word_keys - glossed_keys_after
+coverage = {
+    "sourceVersion": "DWSS 0.9.144",
+    "pronunciationShardRows": pronunciation_form_rows,
+    "uniqueNormalizedPronunciationForms": len(pronunciation_word_keys),
+    "formsWithChineseGlossBeforeSupplement": len(glossed_before),
+    "pinnedCFDICTCommit": CFDICT_COMMIT,
+    "retainedCFDICTSourceRecordsExamined": cfdict_retained_rows,
+    "wholeTranslationSingleWordCandidates": len(cfdict_candidate_meanings),
+    "exactSingleWordSupplementsAdded": len(supplemented_keys),
+    "formsWithChineseGlossAfterSupplement": len(glossed_after),
+    "formsStillWithoutChineseGloss": len(missing_after),
+    "glossCoveragePercentAfterSupplement": round(100 * len(glossed_after) / max(1, len(pronunciation_word_keys)), 3),
+    "supplementRule": "Only retained original CFDICT entries whose complete French translation exactly matches one LeXiK pronunciation word form; no phrase splitting and no model-generated records.",
+    "limitations": "LeXiK includes inflected and derived forms; uncovered forms remain explicitly unglossed until a reliable bilingual source or user correction is available."
+}
+(ROOT / "french-gloss-coverage.json").write_text(
+    json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+)
+(ROOT / "french-CFDICT-ATTRIBUTION.txt").write_text(
+    "DWSS 法语中文释义补充来源\n"
+    "仅使用 French CEDICT 数据集中 review.kind=retained_cfdict_source 的原始 CFDICT 记录；"
+    "不使用其中额外 AI 生成、未获人工验证的记录。\n"
+    "固定仓库提交：" + CFDICT_COMMIT + "\n"
+    "数据来源：https://github.com/MityaPolianskii/french-cedict\n"
+    "原 CFDICT 内容许可：CC BY-SA 3.0（按源记录保留）；"
+    "编译许可、归属和变更说明见上游 README 与 LICENSE。\n"
+    "只使用整条法语译文精确等于一个 LeXiK 法语词形的记录；不拆分短语，不猜测词义。\n",
+    encoding="utf-8"
+)
+sources_path = ROOT / "french-lexicon-sources.txt"
+sources_text = sources_path.read_text(encoding="utf-8")
+if "DWSS French CEDICT exact single-word supplement" not in sources_text:
+    sources_path.write_text(
+        sources_text.rstrip() + "\n\nDWSS French CEDICT exact single-word supplement\n"
+        "Repository: https://github.com/MityaPolianskii/french-cedict\n"
+        "Pinned commit: " + CFDICT_COMMIT + "\n"
+        "Only retained original CFDICT source records are eligible; AI-generated additions are excluded.\n"
+        "Matching rule: the complete French translation must exactly match one LeXiK word form; no phrase splitting.\n"
+        "Original CFDICT licence: CC BY-SA 3.0. See french-CFDICT-ATTRIBUTION.txt.\n",
+        encoding="utf-8"
+    )
+print("French gloss coverage audit: " + json.dumps(coverage, ensure_ascii=False))
+print("French gloss supplementation: added " + str(len(supplemented_keys)) + " exact one-word CFDICT meanings.")
+
 paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "sw.js")}
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
 html = paths["index.html"].read_text(encoding="utf-8")
@@ -187,7 +355,7 @@ def ensure_precache_asset(source: str, asset_name: str) -> str:
         source = source[:match.start(2)] + body + f'\n  "{asset_url}",' + source[match.end(2):]
     return source
 
-for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     sw = ensure_precache_asset(sw, offline_asset)
 
 
@@ -308,17 +476,23 @@ if removed_sw_save_hint not in (0, 1):
 # moves this label into .dwss-secondary-details, so JS can switch it by language.
 old_gloss_title = '<div class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
 new_gloss_title = '<div id="singleReadingGlossLabel" class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
+query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.144"></script>'
+if "pronunciation-query-editor.js?dwss-release=0.9.144" not in html:
+    if "</body>" not in html:
+        fail("Cannot locate </body> to load the pronunciation query editor.")
+    html = html.replace("</body>", query_editor_script + "\n</body>", 1)
+
 if 'id="singleReadingGlossLabel"' not in html:
     if html.count(old_gloss_title) != 1:
         fail("Expected one static Swahili single-word gloss title to make language-aware.")
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.142/0.9.143 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.143/0.9.144 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.142 or 0.9.143.")
+    fail("Live app.js version is not 0.9.143 or 0.9.144.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.142 or 0.9.143.")
+    fail("Live Service Worker version is not 0.9.143 or 0.9.144.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -347,6 +521,15 @@ if not extension_source.is_file() or extension_source.stat().st_size < 20000:
     fail("Merged French extension source is missing or unexpectedly small.")
 write_asset("french-extension.js", extension_source.read_bytes())
 extension = (ROOT / "french-extension.js").read_text(encoding="utf-8")
+query_editor_source = Path(__file__).with_name("pronunciation-query-editor.js")
+if not query_editor_source.is_file() or query_editor_source.stat().st_size < 5000:
+    fail("Inline pronunciation query editor source is missing or unexpectedly small.")
+write_asset("pronunciation-query-editor.js", query_editor_source.read_bytes())
+query_editor = (ROOT / "pronunciation-query-editor.js").read_text(encoding="utf-8")
+for required in ("submitFrenchPronunciationCorrection", "DWSSDictionaryOverrides", "保存并同步给所有用户", "修改结果"):
+    if required not in query_editor:
+        fail("Inline pronunciation query editor is missing: " + required)
+
 for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentChinese === \"function\") return;",
                  "formatCombinedFrenchResult(result.words, result.reading)",
                  "dwssFrenchSpellingBlock",
@@ -456,7 +639,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.143: French word rows now edit spelling only; per-word homophones display as plain text, while the main result box remains the only homophone editor. The shared save button is placed beneath the word list.\n"
+        "\n\n0.9.144: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Audits French gloss gaps and supplements only exact one-word matches from retained original CFDICT records.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -467,10 +650,10 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
 old_marker = "DWSS_AUTO_UPDATE_0_9_142"
-new_marker = "DWSS_AUTO_UPDATE_0_9_143"
+new_marker = "DWSS_AUTO_UPDATE_0_9_144"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.142 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.143 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -770,7 +953,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_143" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.143.")
+    fail("Automatic-update marker was not advanced to 0.9.144.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -802,12 +985,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.143" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.143.")
-if "Version: 0.9.143" not in version or "version:'0.9.143'" not in app:
-    fail("Website and app version markers do not agree at 0.9.143.")
-if "const APP_VERSION = '0.9.143';" not in sw:
-    fail("Service Worker cache version is not 0.9.143.")
+if "dwss-release=0.9.144" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.144.")
+if "Version: 0.9.144" not in version or "version:'0.9.144'" not in app:
+    fail("Website and app version markers do not agree at 0.9.144.")
+if "const APP_VERSION = '0.9.144';" not in sw:
+    fail("Service Worker cache version is not 0.9.144.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -817,7 +1000,7 @@ if "lookupFrenchPronunciationAt" in sw_tokenizer or "frenchFallback" in sw_token
     fail("Swahili tokenizer still has a French fallback path.")
 if new_accuracy_note not in html:
     fail("Swahili/French separation accuracy note is missing.")
-for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json"):
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
 
@@ -833,5 +1016,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.143 edits French spelling only in word rows, keeps homophones read-only there, and places the shared save button below the list.")
+print("PASS: DWSS 0.9.144 edits French spelling only in word rows, keeps homophones read-only there, and places the shared save button below the list.")
 print("PASS: no secondary French edit field remains; offline-first French sync and strict language separation are preserved.")
