@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.144 fast offline-aware French translation
+name: Deploy DWSS 0.9.145 fast offline-aware French translation
 
 on:
   push:
@@ -11,6 +11,8 @@ on:
       - 'scripts/french-translation-runtime.js'
       - 'scripts/pronunciation-query-editor.js'
       - 'scripts/test_dwss_0144_pronunciation_query_editor.cjs'
+      - 'scripts/merge_french_wiktionary_zh.py'
+      - 'scripts/test_french_wiktionary_merge.py'
       - 'shared-lexicon.js'
   workflow_dispatch:
 
@@ -49,6 +51,8 @@ jobs:
           node --check public/french-translation-runtime.js
           node --check public/pronunciation-query-editor.js
           node --check scripts/test_dwss_0144_pronunciation_query_editor.cjs
+          python3 -m py_compile scripts/merge_french_wiktionary_zh.py
+          python3 -m py_compile scripts/test_french_wiktionary_merge.py
 
       - name: Run fast/offline French translation regression checks
         shell: bash
@@ -57,6 +61,7 @@ jobs:
           npm install --no-save --no-package-lock jsdom@26.1.0
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
+          python3 scripts/test_french_wiktionary_merge.py
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
 
       - name: Upload DWSS Pages artifact
@@ -64,7 +69,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.144
+      - name: Deploy DWSS 0.9.145
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -75,7 +80,7 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           LIVE="$RUNNER_TEMP/dwss-live-0140"
           mkdir -p "$LIVE"
-          for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk french-gloss-coverage.json french-CFDICT-ATTRIBUTION.txt pronunciation-query-editor.js; do
+          for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk french-gloss-coverage.json french-CFDICT-ATTRIBUTION.txt pronunciation-query-editor.js french-wiktionary-coverage.json french-WIKTIONARY-ATTRIBUTION.txt; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           # Pages/CDN may briefly return the previous index.html immediately after deployment.
@@ -89,13 +94,13 @@ jobs:
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.144' "$LIVE/VERSION.txt"
+          grep -Fxq 'Version: 0.9.145' "$LIVE/VERSION.txt"
           grep -Fq 'DWSS_AUTO_UPDATE_0_9_144' "$LIVE/index.html"
-          grep -Fq "version:'0.9.144'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.144';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.145'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.145';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.144' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.145' "$LIVE/index.html"
           grep -Fq 'style.id = "dwss-pronunciation-query-editor-0144"' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/pronunciation-query-editor.js"
@@ -116,6 +121,18 @@ jobs:
           print("French gloss coverage:",json.dumps(p,ensure_ascii=False))
           PY
           grep -Fq '仅使用 French CEDICT 数据集中 review.kind=retained_cfdict_source' "$LIVE/french-CFDICT-ATTRIBUTION.txt"
+          python3 - "$LIVE/french-wiktionary-coverage.json" <<'PY'
+          import json,re,sys
+          p=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert p["sourceDumpDate"]=="2026-10-01",p
+          assert re.fullmatch(r"[0-9a-f]{64}",p["sourceSha256"]),p
+          for k in ("frenchEntriesExamined","uniqueFrenchHeadwordsWithChineseTranslations","newFrenchWordIndexRows","newFrenchPronunciationRows","newGlossWordEntries","headwordsSkippedWithoutReliableIPAOrReading"):
+            assert isinstance(p.get(k),int) and p[k]>=0,p
+          assert p["newGlossWordEntries"]>0 or p["additionalMeaningsMergedIntoExistingGlossEntries"]>0,p
+          print("French Wiktionary coverage:",json.dumps(p,ensure_ascii=False))
+          PY
+          grep -Fq 'lang_code=zh' "$LIVE/french-WIKTIONARY-ATTRIBUTION.txt"
+          grep -Fq 'CC BY-SA 4.0' "$LIVE/french-WIKTIONARY-ATTRIBUTION.txt"
           grep -Fq '法语优先使用本机词库；未收录内容联网后调用机器翻译服务。' "$LIVE/french-translation-runtime.js"
           grep -Fq 'function setupFrenchPronunciationEditor()' "$LIVE/french-extension.js"
           grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/french-extension.js"
@@ -248,4 +265,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.144 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
+          echo "PASS: live DWSS 0.9.145 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
