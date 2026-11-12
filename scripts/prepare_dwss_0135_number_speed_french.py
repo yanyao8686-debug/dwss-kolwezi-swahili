@@ -325,6 +325,22 @@ coverage = {
     "supplementRule": "Only retained original CFDICT entries whose complete French translation exactly matches one LeXiK pronunciation word form; no phrase splitting and no model-generated records.",
     "limitations": "LeXiK includes inflected and derived forms; uncovered forms remain explicitly unglossed until a reliable bilingual source or user correction is available."
 }
+prior_global_report_path = ROOT / "french-gloss-coverage.json"
+if prior_global_report_path.is_file():
+    try:
+        previous_global_report = json.loads(prior_global_report_path.read_text(encoding="utf-8"))
+        for retained_key in (
+            "newWiktionaryGlossWordEntriesAdded",
+            "wiktionaryMeaningsMergedIntoExistingGlossEntries",
+            "finalGlossRows",
+            "combinedSources",
+            "limitations"
+        ):
+            if retained_key in previous_global_report:
+                coverage[retained_key] = previous_global_report[retained_key]
+    except (OSError, ValueError, TypeError):
+        pass
+
 (ROOT / "french-gloss-coverage.json").write_text(
     json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
 )
@@ -359,65 +375,91 @@ print("French gloss supplementation: added " + str(len(supplemented_keys)) + " e
 # The dump date is checked before downloading so a weekly upstream refresh cannot
 # silently alter the data set. The raw archive is processed as JSONL by a streaming
 # helper and is never shipped as part of the website.
-wiktionary_html = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
-wiktionary_metadata = unescape(re.sub(r"<[^>]+>", " ", wiktionary_html))
-wiktionary_date_match = re.search(r"frwiktionary\s+dump\s+dated\s+(\d{4}-\d{2}-\d{2})", wiktionary_metadata)
-if not wiktionary_date_match:
-    fail("Cannot verify the French Wiktionary source dump date.")
-wiktionary_dump_date = wiktionary_date_match.group(1)
-if wiktionary_dump_date != "2026-10-01":
-    fail("French Wiktionary dump changed; source review and checksum pin are required before importing: " + wiktionary_dump_date)
+# Reuse the already merged, pinned Wiktionary dump when its provenance is intact.
+# Only download the 700+ MB source JSONL when the source hash or merged-data proof is absent.
+wiktionary_report_path = ROOT / "french-wiktionary-coverage.json"
+wiktionary_attribution_path = ROOT / "french-WIKTIONARY-ATTRIBUTION.txt"
+verified_wiktionary = False
+if wiktionary_report_path.is_file() and wiktionary_attribution_path.is_file():
+    try:
+        prior_wiktionary = json.loads(wiktionary_report_path.read_text(encoding="utf-8"))
+        prior_sha = str(prior_wiktionary.get("sourceSha256") or "")
+        attribution_text = wiktionary_attribution_path.read_text(encoding="utf-8")
+        verified_wiktionary = (
+            prior_wiktionary.get("sourceDumpDate") == "2026-10-01"
+            and re.fullmatch(r"[0-9a-f]{64}", prior_sha) is not None
+            and prior_sha in attribution_text
+            and int(prior_wiktionary.get("uniqueFrenchSingleWordHeadwords") or 0) > 1_000_000
+            and int(prior_wiktionary.get("uniqueFrenchHeadwordsWithChineseTranslations") or 0) > 1_000
+        )
+    except (OSError, ValueError, TypeError):
+        verified_wiktionary = False
 
-wiktionary_archive = Path(tempfile.gettempdir()) / "dwss-frwiktionary-2026-10-01.jsonl.gz"
-if not wiktionary_archive.is_file() or not (500_000_000 <= wiktionary_archive.stat().st_size <= 900_000_000):
-    wiktionary_tmp = wiktionary_archive.with_suffix(".download")
-    last_error = None
-    for attempt in range(4):
-        try:
-            request = Request(
-                "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
-                headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.147"}
-            )
-            with urlopen(request, timeout=240) as response, wiktionary_tmp.open("wb") as output:
-                total = 0
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    total += len(chunk)
-                    if total > 900_000_000:
-                        fail("French Wiktionary raw archive exceeded its guarded 900 MB size limit.")
-                    output.write(chunk)
-            if not (500_000_000 <= wiktionary_tmp.stat().st_size <= 900_000_000):
-                fail("French Wiktionary raw archive size is outside the expected 500–900 MB range.")
-            wiktionary_tmp.replace(wiktionary_archive)
-            break
-        except (HTTPError, URLError, TimeoutError, OSError) as exc:
-            last_error = exc
-            if wiktionary_tmp.exists():
-                wiktionary_tmp.unlink()
-            if attempt == 3:
-                fail("Could not download the pinned French Wiktionary raw data: " + str(last_error))
-            time.sleep(2 ** attempt)
+if verified_wiktionary:
+    wiktionary_dump_date = "2026-10-01"
+    print("Reuse verified French Wiktionary merge: " + str(prior_wiktionary["uniqueFrenchSingleWordHeadwords"]) + " single-word headwords; SHA-256 and attribution agree.")
+else:
+    wiktionary_html = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
+    wiktionary_metadata = unescape(re.sub(r"<[^>]+>", " ", wiktionary_html))
+    wiktionary_date_match = re.search(r"frwiktionary\s+dump\s+dated\s+(\d{4}-\d{2}-\d{2})", wiktionary_metadata)
+    if not wiktionary_date_match:
+        fail("Cannot verify the French Wiktionary source dump date.")
+    wiktionary_dump_date = wiktionary_date_match.group(1)
+    if wiktionary_dump_date != "2026-10-01":
+        fail("French Wiktionary dump changed; source review and checksum pin are required before importing: " + wiktionary_dump_date)
+    
+    wiktionary_archive = Path(tempfile.gettempdir()) / "dwss-frwiktionary-2026-10-01.jsonl.gz"
+    if not wiktionary_archive.is_file() or not (500_000_000 <= wiktionary_archive.stat().st_size <= 900_000_000):
+        wiktionary_tmp = wiktionary_archive.with_suffix(".download")
+        last_error = None
+        for attempt in range(4):
+            try:
+                request = Request(
+                    "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+                    headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.147"}
+                )
+                with urlopen(request, timeout=240) as response, wiktionary_tmp.open("wb") as output:
+                    total = 0
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        total += len(chunk)
+                        if total > 900_000_000:
+                            fail("French Wiktionary raw archive exceeded its guarded 900 MB size limit.")
+                        output.write(chunk)
+                if not (500_000_000 <= wiktionary_tmp.stat().st_size <= 900_000_000):
+                    fail("French Wiktionary raw archive size is outside the expected 500–900 MB range.")
+                wiktionary_tmp.replace(wiktionary_archive)
+                break
+            except (HTTPError, URLError, TimeoutError, OSError) as exc:
+                last_error = exc
+                if wiktionary_tmp.exists():
+                    wiktionary_tmp.unlink()
+                if attempt == 3:
+                    fail("Could not download the pinned French Wiktionary raw data: " + str(last_error))
+                time.sleep(2 ** attempt)
+    
+    def sha256_stream(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    
+    wiktionary_sha256 = sha256_stream(wiktionary_archive)
+    wiktionary_merger = Path(__file__).with_name("merge_french_wiktionary_zh.py")
+    if not wiktionary_merger.is_file():
+        fail("French Wiktionary merge helper is missing.")
+    subprocess.run([
+        sys.executable, str(wiktionary_merger),
+        "--source", str(wiktionary_archive),
+        "--public", str(ROOT),
+        "--dump-date", wiktionary_dump_date,
+        "--sha256", wiktionary_sha256
+    ], check=True)
 
-def sha256_stream(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
-wiktionary_sha256 = sha256_stream(wiktionary_archive)
-wiktionary_merger = Path(__file__).with_name("merge_french_wiktionary_zh.py")
-if not wiktionary_merger.is_file():
-    fail("French Wiktionary merge helper is missing.")
-subprocess.run([
-    sys.executable, str(wiktionary_merger),
-    "--source", str(wiktionary_archive),
-    "--public", str(ROOT),
-    "--dump-date", wiktionary_dump_date,
-    "--sha256", wiktionary_sha256
-], check=True)
 
 paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "sw.js")}
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
@@ -526,7 +568,7 @@ if "const canonicalUrl = new URL(request.url);" not in sw:
         fail("Cannot locate Service Worker cache write for canonical asset keys.")
     sw = sw.replace(old_cache_write,
         "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
-if "async function precacheFrenchShardFamilies(cache)" not in sw or "cache.match(request, { ignoreSearch: true })" not in sw:
+if "async function precacheFrenchShardFamilies(cache)" not in sw or "activeCache.match(request, { ignoreSearch: true })" not in sw:
     fail("Full French offline shard caching or versioned asset cache lookup was not installed.")
 
 
