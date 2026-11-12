@@ -195,7 +195,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 gloss_rows[idx][4]="¦".join(list(dict.fromkeys(gloss_rows[idx][4].split("¦")+additions))[:12])
                 existing_source=gloss_rows[idx][6] if len(gloss_rows[idx])>6 else ""
                 if SOURCE_LABEL not in existing_source:
-                    source=(existing_source+"; " if existing_source else "")+SOURCE_LABEL+" / "+SOURCE_NOTE
+                    source=(existing_source+"; " if existing_source else "")+SOURCE_LABEL+" / "+source_note
                     if len(gloss_rows[idx])>6: gloss_rows[idx][6]=source
                     else: gloss_rows[idx].append(source)
                 gloss_meanings[key].update(additions); merged_meanings+=len(additions)
