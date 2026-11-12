@@ -101,7 +101,7 @@ jobs:
           ! grep -Fq 'data-copy-french-reading' "$LIVE/french-extension.js"
           ! grep -Fq '复制法语' "$LIVE/french-extension.js"
           ! grep -Fq '复制谐音' "$LIVE/french-extension.js"
-          grep -Fq 'DWSSRenderPronunciationQuery' "$LIVE/pronunciation-query-editor.js" || true
+          grep -Fq 'window.DWSSRenderPronunciationLookup || window.renderPronunciationLookup' "$LIVE/pronunciation-query-editor.js"
           python3 - "$LIVE/french-gloss-coverage.json" <<'PY'
           import json,sys
           p=json.load(open(sys.argv[1],encoding="utf-8"))
@@ -229,6 +229,8 @@ jobs:
           ! grep -Fq 'firstRanges' "$LIVE/french-extension.js"
           curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/french-gloss-index.tsv.gz?verify=$GITHUB_SHA" -o "$LIVE/french-gloss-index.tsv.gz"
           gzip -t "$LIVE/french-gloss-index.tsv.gz"
+          gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="bonjour" && $5!="" {found=1} END {exit !found}'
+          gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="merci" && $5!="" {found=1} END {exit !found}'
           gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="bonjour" && $5!="" {found=1} END {exit !found}'
           gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="merci" && $5!="" {found=1} END {exit !found}'
           ! grep -Fq 'combinedOutput.addEventListener("blur"' "$LIVE/french-translation-runtime.js"
