@@ -415,7 +415,7 @@
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
         '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
-        '<div class="rd"><span class="dwss-french-word-reading-label">中文谐音：</span>' +
+        '<div class="rd">法语：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
         '</div>';
     }).join("");

@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.145 fast offline-aware French translation
+name: Deploy DWSS 0.9.146 fast offline-aware French translation
 
 on:
   push:
@@ -70,7 +70,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.145
+      - name: Deploy DWSS 0.9.146
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -90,18 +90,18 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_145' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_146' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.145' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_145' "$LIVE/index.html"
-          grep -Fq "version:'0.9.145'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.145';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.146' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_146' "$LIVE/index.html"
+          grep -Fq "version:'0.9.146'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.146';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.145' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.146' "$LIVE/index.html"
           grep -Fq 'style.id = "dwss-pronunciation-query-editor-0144"' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/pronunciation-query-editor.js"
@@ -210,7 +210,8 @@ jobs:
           ! grep -Fq 'output.insertAdjacentElement("afterend", wrap);' "$LIVE/french-extension.js"
           grep -Fq 'replaceFrenchPhraseWords(phrase, replacements)' "$LIVE/french-extension.js"
           grep -Fq 'aria-label="法语单词' "$LIVE/french-extension.js"
-          grep -Fq '中文谐音：' "$LIVE/french-extension.js"
+          grep -Fq '<div class="rd">法语：' "$LIVE/french-extension.js"
+          ! grep -Fq '中文谐音：</span>' "$LIVE/french-extension.js"
           grep -Fq 'function tokenizeFrenchPhrase(value)' "$LIVE/french-extension.js"
           grep -Fq 'function buildFrenchWordReadingLookup(sourceRows)' "$LIVE/french-extension.js"
           grep -Fq 'function buildFrenchWordPairs(phrase, wordLookup, glossSegments, enrichedWordReadings)' "$LIVE/french-extension.js"
@@ -219,9 +220,14 @@ jobs:
           grep -Fq '单个法语读法释义：' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-word-pairs-0132"' "$LIVE/index.html"
           grep -Fq '.dwss-french-word-edit:focus' "$LIVE/index.html"
-          grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
+          ! grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
+          grep -Fq 'background:transparent!important' "$LIVE/index.html"
+          grep -Fq 'border:0!important' "$LIVE/index.html"
           grep -Fq '.dwss-french-edit-hint' "$LIVE/index.html"
           grep -Fq '法语单词可直接修改；中文谐音请在上方结果框修改。' "$LIVE/french-extension.js"
+          grep -Fq 'dwss-french-word-original' "$LIVE/index.html"
+          grep -Fq 'border-bottom-color:#D6A34B' "$LIVE/index.html"
+          ! grep -Fq 'border:1px solid #D5BE96' "$LIVE/index.html"
           grep -Fq 'border:0!important;border-width:0!important' "$LIVE/index.html"
           grep -Fq 'color:var(--muted)!important;font-size:13px!important' "$LIVE/index.html"
           grep -Fq 'translateOfflineChinese(raw)' "$LIVE/french-extension.js"
@@ -267,4 +273,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.145 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
+          echo "PASS: live DWSS 0.9.146 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
