@@ -201,9 +201,8 @@
           });
           readingNode.textContent = "当地斯语中文谐音：" + correctedReading;
           setStatus("已保存，斯语读音修正已同步到共享词库。", "success");
-          if (typeof window.DWSSRenderPronunciationLookup === "function") {
-            window.DWSSRenderPronunciationLookup();
-          }
+          const renderLookup = window.DWSSRenderPronunciationLookup || window.renderPronunciationLookup;
+          if (typeof renderLookup === "function") renderLookup();
         }
         save.textContent = "已保存";
         window.setTimeout(() => {
