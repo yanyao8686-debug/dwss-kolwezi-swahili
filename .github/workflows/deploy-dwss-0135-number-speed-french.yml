@@ -37,7 +37,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check --quiet pypinyin==0.53.0
+          python3 -m venv "$RUNNER_TEMP/dwss-build-venv"
+          source "$RUNNER_TEMP/dwss-build-venv/bin/activate"
+          python -m pip install --disable-pip-version-check --quiet pypinyin==0.53.0
           python3 -m py_compile scripts/prepare_dwss_0135_number_speed_french.py
           python3 scripts/prepare_dwss_0135_number_speed_french.py
           python3 -m py_compile scripts/prepare_dwss_0135_number_speed_french.py
@@ -46,6 +48,7 @@ jobs:
           node --check public/french-extension.js
           node --check public/french-translation-runtime.js
           node --check public/pronunciation-query-editor.js
+          node --check scripts/test_dwss_0144_pronunciation_query_editor.cjs
 
       - name: Run fast/offline French translation regression checks
         shell: bash
