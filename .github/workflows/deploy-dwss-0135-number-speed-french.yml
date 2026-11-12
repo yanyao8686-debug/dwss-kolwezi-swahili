@@ -96,7 +96,7 @@ jobs:
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.144' "$LIVE/index.html"
-          grep -Fq 'id="dwss-pronunciation-query-editor-0144"' "$LIVE/pronunciation-query-editor.js"
+          grep -Fq 'style.id = "dwss-pronunciation-query-editor-0144"' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSRenderFrenchPronunciationQuery' "$LIVE/french-extension.js"
