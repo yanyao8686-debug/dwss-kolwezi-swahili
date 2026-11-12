@@ -157,6 +157,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
             for z in meanings:
                 if z not in row["meanings"] and len(row["meanings"])<10: row["meanings"].append(z)
     if not candidates: raise ValueError("No single-word French headwords were found in the Wiktionary source.")
+    words_without_ipa=sum(1 for item in candidates.values() if not item["ipa"])
     keys=set(candidates)
     known_words=load_known(root,keys,"french-word-shards","word")
     known_prons=load_known(root,keys,"french-pronunciation-shards","pron")
