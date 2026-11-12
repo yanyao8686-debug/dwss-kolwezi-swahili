@@ -22,7 +22,7 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.145"
+OLD_VERSION = "0.9.146"
 NEW_VERSION = "0.9.147"
 ROOT = Path("public")
 
@@ -659,9 +659,9 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.145/0.9.147 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.146/0.9.147 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.145 or 0.9.147.")
+    fail("Live app.js version is not 0.9.146 or 0.9.147.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
     fail("Live Service Worker version is not 0.9.145 or 0.9.147.")
 
@@ -821,8 +821,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_145"
-new_marker = "DWSS_AUTO_UPDATE_0_9_146"
+old_marker = "DWSS_AUTO_UPDATE_0_9_146"
+new_marker = "DWSS_AUTO_UPDATE_0_9_147"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.145 auto-update marker; found " + str(html.count(old_marker)))
@@ -1129,7 +1129,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_146" not in html:
+if "DWSS_AUTO_UPDATE_0_9_147" not in html:
     fail("Automatic-update marker was not advanced to 0.9.147.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
