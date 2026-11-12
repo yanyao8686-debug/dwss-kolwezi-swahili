@@ -175,7 +175,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
     for key,item in candidates.items():
         old=known.get(key); ipa=(old or {}).get("ipa") or item["ipa"]
         reading=(old or {}).get("reading") or (ipa_to_chinese(ipa) if ipa else "")
-        if not reading or reading=="谐音待补": skipped+=1; continue
+        if not ipa or not reading or reading=="谐音待补": skipped+=1; continue
         word=(old or {}).get("word") or item["word"]; kind=(old or {}).get("kind") or "词形"
         pkey=pinyin_key(reading)
         if not pkey: skipped+=1; continue
