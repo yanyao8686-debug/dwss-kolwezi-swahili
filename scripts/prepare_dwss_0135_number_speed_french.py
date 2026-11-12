@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.144: editable French word-by-word gloss with isolated language data."""
+"""DWSS 0.9.145: editable French word-by-word gloss with isolated language data."""
 from __future__ import annotations
 
 import gzip
+from html import unescape
 import hashlib
 import json
 import re
 import time
+import subprocess
+import sys
+import tempfile
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
@@ -18,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.143"
-NEW_VERSION = "0.9.144"
+OLD_VERSION = "0.9.144"
+NEW_VERSION = "0.9.145"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -46,7 +50,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.144"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.145"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -306,7 +310,7 @@ glossed_before = pronunciation_word_keys & base_gloss_keys
 glossed_after = pronunciation_word_keys & glossed_keys_after
 missing_after = pronunciation_word_keys - glossed_keys_after
 coverage = {
-    "sourceVersion": "DWSS 0.9.144",
+    "sourceVersion": "DWSS 0.9.145",
     "pronunciationShardRows": pronunciation_form_rows,
     "uniqueNormalizedPronunciationForms": len(pronunciation_word_keys),
     "formsWithChineseGlossBeforeSupplement": len(glossed_before),
@@ -349,6 +353,71 @@ if "DWSS French CEDICT exact single-word supplement" not in sources_text:
     )
 print("French gloss coverage audit: " + json.dumps(coverage, ensure_ascii=False))
 print("French gloss supplementation: added " + str(len(supplemented_keys)) + " exact one-word CFDICT meanings.")
+
+
+# Import direct French -> Chinese translation records from the French Wiktionary dump.
+# The dump date is checked before downloading so a weekly upstream refresh cannot
+# silently alter the data set. The raw archive is processed as JSONL by a streaming
+# helper and is never shipped as part of the website.
+wiktionary_html = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
+wiktionary_metadata = unescape(re.sub(r"<[^>]+>", " ", wiktionary_html))
+wiktionary_date_match = re.search(r"frwiktionary\s+dump\s+dated\s+(\d{4}-\d{2}-\d{2})", wiktionary_metadata)
+if not wiktionary_date_match:
+    fail("Cannot verify the French Wiktionary source dump date.")
+wiktionary_dump_date = wiktionary_date_match.group(1)
+if wiktionary_dump_date != "2026-10-01":
+    fail("French Wiktionary dump changed; source review and checksum pin are required before importing: " + wiktionary_dump_date)
+
+wiktionary_archive = Path(tempfile.gettempdir()) / "dwss-frwiktionary-2026-10-01.jsonl.gz"
+if not wiktionary_archive.is_file() or not (500_000_000 <= wiktionary_archive.stat().st_size <= 900_000_000):
+    wiktionary_tmp = wiktionary_archive.with_suffix(".download")
+    last_error = None
+    for attempt in range(4):
+        try:
+            request = Request(
+                "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+                headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.145"}
+            )
+            with urlopen(request, timeout=240) as response, wiktionary_tmp.open("wb") as output:
+                total = 0
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > 900_000_000:
+                        fail("French Wiktionary raw archive exceeded its guarded 900 MB size limit.")
+                    output.write(chunk)
+            if not (500_000_000 <= wiktionary_tmp.stat().st_size <= 900_000_000):
+                fail("French Wiktionary raw archive size is outside the expected 500–900 MB range.")
+            wiktionary_tmp.replace(wiktionary_archive)
+            break
+        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            if wiktionary_tmp.exists():
+                wiktionary_tmp.unlink()
+            if attempt == 3:
+                fail("Could not download the pinned French Wiktionary raw data: " + str(last_error))
+            time.sleep(2 ** attempt)
+
+def sha256_stream(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+wiktionary_sha256 = sha256_stream(wiktionary_archive)
+wiktionary_merger = Path(__file__).with_name("merge_french_wiktionary_zh.py")
+if not wiktionary_merger.is_file():
+    fail("French Wiktionary merge helper is missing.")
+subprocess.run([
+    sys.executable, str(wiktionary_merger),
+    "--source", str(wiktionary_archive),
+    "--public", str(ROOT),
+    "--dump-date", wiktionary_dump_date,
+    "--sha256", wiktionary_sha256
+], check=True)
 
 paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "sw.js")}
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
@@ -487,8 +556,8 @@ if removed_sw_save_hint not in (0, 1):
 # moves this label into .dwss-secondary-details, so JS can switch it by language.
 old_gloss_title = '<div class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
 new_gloss_title = '<div id="singleReadingGlossLabel" class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
-query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.144"></script>'
-if "pronunciation-query-editor.js?dwss-release=0.9.144" not in html:
+query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.145"></script>'
+if "pronunciation-query-editor.js?dwss-release=0.9.145" not in html:
     if "</body>" not in html:
         fail("Cannot locate </body> to load the pronunciation query editor.")
     html = html.replace("</body>", query_editor_script + "\n</body>", 1)
@@ -499,11 +568,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.143/0.9.144 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.144/0.9.145 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.143 or 0.9.144.")
+    fail("Live app.js version is not 0.9.144 or 0.9.145.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.143 or 0.9.144.")
+    fail("Live Service Worker version is not 0.9.143 or 0.9.145.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -648,9 +717,9 @@ else:
 # a deployment is idempotent: it keeps 0.9.137 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
-    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-10", version, count=1, flags=re.M)
+    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-12", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.144: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Audits French gloss gaps and supplements only exact one-word matches from retained original CFDICT records.\n"
+        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Adds direct French-to-Chinese translations from French Wiktionary, new IPA-based Chinese homophones marked for review, and retains the audited CFDICT exact-word supplements.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -660,7 +729,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_143"
+old_marker = "DWSS_AUTO_UPDATE_0_9_144"
 new_marker = "DWSS_AUTO_UPDATE_0_9_144"
 if new_marker not in html:
     if html.count(old_marker) != 1:
@@ -964,7 +1033,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_144" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.144.")
+    fail("Automatic-update marker was not advanced to 0.9.145.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -996,12 +1065,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.144" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.144.")
-if "Version: 0.9.144" not in version or "version:'0.9.144'" not in app:
-    fail("Website and app version markers do not agree at 0.9.144.")
-if "const APP_VERSION = '0.9.144';" not in sw:
-    fail("Service Worker cache version is not 0.9.144.")
+if "dwss-release=0.9.145" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.145.")
+if "Version: 0.9.145" not in version or "version:'0.9.145'" not in app:
+    fail("Website and app version markers do not agree at 0.9.145.")
+if "const APP_VERSION = '0.9.145';" not in sw:
+    fail("Service Worker cache version is not 0.9.145.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -1014,12 +1083,14 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
-if 'pronunciation-query-editor.js?dwss-release=0.9.144' not in html:
+if 'pronunciation-query-editor.js?dwss-release=0.9.145' not in html:
     fail("Inline pronunciation query editor is not loaded by the live HTML.")
 if not (ROOT / "french-gloss-coverage.json").is_file():
     fail("French glossary coverage audit report is missing.")
 if not (ROOT / "french-CFDICT-ATTRIBUTION.txt").is_file():
     fail("French CFDICT attribution notice is missing.")
+if not (ROOT / "french-WIKTIONARY-ATTRIBUTION.txt").is_file() or not (ROOT / "french-wiktionary-coverage.json").is_file():
+    fail("French Wiktionary attribution or coverage audit is missing.")
 
 
 
@@ -1034,5 +1105,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.144 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
+print("PASS: DWSS 0.9.145 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")

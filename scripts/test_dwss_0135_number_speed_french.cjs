@@ -143,6 +143,11 @@ assert(glossCoverage.pinnedCFDICTCommit === 'ebf1d269182d84e4068d1ce383eaf272c7a
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
+assert(runtime.includes('const cue = String(item.reading || ipaReading || "").trim();'),
+  'French translation must use the stored source homophone before recalculating it from IPA');
+assert(runtime.includes('W: "Wiktionary IPA 来源，中文近似音自动生成，待核对"'),
+  'Wiktionary-generated pronunciations must be marked for human review');
+
 assert(app.includes("const frenchModeButton=document.getElementById('dwssMainFrMode');"),
   'the Swahili renderer must be isolated while French mode is active');
 assert(app.includes("if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;"),

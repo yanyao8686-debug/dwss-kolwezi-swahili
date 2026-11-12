@@ -1047,7 +1047,7 @@
           variants: [{
             reading: fields[2],
             latin: cleanIpa(fields[1]),
-            source: "LeXiK · " + confidence,
+            source: confidence === "W" ? "Wiktionary IPA · 自动拟音待核对" : "LeXiK · " + confidence,
             kind,
             status: "canonical",
             confidence
