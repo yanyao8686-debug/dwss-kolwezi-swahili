@@ -196,7 +196,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                     else: gloss_rows[idx].append(source)
                 gloss_meanings[key].update(additions); merged_meanings+=len(additions)
     # Upsert word rows; preserve every existing verified LeXiK reading.
-    added_word=0
+    added_word=0; updated_word=0
     for prefix,rows in new_word.items():
         path=root/"french-word-shards"/(prefix+".tsv.gz")
         old=read_gz(path); positions={}
@@ -210,13 +210,13 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 idx=positions[key]; previous=old[idx].split("\t")
                 if len(previous)>=6 and (not previous[3] or previous[3]=="谐音待补"):
                     old[idx]="\t".join((previous[0],previous[1] or a[1],previous[2] or a[2],a[3],"W",previous[5] or a[5]))
-                    changed=True
+                    changed=True; updated_word+=1
             else:
                 positions[key]=len(old); old.append(line); added_word+=1; changed=True
         if changed: write_gz(path,old)
     if new_word:
         path=root/"french-word-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
-        meta["prefixes"]=sorted({p.stem for p in (root/"french-word-shards").glob("*.tsv.gz")})
+        meta["prefixes"]=sorted({p.name[:-7] for p in (root/"french-word-shards").glob("*.tsv.gz")})
         meta["prefixCount"]=len(meta["prefixes"])
         meta["wordFormsWithIpa"]=int(meta.get("wordFormsWithIpa") or 0)+added_word
         meta["wiktionaryFrenchZhDumpDate"]=dump_date
@@ -249,7 +249,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
         path=root/"french-pronunciation-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
         all_rows=0; all_words=set(); counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
         for shard in sorted((root/"french-pronunciation-shards").glob("*.tsv.gz")):
-            first_keys.append(shard.stem)
+            first_keys.append(shard.name[:-7])
             for line in read_gz(shard):
                 a=line.split("\t")
                 if len(a)<5: continue
@@ -271,7 +271,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
       "source":"French Wiktionary via Kaikki/Wiktextract","sourceDumpDate":dump_date,"sourceSha256":digest,
       "frenchEntriesExamined":french_entries,"frenchHeadwordsWithChineseTranslations":entries_zh,
       "chineseTranslationRecordsSeen":translations_seen,"uniqueFrenchHeadwordsWithChineseTranslations":len(candidates),
-      "headwordsWithoutSourceIPA":words_without_ipa,"newFrenchWordIndexRows":sum(len(v) for v in new_word.values()),
+      "headwordsWithoutSourceIPA":words_without_ipa,"newFrenchWordIndexRows":added_word,"updatedFrenchWordIndexRows":updated_word,
       "newFrenchPronunciationRows":added_pron,"newGlossWordEntries":new_gloss,
       "additionalMeaningsMergedIntoExistingGlossEntries":merged_meanings,"headwordsSkippedWithoutReliableIPAOrReading":skipped,
       "finalGlossRows":len(gloss_rows),"confidenceCodeForNewAutomaticReadings":CONFIDENCE,
