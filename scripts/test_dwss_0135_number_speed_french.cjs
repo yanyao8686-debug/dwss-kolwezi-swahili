@@ -108,7 +108,7 @@ assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.
 assert(version.includes('Version: 0.9.146'), 'VERSION.txt mismatch');
 assert(app.includes("version:'0.9.146'"), 'app metadata mismatch');
 assert(sw.includes("const APP_VERSION = '0.9.146';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_145'), 'automatic-update marker mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_146'), 'automatic-update marker mismatch');
 assert(html.includes('dwss-release=0.9.146'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.146'),
@@ -253,14 +253,17 @@ assert(frenchRenderer.includes('class="zh"><input class="dwss-french-word-edit d
        frenchRenderer.includes('data-original-word=') &&
        frenchRenderer.includes('value='),
   'French word must remain directly editable in the Swahili-style left column');
-const frenchPairStyle = html.match(/<style id="dwss-french-word-pairs-0132">([\\s\\S]*?)<\\/style>/);
-assert(frenchPairStyle && frenchPairStyle[1].includes('.dwss-french-word-original') &&
-       frenchPairStyle[1].includes('background:transparent!important') &&
-       frenchPairStyle[1].includes('border:0!important') &&
-       frenchPairStyle[1].includes('border-bottom-color:#D6A34B'),
+const frenchPairStyleStart = html.indexOf('<style id="dwss-french-word-pairs-0132">');
+const frenchPairStyleEnd = html.indexOf('</style>', frenchPairStyleStart);
+const frenchPairStyle = frenchPairStyleStart >= 0 && frenchPairStyleEnd > frenchPairStyleStart
+  ? html.slice(frenchPairStyleStart, frenchPairStyleEnd) : '';
+assert(frenchPairStyle.includes('.dwss-french-word-original') &&
+       frenchPairStyle.includes('background:transparent!important') &&
+       frenchPairStyle.includes('border:0!important') &&
+       frenchPairStyle.includes('border-bottom-color:#D6A34B'),
   'French editable word field must visually inherit Swahili gloss text styling and retain a subtle focus cue');
-assert(!frenchPairStyle[1].includes('border:1px solid #D5BE96') &&
-       !frenchPairStyle[1].includes('background:#FFF9ED'),
+assert(!frenchPairStyle.includes('border:1px solid #D5BE96') &&
+       !frenchPairStyle.includes('background:#FFF9ED'),
   'French gloss word field must not show the old boxed-input appearance');
 for (const removedDetail of ['originalMarkup','法语原文：','中文释义：','IPA：','rd-detail','法语中文谐音：']) {
   assert(!frenchRenderer.includes(removedDetail), 'unwanted verbose detail remains in the French word list: ' + removedDetail);
