@@ -17,8 +17,9 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             gz(root/"french-gloss-index.tsv.gz",[])
             gz(root/"french-word-shards"/"bo.tsv.gz",["bonjour\tbonjour\tbɔ̃.ʒuʁ\t邦茹\tA\t词形"])
             gz(root/"french-pronunciation-shards"/"bang.tsv.gz",["bonjour\tbɔ̃.ʒuʁ\t邦茹\tA\t词形"])
+            gz(root/"french-pronunciation-shards"/"mo.tsv.gz",["mot\t\t莫\tC\t词形"])
             (root/"french-word-index.json").write_text(json.dumps({"wordFormsWithIpa":1,"prefixes":["bo"]}))
-            (root/"french-pronunciation-index.json").write_text(json.dumps({"uniqueForms":1,"indexedRows":1,"confidenceCounts":{"A":1,"C":1},"kindCounts":{"词形":2},"firstKeys":["bang","mo"]}))
+            (root/"french-pronunciation-index.json").write_text(json.dumps({"uniqueForms":2,"indexedRows":2,"formsWithIpa":1,"formsWithoutIpa":1,"confidenceCounts":{"A":1,"C":1},"kindCounts":{"词形":2},"firstKeys":["bang","mo"]}))
             (root/"french-lexicon-sources.txt").write_text("Existing\n")
             src=Path(tmp)/"tiny.jsonl.gz"
             items=[
