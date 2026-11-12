@@ -174,16 +174,20 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
     new_gloss=merged_meanings=skipped=0
     for key,item in candidates.items():
         old=known.get(key); ipa=(old or {}).get("ipa") or item["ipa"]
-        reading=(old or {}).get("reading") or (ipa_to_chinese(ipa) if ipa else "")
+        stored_reading=(old or {}).get("reading") or ""
+        auto_generated=not stored_reading or stored_reading=="谐音待补"
+        reading=ipa_to_chinese(ipa) if auto_generated and ipa else stored_reading
         if not ipa or not reading or reading=="谐音待补": skipped+=1; continue
+        confidence=CONFIDENCE if auto_generated else ((old or {}).get("confidence") or "I")
+        source_note=SOURCE_NOTE if auto_generated else "Wiktionary 2026-10-01 中文直译；沿用 DWSS 已有中文近似音"
         word=(old or {}).get("word") or item["word"]; kind=(old or {}).get("kind") or "词形"
         pkey=pinyin_key(reading)
         if not pkey: skipped+=1; continue
         first=pkey.split()[0]; prefix=key[:2] if len(key)>1 else key+"_"
-        if key not in known_words: new_word[prefix].append("\t".join((key,word,ipa,reading,CONFIDENCE,kind)))
-        if key not in known_prons: new_pron[first].append("\t".join((word,ipa,reading,CONFIDENCE,kind)))
+        if key not in known_words: new_word[prefix].append("\t".join((key,word,ipa,reading,confidence,kind)))
+        if key not in known_prons: new_pron[first].append("\t".join((word,ipa,reading,confidence,kind)))
         if key not in gloss_indices:
-            gloss_rows.append([pkey,word,ipa,reading,"¦".join(item["meanings"]),CONFIDENCE,SOURCE_NOTE])
+            gloss_rows.append([pkey,word,ipa,reading,"¦".join(item["meanings"]),confidence,source_note])
             gloss_indices[key].append(len(gloss_rows)-1); gloss_meanings[key].update(item["meanings"]); new_gloss+=1
         else:
             idx=gloss_indices[key][0]; additions=[m for m in item["meanings"] if m not in gloss_meanings[key]]
@@ -209,7 +213,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
             if key in positions:
                 idx=positions[key]; previous=old[idx].split("\t")
                 if len(previous)>=6 and (not previous[3] or previous[3]=="谐音待补"):
-                    old[idx]="\t".join((previous[0],previous[1] or a[1],previous[2] or a[2],a[3],"W",previous[5] or a[5]))
+                    old[idx]="\t".join((previous[0],previous[1] or a[1],previous[2] or a[2],a[3],a[4],previous[5] or a[5]))
                     changed=True; updated_word+=1
             else:
                 positions[key]=len(old); old.append(line); added_word+=1; changed=True
