@@ -18,7 +18,7 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.142"
+OLD_VERSION = "0.9.143"
 NEW_VERSION = "0.9.144"
 ROOT = Path("public")
 
@@ -1016,5 +1016,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.144 edits French spelling only in word rows, keeps homophones read-only there, and places the shared save button below the list.")
-print("PASS: no secondary French edit field remains; offline-first French sync and strict language separation are preserved.")
+print("PASS: DWSS 0.9.144 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
+print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
