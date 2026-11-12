@@ -7,7 +7,7 @@
   const WORD_SHARD_BASE = "./french-word-shards/";
   const LABELS = {
     A: "多来源一致", B: "单一来源并经独立校验", C: "单一来源未独立校验",
-    R: "人工复核", P: "同一词项形式推导", K: "词典短语来源",
+    R: "人工复核", P: "同一词项形式推导", K: "词典短语来源", W: "Wiktionary IPA 来源，中文近似音自动生成，待核对",
     T: "人工复核特殊形式", E: "缩写读法", N: "已确认外来词/人名",
     M: "外来词/人名单一来源", S: "复合词片段", G: "模型预测，低可信度",
     I: "补充词典来源", W: "Wiktionary IPA 来源，中文近似音自动生成，待核对"
@@ -299,7 +299,7 @@
       } else if (item) {
         const ipaReading = item.ipa && tools && typeof tools.ipaToChinese === "function"
           ? tools.ipaToChinese(item.ipa) : "";
-        const cue = String(ipaReading || item.reading || "").trim();
+        const cue = String(item.reading || ipaReading || "").trim();
         if (cue) {
           reading += cue;
           if (item.ipa) ipa.push(token.word + " /" + item.ipa + "/ [" + (LABELS[item.confidence] || "来源未标注") + "]");
