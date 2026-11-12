@@ -359,8 +359,9 @@ print("French gloss supplementation: added " + str(len(supplemented_keys)) + " e
 # The dump date is checked before downloading so a weekly upstream refresh cannot
 # silently alter the data set. The raw archive is processed as JSONL by a streaming
 # helper and is never shipped as part of the website.
-wiktionary_metadata = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
-wiktionary_date_match = re.search(r"frwiktionary dump dated\s+(\d{4}-\d{2}-\d{2})", wiktionary_metadata)
+wiktionary_html = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
+wiktionary_metadata = unescape(re.sub(r"<[^>]+>", " ", wiktionary_html))
+wiktionary_date_match = re.search(r"frwiktionary\\s+dump\\s+dated\\s+(\\d{4}-\\d{2}-\\d{2})", wiktionary_metadata)
 if not wiktionary_date_match:
     fail("Cannot verify the French Wiktionary source dump date.")
 wiktionary_dump_date = wiktionary_date_match.group(1)
