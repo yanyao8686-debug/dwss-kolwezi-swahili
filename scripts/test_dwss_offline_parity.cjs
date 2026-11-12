@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const zlib = require('zlib');
+const { JSDOM } = require('jsdom');
 
 const root = path.resolve(process.env.DWSS_PUBLIC_DIR || 'public');
 const read = name => fs.readFileSync(path.join(root, name));
@@ -44,7 +45,8 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const bonjour = glossRows.find(row => row[1].toLowerCase() === 'bonjour' && row[4].split('¦').includes('你好'));
   assert(bonjour, 'offline Chinese-to-French glossary must contain bonjour -> 你好');
   const pronText = gunzipText('french-pronunciation-shards/bang.tsv.gz');
-  assert(pronText.split(/\r?\n/).some(line => line.split('\t')[0]?.toLowerCase() === 'bonjour'),
+  const bonjourPron = pronText.split(/\r?\n/).find(line => line.split('\t')[0]?.toLowerCase() === 'bonjour') || '';
+  assert(bonjourPron,
     'offline French homophone lookup shard must contain bonjour');
 
   const wordPrefix = wordMeta.prefixes.includes('bo') ? 'bo' : '';
@@ -56,13 +58,71 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(String(bonjour[3] || '') === String(bonjourWord[3] || ''),
     'French main gloss and spelling-index homophone must remain aligned offline');
 
+  // Build one offline sandbox from the actual dictionary files and local engines.
+  // This exercises real Swahili and French pronunciation searches, not mocked entries.
+  const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
+  assert(dictionarySource.length > 100000, 'offline Swahili dictionary asset is incomplete');
+  const pronunciationSource = readText('pronunciation-search.js');
+  const hanziPinyinSource = readText('hanzi-pinyin.js');
   const frenchExtension = readText('french-extension.js');
-  const frenchSandbox = { window: {}, document: null };
-  vm.runInNewContext(frenchExtension, frenchSandbox, { filename: 'french-extension.js' });
-  const frenchTools = frenchSandbox.window.DWSSFrenchTools;
+  const offlineSandbox = { window: {}, document: null };
+  vm.runInNewContext(hanziPinyinSource, offlineSandbox, { filename: 'hanzi-pinyin.js' });
+  vm.runInNewContext(pronunciationSource, offlineSandbox, { filename: 'pronunciation-search.js' });
+  vm.runInNewContext(dictionarySource, offlineSandbox, { filename: 'dictionary.js.gz' });
+  vm.runInNewContext(frenchExtension, offlineSandbox, { filename: 'french-extension.js' });
+
+  const pinyinEngine = offlineSandbox.window.DWSSPronunciationSearch;
+  assert(pinyinEngine && typeof pinyinEngine.search === 'function' &&
+    typeof pinyinEngine.toSyllables === 'function',
+    'offline Chinese-homophone search engine is unavailable');
+
+  // Use a real Swahili source-dictionary record and its actual local Chinese reading.
+  const swRows = offlineSandbox.window.SW_DB;
+  assert(Array.isArray(swRows) && swRows.length > 1000, 'offline Swahili source dictionary is incomplete');
+  let swahiliSearchPassed = false;
+  let swahiliSearchTerm = '';
+  for (const item of swRows) {
+    for (const variant of item.variants || []) {
+      const reading = String(variant.reading || '').trim();
+      if (!reading || pinyinEngine.toSyllables(reading, true).length < 2) continue;
+      const matches = pinyinEngine.search(reading, [{
+        zh: item.zh, category: '斯语', variants: [{ reading, source: variant.source || '离线词库' }]
+      }], { limit: 5 });
+      if (matches.some(match => match.zh === item.zh && match.score === 1)) {
+        swahiliSearchPassed = true;
+        swahiliSearchTerm = reading;
+        break;
+      }
+    }
+    if (swahiliSearchPassed) break;
+  }
+  assert(swahiliSearchPassed, 'actual Swahili source dictionary entries cannot be found by offline Chinese-homophone search');
+
+  // Also run the main Swahili translator with navigator.onLine=false using its real
+  // local source dictionary. The tokenizer must return a locally matched segment.
+  const swDom = new JSDOM(html, { url: 'https://dwss.test/', runScripts: 'outside-only' });
+  Object.defineProperty(swDom.window.navigator, 'onLine', { value: false, configurable: true });
+  swDom.window.eval(dictionarySource);
+  swDom.window.eval(hanziPinyinSource);
+  swDom.window.eval(pronunciationSource);
+  swDom.window.eval(readText('app.js'));
+  const swApi = swDom.window.KolweziSwahili;
+  assert(swApi && typeof swApi.translate === 'function', 'offline Swahili translator API is unavailable');
+  const swHeadword = swDom.window.SW_DB.find(item =>
+    item && item.zh && Array.isArray(item.variants) && item.variants.some(v => String(v.reading || '').trim()));
+  assert(swHeadword, 'no usable offline Swahili dictionary record was found');
+  const swTranslation = swApi.translate(swHeadword.zh);
+  assert(swTranslation && swTranslation.localHits > 0 &&
+    swTranslation.segments.some(segment => segment.type === 'local' && segment.reading),
+    'Swahili main translation did not produce a local reading while offline');
+  swDom.window.close();
+
+  // Genuine local French glossary -> Chinese-to-French translation and homophone.
+  const frenchTools = offlineSandbox.window.DWSSFrenchTools;
   assert(frenchTools && typeof frenchTools.translateChinese === 'function' &&
     typeof frenchTools.buildFrenchWordReadingLookup === 'function' &&
-    typeof frenchTools.buildFrenchWordPairs === 'function', 'offline French translation helpers are unavailable');
+    typeof frenchTools.buildFrenchWordPairs === 'function',
+    'offline French translation helpers are unavailable');
   const meaningIndex = new Map();
   for (const row of glossRows) {
     const meanings = String(row[4] || '').split('¦').filter(Boolean);
@@ -82,15 +142,23 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(localPairs.length === 1 && localPairs[0].reading === bonjourWord[3],
     'offline French single-word gloss must expose the same word-level homophone');
 
-  // Verify local Swahili dictionary data and its pinyin search engine are shipped.
-  const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
-  assert(dictionarySource.length > 100000, 'offline Swahili dictionary asset is incomplete');
-  const pronunciationSource = readText('pronunciation-search.js');
-  const pinyinSandbox = { window: { DWSS_HANZI_PINYIN: { '邦':'bang','帮':'bang','旁':'pang','茹':'ru','如':'ru' } } };
-  vm.runInNewContext(pronunciationSource, pinyinSandbox, { filename: 'pronunciation-search.js' });
-  assert(pinyinSandbox.window.DWSSPronunciationSearch &&
-    typeof pinyinSandbox.window.DWSSPronunciationSearch.syllableDistance === 'function',
-    'offline Swahili/Chinese-homophone search engine is unavailable');
+  // French reverse pronunciation search uses the actual on-disk shard row and
+  // the same real Chinese-pinyin engine as the Swahili lookup.
+  const frenchQueryTools = offlineSandbox.window.DWSSFrenchQueryTools;
+  assert(frenchQueryTools && typeof frenchQueryTools.search === 'function',
+    'offline French pronunciation query tools are unavailable');
+  const frenchCandidate = {
+    zh: bonjourPron.split('\t')[0],
+    category: '法语',
+    variants: [{ reading: bonjourPron.split('\t')[2], latin: bonjourPron.split('\t')[1], source: '离线法语发音分片' }]
+  };
+  const frenchPronunciationHits = frenchQueryTools.search(
+    frenchCandidate.variants[0].reading, [frenchCandidate], pinyinEngine, 10
+  );
+  assert(frenchPronunciationHits.some(hit => hit.zh === 'bonjour' && hit.score === 1),
+    'actual French pronunciation shard cannot be searched offline by its Chinese homophone');
+
+mophone search engine is unavailable');
 
   for (const asset of ['app.js','boot.js','shared-lexicon.js','dictionary-overrides.js','hanzi-pinyin.js',
     'pronunciation-search.js','dwss-pronunciation-controls.js','french-extension.js',
@@ -172,6 +240,12 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   handlers.fetch({ request, respondWith(promise) { offlineResponsePromise = promise; } });
   const offlineResponse = await offlineResponsePromise;
   assert(offlineResponse && offlineResponse.ok, 'versioned shared-lexicon script failed while offline');
+  const frenchShardRequest = new Request(new URL('./french-pronunciation-shards/bang.tsv.gz?dwss-release=0.9.147', scope).href);
+  let frenchShardResponsePromise;
+  handlers.fetch({ request: frenchShardRequest, respondWith(promise) { frenchShardResponsePromise = promise; } });
+  const frenchShardResponse = await frenchShardResponsePromise;
+  assert(frenchShardResponse && frenchShardResponse.ok,
+    'first-use French pronunciation shard failed when requested offline');
   assert(networkRequests === frenchShards.length, 'offline cache lookup unexpectedly went to the network');
 
   console.log('PASS DWSS 0.9.147 offline parity: Swahili dictionary/search assets, French local translation/gloss, and all ' +
