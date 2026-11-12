@@ -299,7 +299,9 @@
       } else if (item) {
         const ipaReading = item.ipa && tools && typeof tools.ipaToChinese === "function"
           ? tools.ipaToChinese(item.ipa) : "";
-        const cue = String(item.reading || ipaReading || "").trim();
+        const storedReading = String(item.reading || "").trim();
+        const cue = storedReading && !/^(?:谐音待补|音标待补|读音待补)$/u.test(storedReading)
+          ? storedReading : ipaReading;
         if (cue) {
           reading += cue;
           if (item.ipa) ipa.push(token.word + " /" + item.ipa + "/ [" + (LABELS[item.confidence] || "来源未标注") + "]");
