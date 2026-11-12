@@ -146,7 +146,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
             for x in translations(entry):
                 if not chinese_target(x): continue
                 translations_seen+=1
-                for v in (x.get("translation"),x.get("word"),x.get("alt")):
+                for v in (x.get("word"),x.get("alt")):
                     z=clean_zh(v)
                     if z and z not in meanings: meanings.append(z)
             if not meanings: continue
