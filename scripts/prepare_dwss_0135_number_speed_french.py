@@ -236,10 +236,10 @@ base_gloss_keys = set()
 previous_cfdict_supplements = set()
 with gzip.open(gloss_path, "rt", encoding="utf-8", newline="") as source:
     for line in source:
-        line = line.rstrip("\\r\\n")
+        line = line.rstrip("\r\n")
         if not line:
             continue
-        fields = line.split("\\t")
+        fields = line.split("\t")
         if len(fields) >= 5 and fields[1] and fields[4].strip():
             existing_gloss_lines.append(line)
             word_key = normalize_french_word(fields[1])
