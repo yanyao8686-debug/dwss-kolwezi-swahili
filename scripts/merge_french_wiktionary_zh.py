@@ -264,7 +264,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 counts[a[3] or "I"]+=1; kinds[a[4] or "词形"]+=1
         meta["firstKeys"]=first_keys; meta["indexedRows"]=all_rows
         meta["uniqueForms"]=len(all_words); meta["confidenceCounts"]=dict(counts)
-        meta["kindCounts"]=dict(kinds); meta["formsWithIpa"]=sum(1 for shard in (root/"french-pronunciation-shards").glob("*.tsv.gz") for line in read_gz(shard) if len(line.split("\t"))>=5 and line.split("\\t")[1])
+        meta["kindCounts"]=dict(kinds); meta["formsWithIpa"]=sum(1 for shard in (root/"french-pronunciation-shards").glob("*.tsv.gz") for line in read_gz(shard) if len(line.split("\t"))>=5 and line.split("\t")[1])
         meta["formsWithoutIpa"]=all_rows-meta["formsWithIpa"]; meta["wiktionaryFrenchZhDumpDate"]=dump_date
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
 
