@@ -231,8 +231,6 @@ jobs:
           gzip -t "$LIVE/french-gloss-index.tsv.gz"
           gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="bonjour" && $5!="" {found=1} END {exit !found}'
           gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="merci" && $5!="" {found=1} END {exit !found}'
-          gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="bonjour" && $5!="" {found=1} END {exit !found}'
-          gzip -dc "$LIVE/french-gloss-index.tsv.gz" | awk -F '\\t' 'tolower($2)=="merci" && $5!="" {found=1} END {exit !found}'
           ! grep -Fq 'combinedOutput.addEventListener("blur"' "$LIVE/french-translation-runtime.js"
           ! grep -Fq '法语整句来源：' "$LIVE/french-translation-runtime.js"
           ! grep -Fq '查看校对建议' "$LIVE/french-translation-runtime.js"
