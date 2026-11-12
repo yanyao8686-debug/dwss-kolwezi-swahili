@@ -84,7 +84,7 @@ jobs:
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
           LIVE="$RUNNER_TEMP/dwss-live-0140"
           mkdir -p "$LIVE"
-          for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk french-gloss-coverage.json french-CFDICT-ATTRIBUTION.txt pronunciation-query-editor.js french-wiktionary-coverage.json french-WIKTIONARY-ATTRIBUTION.txt; do
+          for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk french-gloss-coverage.json french-CFDICT-ATTRIBUTION.txt pronunciation-query-editor.js french-wiktionary-coverage.json french-WIKTIONARY-ATTRIBUTION.txt french-pronunciation-index.json french-word-index.json; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
           done
           # Pages/CDN may briefly return the previous index.html immediately after deployment.
