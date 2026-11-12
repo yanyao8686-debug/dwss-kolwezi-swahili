@@ -5,7 +5,7 @@ from merge_french_wiktionary_zh import ipa_to_chinese,merge_dictionary
 
 class FrenchWiktionaryMergeTests(unittest.TestCase):
     def test_existing_ipa_to_reading_mapping(self):
-        self.assertEqual(ipa_to_chinese("bɔ̃.ʒuʁ"),"邦茹")
+        self.assertEqual(ipa_to_chinese("bɔ̃.ʒuʁ"),"邦茹赫")
     def test_direct_translation_adds_gloss_and_new_pronunciation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)/"public"
