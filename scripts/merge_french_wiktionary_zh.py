@@ -252,9 +252,10 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 old.append(line); existing.add(key); added_pron+=1
         if old: write_gz(path,old)
 
+    all_words=set()
     if new_pron:
         path=root/"french-pronunciation-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
-        all_rows=0; all_words=set(); counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
+        all_rows=0; counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
         for shard in sorted((root/"french-pronunciation-shards").glob("*.tsv.gz")):
             first_keys.append(shard.name[:-7])
             for line in read_gz(shard):
@@ -270,6 +271,27 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
 
     write_gz(gloss_path,["\t".join(x) for x in gloss_rows])
+
+    # Refresh the global coverage report after both CFDICT and Wiktionary data have
+    # been merged. The earlier build stage creates the baseline report before this
+    # importer runs; publishing it unchanged would under-report the final gloss index.
+    coverage_path=root/"french-gloss-coverage.json"
+    if coverage_path.is_file():
+        coverage=json.loads(coverage_path.read_text(encoding="utf-8"))
+        glossed_keys={norm(row[1]) for row in gloss_rows if len(row)>=5 and str(row[4]).strip()}
+        covered_keys=all_words & glossed_keys
+        total_forms=len(all_words)
+        covered_forms=len(covered_keys)
+        coverage["uniqueNormalizedPronunciationForms"]=total_forms
+        coverage["formsWithChineseGlossAfterSupplement"]=covered_forms
+        coverage["formsStillWithoutChineseGloss"]=total_forms-covered_forms
+        coverage["glossCoveragePercentAfterSupplement"]=round(100*covered_forms/max(1,total_forms),3)
+        coverage["newWiktionaryGlossWordEntriesAdded"]=new_gloss
+        coverage["wiktionaryMeaningsMergedIntoExistingGlossEntries"]=merged_meanings
+        coverage["finalGlossRows"]=len(gloss_rows)
+        coverage["combinedSources"]="Retained original CFDICT exact whole-word matches plus direct Chinese translations from French Wiktionary."
+        coverage["limitations"]="Wiktionary/CFDICT coverage is not equivalent to the commercial 新世纪法汉大词典; remaining forms stay unglossed unless a reliable Chinese source or user correction is available."
+        coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     src=root/"french-lexicon-sources.txt"; source_text=src.read_text(encoding="utf-8")
     if SOURCE_LABEL not in source_text:
         src.write_text(source_text.rstrip()+"\n\nDWSS French Wiktionary Chinese translations\nSource: https://kaikki.org/frwiktionary/rawdata.html\nDump: 2026-10-01; extracted 2026-11-02 with Wiktextract.\nFields: all single-word lang_code=fr headwords with a usable IPA or existing DWSS reading; direct lang_code=zh translations are attached when available; phrases are excluded.\nLicense: CC BY-SA 4.0 and GFDL. See french-WIKTIONARY-ATTRIBUTION.txt.\nNew Chinese approximations are generated from source IPA and marked W for human review.\n",encoding="utf-8")
