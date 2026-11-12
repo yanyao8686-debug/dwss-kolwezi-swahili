@@ -99,7 +99,7 @@ jobs:
             sleep 3
           done
           grep -Fxq 'Version: 0.9.147' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_146' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_147' "$LIVE/index.html"
           grep -Fq "version:'0.9.147'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.147';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
