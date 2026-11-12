@@ -361,7 +361,7 @@ print("French gloss supplementation: added " + str(len(supplemented_keys)) + " e
 # helper and is never shipped as part of the website.
 wiktionary_html = fetch_bytes("https://kaikki.org/frwiktionary/rawdata.html", limit=500_000).decode("utf-8", errors="replace")
 wiktionary_metadata = unescape(re.sub(r"<[^>]+>", " ", wiktionary_html))
-wiktionary_date_match = re.search(r"frwiktionary\\s+dump\\s+dated\\s+(\\d{4}-\\d{2}-\\d{2})", wiktionary_metadata)
+wiktionary_date_match = re.search(r"frwiktionary\s+dump\s+dated\s+(\d{4}-\d{2}-\d{2})", wiktionary_metadata)
 if not wiktionary_date_match:
     fail("Cannot verify the French Wiktionary source dump date.")
 wiktionary_dump_date = wiktionary_date_match.group(1)
@@ -719,7 +719,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-12", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Audits French gloss gaps and supplements only exact one-word matches from retained original CFDICT records.\n"
+        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Adds direct French-to-Chinese translations from French Wiktionary, new IPA-based Chinese homophones marked for review, and retains the audited CFDICT exact-word supplements.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
