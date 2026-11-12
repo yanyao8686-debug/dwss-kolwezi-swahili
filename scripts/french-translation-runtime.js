@@ -234,7 +234,7 @@
     for (const line of source.split(/\r?\n/)) {
       if (!line) continue;
       const f = line.split("\t");
-      if (f.length < 6 || !f[0] || !f[2]) continue;
+      if (f.length < 6 || !f[0] || !f[3]) continue;
       map.set(f[0], { word: f[1], ipa: f[2], reading: f[3], confidence: f[4], kind: f[5] });
     }
     wordShardCache.set(prefix, map);
