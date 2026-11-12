@@ -15,8 +15,9 @@ const version = read('VERSION.txt');
 const runtime = read('french-translation-runtime.js');
 const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
+const queryEditor = read('pronunciation-query-editor.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.143 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.144 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -104,12 +105,41 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.143'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.143'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.143';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_143'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.143'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.144'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.144'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.144';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_144'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.144'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.144'),
+  'inline pronunciation query editor is not loaded');
+assert(queryEditor.includes('DWSSDictionaryOverrides') &&
+       queryEditor.includes('submitFrenchPronunciationCorrection') &&
+       queryEditor.includes('保存并同步给所有用户'),
+  'shared inline correction actions are missing');
+assert(queryEditor.includes('#pronunciationResults .pronunciation-hit-actions') &&
+       queryEditor.includes('#pronunciationFrenchResults .pronunciation-hit-actions'),
+  'legacy copy buttons are not hidden in both query modes');
+assert(!extension.includes('data-copy-french') &&
+       !extension.includes('data-copy-french-reading') &&
+       !extension.includes('复制法语') && !extension.includes('复制谐音'),
+  'French query copy controls remain in the renderer');
+assert(fs.existsSync(path.join(root, 'french-gloss-coverage.json')),
+  'French glossary audit report is missing');
+assert(fs.existsSync(path.join(root, 'french-CFDICT-ATTRIBUTION.txt')),
+  'French glossary source attribution is missing');
+const glossCoverage = JSON.parse(read('french-gloss-coverage.json'));
+for (const key of [
+  'uniqueNormalizedPronunciationForms',
+  'formsWithChineseGlossBeforeSupplement',
+  'exactSingleWordSupplementsAdded',
+  'formsWithChineseGlossAfterSupplement',
+  'formsStillWithoutChineseGloss'
+]) assert(Number.isInteger(glossCoverage[key]) && glossCoverage[key] >= 0,
+  'French gloss coverage counter is invalid: ' + key);
+assert(glossCoverage.pinnedCFDICTCommit === 'ebf1d269182d84e4068d1ce383eaf272c7adff66',
+  'French glossary supplement source is not pinned to the audited CFDICT commit');
+
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
@@ -452,4 +482,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.143: editable French spelling-only rows, main-result homophone save and punctuation-safe phrase reconstruction, offline French sync and base dictionary checks passed.');
+console.log('PASS DWSS 0.9.144: French translation, language isolation, French correction queue and pronunciation query editor assets validated.');
