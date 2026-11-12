@@ -56,7 +56,9 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(bonjourWord && bonjourWord[3] && bonjourWord[3] !== '谐音待补',
     'offline French sentence pronunciation index must contain a real bonjour reading');
   assert(String(bonjour[3] || '') === String(bonjourWord[3] || ''),
-    'French main gloss and spelling-index h  // Build one offline sandbox from the actual dictionary files and local engines.
+    'French main gloss and spelling-index homophone must remain aligned offline');
+
+  // Build one offline sandbox from the actual dictionary files and local engines.
   // This exercises real Swahili and French pronunciation searches, not mocked entries.
   const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
   assert(dictionarySource.length > 100000, 'offline Swahili dictionary asset is incomplete');
