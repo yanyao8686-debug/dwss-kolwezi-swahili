@@ -141,7 +141,7 @@ jobs:
           PY
           grep -Fq 'lang_code=zh' "$LIVE/french-WIKTIONARY-ATTRIBUTION.txt"
           grep -Fq 'async function precacheFrenchShardFamilies(cache)' "$LIVE/sw.js"
-          grep -Fq 'cache.match(request, { ignoreSearch: true })' "$LIVE/sw.js"
+          grep -Fq 'activeCache.match(request, { ignoreSearch: true })' "$LIVE/sw.js"
           python3 - "$LIVE/french-pronunciation-index.json" "$LIVE/french-word-index.json" <<'PY'
           import json,sys
           pron=json.load(open(sys.argv[1],encoding='utf-8'))
