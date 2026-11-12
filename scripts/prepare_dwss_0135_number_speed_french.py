@@ -568,7 +568,7 @@ if "const canonicalUrl = new URL(request.url);" not in sw:
         fail("Cannot locate Service Worker cache write for canonical asset keys.")
     sw = sw.replace(old_cache_write,
         "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
-if "async function precacheFrenchShardFamilies(cache)" not in sw or "cache.match(request, { ignoreSearch: true })" not in sw:
+if "async function precacheFrenchShardFamilies(cache)" not in sw or "activeCache.match(request, { ignoreSearch: true })" not in sw:
     fail("Full French offline shard caching or versioned asset cache lookup was not installed.")
 
 
