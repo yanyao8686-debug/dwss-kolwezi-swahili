@@ -160,7 +160,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
     if not candidates: raise ValueError("No French headwords with explicit Chinese translation records were found.")
     keys=set(candidates)
     known_words=load_known(root,keys,"french-word-shards","word")
-    known_prons=load_known(root,keys-known_words.keys(),"french-pronunciation-shards","pron")
+    known_prons=load_known(root,keys,"french-pronunciation-shards","pron")
     known={**known_prons,**known_words}
     gloss_path=root/"french-gloss-index.tsv.gz"
     gloss_rows=[x.split("\t") for x in read_gz(gloss_path)]
@@ -195,32 +195,72 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                     if len(gloss_rows[idx])>6: gloss_rows[idx][6]=source
                     else: gloss_rows[idx].append(source)
                 gloss_meanings[key].update(additions); merged_meanings+=len(additions)
-    # Add only unique entries to each shard and keep metadata synchronized.
+    # Upsert word rows; preserve every existing verified LeXiK reading.
+    added_word=0
     for prefix,rows in new_word.items():
-        path=root/"french-word-shards"/(prefix+".tsv.gz"); old=read_gz(path)
-        existing={x.split("\t",1)[0] for x in old}
-        write_gz(path,old+[x for x in rows if x.split("\t",1)[0] not in existing])
+        path=root/"french-word-shards"/(prefix+".tsv.gz")
+        old=read_gz(path); positions={}
+        for i,line in enumerate(old):
+            a=line.split("\t")
+            if len(a)>=6: positions[norm(a[0])]=i
+        changed=False
+        for line in rows:
+            a=line.split("\t"); key=norm(a[0])
+            if key in positions:
+                idx=positions[key]; previous=old[idx].split("\t")
+                if len(previous)>=6 and (not previous[3] or previous[3]=="谐音待补"):
+                    old[idx]="\t".join((previous[0],previous[1] or a[1],previous[2] or a[2],a[3],"W",previous[5] or a[5]))
+                    changed=True
+            else:
+                positions[key]=len(old); old.append(line); added_word+=1; changed=True
+        if changed: write_gz(path,old)
     if new_word:
         path=root/"french-word-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
-        meta["prefixes"]=sorted(set(meta.get("prefixes",[]))|set(new_word))
-        meta["wordFormsWithIpa"]=int(meta.get("wordFormsWithIpa") or 0)+sum(len(v) for v in new_word.values())
+        meta["prefixes"]=sorted({p.stem for p in (root/"french-word-shards").glob("*.tsv.gz")})
+        meta["prefixCount"]=len(meta["prefixes"])
+        meta["wordFormsWithIpa"]=int(meta.get("wordFormsWithIpa") or 0)+added_word
         meta["wiktionaryFrenchZhDumpDate"]=dump_date
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+
+    # Delete stale placeholder rows for entries being completed, even if their old
+    # pinyin prefix differs from the generated pronunciation new prefix.
+    missing_pron_keys={norm(line.split("\t",1)[0]) for rows in new_pron.values() for line in rows}
+    if missing_pron_keys:
+        for path in (root/"french-pronunciation-shards").glob("*.tsv.gz"):
+            old=read_gz(path); filtered=[]
+            for line in old:
+                a=line.split("\t"); key=norm(a[0]) if a else ""
+                if key in missing_pron_keys and (len(a)<5 or not a[2] or a[2]=="谐音待补"):
+                    continue
+                filtered.append(line)
+            if len(filtered)!=len(old): write_gz(path,filtered)
+
     added_pron=0
     for first,rows in new_pron.items():
-        path=root/"french-pronunciation-shards"/(first+".tsv.gz"); old=read_gz(path)
-        existing={norm(x.split("\t",1)[0]) for x in old}
-        filtered=[x for x in rows if norm(x.split("\t",1)[0]) not in existing]
-        if filtered: write_gz(path,old+filtered); added_pron+=len(filtered)
+        path=root/"french-pronunciation-shards"/(first+".tsv.gz")
+        old=read_gz(path); existing={norm(x.split("\t",1)[0]) for x in old}
+        for line in rows:
+            key=norm(line.split("\t",1)[0])
+            if key not in existing:
+                old.append(line); existing.add(key); added_pron+=1
+        if old: write_gz(path,old)
+
     if new_pron:
         path=root/"french-pronunciation-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
-        meta["firstKeys"]=sorted(set(meta.get("firstKeys",[]))|set(new_pron))
-        meta["indexedRows"]=int(meta.get("indexedRows") or 0)+added_pron
-        meta["uniqueForms"]=int(meta.get("uniqueForms") or 0)+added_pron
-        counts=dict(meta.get("confidenceCounts") or {}); counts[CONFIDENCE]=int(counts.get(CONFIDENCE) or 0)+added_pron
-        kinds=dict(meta.get("kindCounts") or {}); kinds["词形"]=int(kinds.get("词形") or 0)+added_pron
-        meta["confidenceCounts"]=counts; meta["kindCounts"]=kinds; meta["wiktionaryFrenchZhDumpDate"]=dump_date
+        all_rows=0; all_words=set(); counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
+        for shard in sorted((root/"french-pronunciation-shards").glob("*.tsv.gz")):
+            first_keys.append(shard.stem)
+            for line in read_gz(shard):
+                a=line.split("\t")
+                if len(a)<5: continue
+                all_rows+=1; key=norm(a[0])
+                if key: all_words.add(key)
+                counts[a[3] or "I"]+=1; kinds[a[4] or "词形"]+=1
+        meta["firstKeys"]=first_keys; meta["indexedRows"]=all_rows
+        meta["uniqueForms"]=len(all_words); meta["confidenceCounts"]=dict(counts)
+        meta["kindCounts"]=dict(kinds); meta["wiktionaryFrenchZhDumpDate"]=dump_date
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+
     write_gz(gloss_path,["\t".join(x) for x in gloss_rows])
     src=root/"french-lexicon-sources.txt"; source_text=src.read_text(encoding="utf-8")
     if SOURCE_LABEL not in source_text:
