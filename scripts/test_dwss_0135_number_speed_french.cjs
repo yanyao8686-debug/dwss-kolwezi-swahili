@@ -143,8 +143,9 @@ assert(glossCoverage.pinnedCFDICTCommit === 'ebf1d269182d84e4068d1ce383eaf272c7a
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
-assert(runtime.includes('const cue = String(item.reading || ipaReading || "").trim();'),
-  'French translation must use the stored source homophone before recalculating it from IPA');
+assert(runtime.includes('const storedReading = String(item.reading || "").trim();') &&
+       runtime.includes('const cue = storedReading && !/^(?:谐音待补|音标待补|读音待补)$/u.test(storedReading)'),
+  'French runtime must not treat a pronunciation placeholder as a real homophone');
 assert(runtime.includes('W: "Wiktionary IPA 来源，中文近似音自动生成，待核对"'),
   'Wiktionary-generated pronunciations must be marked for human review');
 
@@ -383,6 +384,12 @@ assert(ipaFallback === frenchTools.ipaToChinese('bɔ̃.ʒuʁ') && ipaFallback.le
   'a French word without a stored reading must derive its own Chinese approximation from its IPA');
 assert(frenchTools.getWordChineseReading({word:'Unknown',reading:'',ipa:''}) === '',
   'an unpronounced word must not borrow another word pronunciation');
+const placeholderFallback = frenchTools.getWordChineseReading({word:'bonjour',reading:'谐音待补',ipa:'bɔ̃.ʒuʁ'});
+assert(placeholderFallback === frenchTools.ipaToChinese('bɔ̃.ʒuʁ') && placeholderFallback !== '谐音待补',
+  'a placeholder must not suppress an IPA-derived Chinese homophone');
+const placeholderTranslation = frenchTools.translateChinese('你好',new Map([['你好',[{word:'bonjour',reading:'谐音待补',ipa:'bɔ̃.ʒuʁ'}]]]));
+assert(placeholderTranslation.reading === placeholderFallback,
+  'the main translation result must use the same IPA fallback as the word-level dictionary');
 assert(typeof frenchTools.tokenizeFrenchPhrase === 'function' &&
        typeof frenchTools.replaceFrenchPhraseWords === 'function' &&
        typeof frenchTools.buildFrenchWordReadingLookup === 'function' &&
