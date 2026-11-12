@@ -390,6 +390,10 @@ assert(placeholderFallback === frenchTools.ipaToChinese('bɔ̃.ʒuʁ') && placeh
 const placeholderTranslation = frenchTools.translateChinese('你好',new Map([['你好',[{word:'bonjour',reading:'谐音待补',ipa:'bɔ̃.ʒuʁ'}]]]));
 assert(placeholderTranslation.reading === placeholderFallback,
   'the main translation result must use the same IPA fallback as the word-level dictionary');
+const placeholderPairs = frenchTools.buildFrenchWordPairs('bonjour',
+  frenchTools.buildFrenchWordReadingLookup([{word:'bonjour',reading:'谐音待补',ipa:'bɔ̃.ʒuʁ'}]),[]);
+assert(placeholderPairs.length===1&&placeholderPairs[0].reading===placeholderFallback,
+  'the single-word gloss must display exactly the same IPA fallback as the main translation result');
 assert(typeof frenchTools.tokenizeFrenchPhrase === 'function' &&
        typeof frenchTools.replaceFrenchPhraseWords === 'function' &&
        typeof frenchTools.buildFrenchWordReadingLookup === 'function' &&
