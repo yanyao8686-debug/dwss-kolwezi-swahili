@@ -113,7 +113,7 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   const css = document.getElementById('dwss-pronunciation-query-editor-0144').textContent;
   assert(css.includes('#pronunciationResults .pronunciation-hit-actions'));
   assert(css.includes('#pronunciationFrenchResults .pronunciation-hit-actions'));
-  console.log('PASS DWSS 0.9.146: both pronunciation query modes hide copy clutter, allow direct edits, and save to isolated shared-language fields.');
+  console.log('PASS DWSS 0.9.147: both pronunciation query modes hide copy clutter, allow direct edits, and save to isolated shared-language fields.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

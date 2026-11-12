@@ -252,23 +252,33 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 old.append(line); existing.add(key); added_pron+=1
         if old: write_gz(path,old)
 
+    # Recompute the complete pronunciation index on every run. The previous
+    # implementation only populated all_words when new_pron was non-empty;
+    # a no-op second run consequently overwrote the global coverage with zeros.
     all_words=set()
-    if new_pron:
-        path=root/"french-pronunciation-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
-        all_rows=0; counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
-        for shard in sorted((root/"french-pronunciation-shards").glob("*.tsv.gz")):
-            first_keys.append(shard.name[:-7])
-            for line in read_gz(shard):
-                a=line.split("\t")
-                if len(a)<5: continue
-                all_rows+=1; key=norm(a[0])
-                if key: all_words.add(key)
-                counts[a[3] or "I"]+=1; kinds[a[4] or "词形"]+=1
-        meta["firstKeys"]=first_keys; meta["indexedRows"]=all_rows
-        meta["uniqueForms"]=len(all_words); meta["confidenceCounts"]=dict(counts)
-        meta["kindCounts"]=dict(kinds); meta["formsWithIpa"]=sum(1 for shard in (root/"french-pronunciation-shards").glob("*.tsv.gz") for line in read_gz(shard) if len(line.split("\t"))>=5 and line.split("\t")[1])
-        meta["formsWithoutIpa"]=all_rows-meta["formsWithIpa"]; meta["wiktionaryFrenchZhDumpDate"]=dump_date
-        path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+    path=root/"french-pronunciation-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
+    all_rows=0; counts=defaultdict(int); kinds=defaultdict(int); first_keys=[]
+    forms_with_ipa=0
+    for shard in sorted((root/"french-pronunciation-shards").glob("*.tsv.gz")):
+        first_keys.append(shard.name[:-7])
+        for line in read_gz(shard):
+            a=line.split("\t")
+            if len(a)<5: continue
+            all_rows+=1
+            key=norm(a[0])
+            if key: all_words.add(key)
+            counts[a[3] or "I"]+=1
+            kinds[a[4] or "词形"]+=1
+            if a[1]: forms_with_ipa+=1
+    meta["firstKeys"]=first_keys
+    meta["indexedRows"]=all_rows
+    meta["uniqueForms"]=len(all_words)
+    meta["confidenceCounts"]=dict(counts)
+    meta["kindCounts"]=dict(kinds)
+    meta["formsWithIpa"]=forms_with_ipa
+    meta["formsWithoutIpa"]=all_rows-forms_with_ipa
+    meta["wiktionaryFrenchZhDumpDate"]=dump_date
+    path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
 
     write_gz(gloss_path,["\t".join(x) for x in gloss_rows])
 

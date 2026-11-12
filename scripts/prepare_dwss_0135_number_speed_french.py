@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.146: editable French word-by-word gloss with isolated language data."""
+"""DWSS 0.9.147: editable French word-by-word gloss with isolated language data."""
 from __future__ import annotations
 
 import gzip
@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.145"
-NEW_VERSION = "0.9.146"
+OLD_VERSION = "0.9.146"
+NEW_VERSION = "0.9.147"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -50,7 +50,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.146"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.147"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -310,7 +310,7 @@ glossed_before = pronunciation_word_keys & base_gloss_keys
 glossed_after = pronunciation_word_keys & glossed_keys_after
 missing_after = pronunciation_word_keys - glossed_keys_after
 coverage = {
-    "sourceVersion": "DWSS 0.9.146",
+    "sourceVersion": "DWSS 0.9.147",
     "pronunciationShardRows": pronunciation_form_rows,
     "uniqueNormalizedPronunciationForms": len(pronunciation_word_keys),
     "formsWithChineseGlossBeforeSupplement": len(glossed_before),
@@ -376,7 +376,7 @@ if not wiktionary_archive.is_file() or not (500_000_000 <= wiktionary_archive.st
         try:
             request = Request(
                 "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
-                headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.146"}
+                headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.147"}
             )
             with urlopen(request, timeout=240) as response, wiktionary_tmp.open("wb") as output:
                 total = 0
@@ -437,6 +437,97 @@ def ensure_precache_asset(source: str, asset_name: str) -> str:
 
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     sw = ensure_precache_asset(sw, offline_asset)
+
+# Cache every on-demand French spelling/pronunciation shard before the new worker
+# installs. This makes first-time offline searches work, not only previously visited shards.
+offline_shard_helper = r"""async function precacheFrenchShardFamilies(cache) {
+  const scope = self.registration.scope;
+  const readIndex = async relative => {
+    const url = new URL(relative, scope).href;
+    const response = await cache.match(url);
+    if (!response) throw new Error('DWSS offline French index missing from base precache: ' + relative);
+    return response.json();
+  };
+  const [pronunciationMeta, wordMeta] = await Promise.all([
+    readIndex('./french-pronunciation-index.json'),
+    readIndex('./french-word-index.json')
+  ]);
+  const families = [
+    { folder: 'french-pronunciation-shards/', keys: pronunciationMeta.firstKeys },
+    { folder: 'french-word-shards/', keys: wordMeta.prefixes }
+  ];
+  const assets = [];
+  for (const family of families) {
+    if (!Array.isArray(family.keys) || family.keys.length < 100 || family.keys.length > 1200) {
+      throw new Error('DWSS offline French shard index has an unexpected size: ' + family.folder);
+    }
+    const unique = [...new Set(family.keys)];
+    if (unique.length !== family.keys.length || unique.some(key =>
+      typeof key !== 'string' || !/^[a-z0-9_]{1,24}$/.test(key))) {
+      throw new Error('DWSS offline French shard index contains invalid keys: ' + family.folder);
+    }
+    for (const key of unique) {
+      assets.push(new URL(family.folder + encodeURIComponent(key) + '.tsv.gz', scope).href);
+    }
+  }
+  if (assets.length < 500 || assets.length > 2000) {
+    throw new Error('DWSS offline French shard set is incomplete or unexpectedly large: ' + assets.length);
+  }
+  const batchSize = 12;
+  for (let offset = 0; offset < assets.length; offset += batchSize) {
+    const batch = assets.slice(offset, offset + batchSize);
+    await Promise.all(batch.map(async url => {
+      if (await cache.match(url)) return;
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const response = await fetch(url, { cache: 'no-store' });
+          if (!response || !response.ok) {
+            throw new Error('HTTP ' + (response && response.status || 'network error'));
+          }
+          await cache.put(url, response.clone());
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
+      throw new Error('DWSS could not cache an offline French shard: ' + url + ' · ' + String(lastError));
+    }));
+  }
+  for (const url of assets) {
+    if (!(await cache.match(url))) throw new Error('DWSS offline French shard verification failed: ' + url);
+  }
+  return assets.length;
+}
+
+"""
+if "async function precacheFrenchShardFamilies(cache)" not in sw:
+    install_anchor = "self.addEventListener('install', (event) => {"
+    if sw.count(install_anchor) != 1:
+        fail("Cannot locate Service Worker install handler for full French offline caching.")
+    sw = sw.replace(install_anchor, offline_shard_helper + "\n" + install_anchor, 1)
+if sw.count("await cache.addAll(PRECACHE_URLS);") != 1:
+    fail("Cannot locate the Service Worker base precache call.")
+sw = sw.replace(
+    "await cache.addAll(PRECACHE_URLS);",
+    "await cache.addAll(PRECACHE_URLS);\n    const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);\n    if (frenchOfflineShardCount < 700) throw new Error('French offline shard cache is incomplete: ' + frenchOfflineShardCount);",
+    1
+)
+if "cache.match(request, { ignoreSearch: true })" not in sw:
+    old_cache_lookup = "const cached = await caches.match(request);"
+    if sw.count(old_cache_lookup) != 1:
+        fail("Cannot locate Service Worker cache lookup for versioned static assets.")
+    sw = sw.replace(old_cache_lookup,
+        "const activeCache = await caches.open(CACHE_NAME);\n    const cached = await activeCache.match(request, { ignoreSearch: true });", 1)
+if "const canonicalUrl = new URL(request.url);" not in sw:
+    old_cache_write = "cache.put(request, fresh.clone()).catch(() => {});"
+    if sw.count(old_cache_write) != 1:
+        fail("Cannot locate Service Worker cache write for canonical asset keys.")
+    sw = sw.replace(old_cache_write,
+        "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
+if "async function precacheFrenchShardFamilies(cache)" not in sw or "cache.match(request, { ignoreSearch: true })" not in sw:
+    fail("Full French offline shard caching or versioned asset cache lookup was not installed.")
 
 
 # In French mode, stop the Swahili renderer from overwriting the French result
@@ -556,8 +647,8 @@ if removed_sw_save_hint not in (0, 1):
 # moves this label into .dwss-secondary-details, so JS can switch it by language.
 old_gloss_title = '<div class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
 new_gloss_title = '<div id="singleReadingGlossLabel" class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
-query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.146"></script>'
-if "pronunciation-query-editor.js?dwss-release=0.9.146" not in html:
+query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.147"></script>'
+if "pronunciation-query-editor.js?dwss-release=0.9.147" not in html:
     if "</body>" not in html:
         fail("Cannot locate </body> to load the pronunciation query editor.")
     html = html.replace("</body>", query_editor_script + "\n</body>", 1)
@@ -568,11 +659,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.145/0.9.146 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.146/0.9.147 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.145 or 0.9.146.")
+    fail("Live app.js version is not 0.9.146 or 0.9.147.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.145 or 0.9.146.")
+    fail("Live Service Worker version is not 0.9.146 or 0.9.147.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -720,7 +811,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-13", version, count=1, flags=re.M)
     version = version.rstrip() + (
         "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
-        "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n"
+        "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n0.9.147: Caches all French spelling and pronunciation shards for complete offline dictionary lookup, resolves versioned assets against the canonical offline cache, and fixes repeated-build gloss coverage statistics. Previously unseen machine-translated expressions still require an online connection.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -730,11 +821,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_145"
-new_marker = "DWSS_AUTO_UPDATE_0_9_146"
+old_marker = "DWSS_AUTO_UPDATE_0_9_146"
+new_marker = "DWSS_AUTO_UPDATE_0_9_147"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.145 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.146 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1038,8 +1129,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_146" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.146.")
+if "DWSS_AUTO_UPDATE_0_9_147" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.147.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -1075,12 +1166,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.146" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.146.")
-if "Version: 0.9.146" not in version or "version:'0.9.146'" not in app:
-    fail("Website and app version markers do not agree at 0.9.146.")
-if "const APP_VERSION = '0.9.146';" not in sw:
-    fail("Service Worker cache version is not 0.9.146.")
+if "dwss-release=0.9.147" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.147.")
+if "Version: 0.9.147" not in version or "version:'0.9.147'" not in app:
+    fail("Website and app version markers do not agree at 0.9.147.")
+if "const APP_VERSION = '0.9.147';" not in sw:
+    fail("Service Worker cache version is not 0.9.147.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -1093,7 +1184,7 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
-if 'pronunciation-query-editor.js?dwss-release=0.9.146' not in html:
+if 'pronunciation-query-editor.js?dwss-release=0.9.147' not in html:
     fail("Inline pronunciation query editor is not loaded by the live HTML.")
 if not (ROOT / "french-gloss-coverage.json").is_file():
     fail("French glossary coverage audit report is missing.")
@@ -1115,5 +1206,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.146 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
+print("PASS: DWSS 0.9.147 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
