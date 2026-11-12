@@ -61,7 +61,8 @@ jobs:
           npm install --no-save --no-package-lock jsdom@26.1.0
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
-          python3 scripts/test_french_wiktionary_merge.py
+          test -x "$RUNNER_TEMP/dwss-build-venv/bin/python"
+          "$RUNNER_TEMP/dwss-build-venv/bin/python" scripts/test_french_wiktionary_merge.py
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
 
       - name: Upload DWSS Pages artifact
