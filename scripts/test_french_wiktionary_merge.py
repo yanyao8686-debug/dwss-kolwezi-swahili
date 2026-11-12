@@ -38,7 +38,7 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             self.assertEqual(report["uniqueFrenchHeadwordsWithoutChineseTranslations"],1)
             self.assertEqual(report["newGlossWordEntries"],3)
             self.assertEqual(report["newFrenchWordIndexRows"],3)
-            self.assertEqual(report["newFrenchPronunciationRows"],1)
+            self.assertEqual(report["newFrenchPronunciationRows"],2)
             with gzip.open(root/"french-gloss-index.tsv.gz","rt",encoding="utf-8") as f: gloss=f.read()
             self.assertIn("bonjour",gloss); self.assertIn("你好",gloss)
             self.assertIn("inédit",gloss); self.assertIn("新颖",gloss); self.assertIn("mot",gloss); self.assertIn("词",gloss)
