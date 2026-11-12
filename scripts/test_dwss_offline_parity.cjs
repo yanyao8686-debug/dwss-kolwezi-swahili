@@ -18,7 +18,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(version.includes('Version: 0.9.147'), 'offline parity test must target DWSS 0.9.147');
   assert(sw.includes("const APP_VERSION = '0.9.147';"), 'offline cache version must match site version');
   assert(sw.includes('async function precacheFrenchShardFamilies(cache)'), 'Service Worker must precache both French shard families');
-  assert(sw.includes('cache.match(request, { ignoreSearch: true })'), 'cache-busted scripts must resolve to canonical offline cache entries');
+  assert(sw.includes('activeCache.match(request, { ignoreSearch: true })'), 'cache-busted scripts must resolve to canonical offline cache entries');
 
   const pronMeta = JSON.parse(readText('french-pronunciation-index.json'));
   const wordMeta = JSON.parse(readText('french-word-index.json'));
