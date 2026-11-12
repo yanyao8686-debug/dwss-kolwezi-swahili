@@ -232,15 +232,23 @@ if cfdict_retained_rows < 50_000:
 gloss_path = ROOT / "french-gloss-index.tsv.gz"
 existing_gloss_lines = []
 existing_gloss_keys = set()
+base_gloss_keys = set()
+previous_cfdict_supplements = set()
 with gzip.open(gloss_path, "rt", encoding="utf-8", newline="") as source:
     for line in source:
-        line = line.rstrip("\r\n")
+        line = line.rstrip("\\r\\n")
         if not line:
             continue
-        fields = line.split("\t")
+        fields = line.split("\\t")
         if len(fields) >= 5 and fields[1] and fields[4].strip():
             existing_gloss_lines.append(line)
-            existing_gloss_keys.add(normalize_french_word(fields[1]))
+            word_key = normalize_french_word(fields[1])
+            existing_gloss_keys.add(word_key)
+            is_cfdict_supplement = len(fields) >= 7 and "CFDICT 原始法中词条精确整词匹配" in fields[6]
+            if is_cfdict_supplement:
+                previous_cfdict_supplements.add(word_key)
+            else:
+                base_gloss_keys.add(word_key)
 
 # Stream every LeXiK pronunciation shard and retain only normalized headword keys.
 pronunciation_word_keys = set()
@@ -265,7 +273,8 @@ for first in pron_keys:
                 )
 
 supplement_lines = []
-supplemented_keys = set()
+supplemented_keys = set(previous_cfdict_supplements)
+newly_supplemented_keys = set()
 for word_key, meanings in cfdict_candidate_meanings.items():
     if word_key in existing_gloss_keys:
         continue
@@ -284,6 +293,7 @@ for word_key, meanings in cfdict_candidate_meanings.items():
         clean(meaning_text), clean(confidence or "C"), source_label
     )))
     supplemented_keys.add(word_key)
+    newly_supplemented_keys.add(word_key)
 
 if supplement_lines:
     combined_lines = existing_gloss_lines + supplement_lines
@@ -292,7 +302,7 @@ if supplement_lines:
             zipped.write(("\n".join(combined_lines) + "\n").encode("utf-8"))
 
 glossed_keys_after = existing_gloss_keys | supplemented_keys
-glossed_before = pronunciation_word_keys & existing_gloss_keys
+glossed_before = pronunciation_word_keys & base_gloss_keys
 glossed_after = pronunciation_word_keys & glossed_keys_after
 missing_after = pronunciation_word_keys - glossed_keys_after
 coverage = {
@@ -304,6 +314,7 @@ coverage = {
     "retainedCFDICTSourceRecordsExamined": cfdict_retained_rows,
     "wholeTranslationSingleWordCandidates": len(cfdict_candidate_meanings),
     "exactSingleWordSupplementsAdded": len(supplemented_keys),
+    "newExactSingleWordSupplementsAddedThisBuild": len(newly_supplemented_keys),
     "formsWithChineseGlossAfterSupplement": len(glossed_after),
     "formsStillWithoutChineseGloss": len(missing_after),
     "glossCoveragePercentAfterSupplement": round(100 * len(glossed_after) / max(1, len(pronunciation_word_keys)), 3),
@@ -319,7 +330,7 @@ coverage = {
     "不使用其中额外 AI 生成、未获人工验证的记录。\n"
     "固定仓库提交：" + CFDICT_COMMIT + "\n"
     "数据来源：https://github.com/MityaPolianskii/french-cedict\n"
-    "原 CFDICT 内容许可：CC BY-SA 3.0（按源记录保留）；"
+    "原 CFDICT 内容许可：CC BY-SA 3.0（按源记录保留，许可说明：https://creativecommons.org/licenses/by-sa/3.0/）；"
     "编译许可、归属和变更说明见上游 README 与 LICENSE。\n"
     "只使用整条法语译文精确等于一个 LeXiK 法语词形的记录；不拆分短语，不猜测词义。\n",
     encoding="utf-8"
@@ -333,7 +344,7 @@ if "DWSS French CEDICT exact single-word supplement" not in sources_text:
         "Pinned commit: " + CFDICT_COMMIT + "\n"
         "Only retained original CFDICT source records are eligible; AI-generated additions are excluded.\n"
         "Matching rule: the complete French translation must exactly match one LeXiK word form; no phrase splitting.\n"
-        "Original CFDICT licence: CC BY-SA 3.0. See french-CFDICT-ATTRIBUTION.txt.\n",
+        "Original CFDICT licence: CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/). See french-CFDICT-ATTRIBUTION.txt.\n",
         encoding="utf-8"
     )
 print("French gloss coverage audit: " + json.dumps(coverage, ensure_ascii=False))
