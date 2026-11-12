@@ -618,7 +618,7 @@
           reading: fields[3],
           meanings,
           confidence: fields[5] || "I",
-          source: "FreeDict 法中释义 + LeXiK/IPA 发音"
+          source: fields[6] || "FreeDict 法中释义 + LeXiK/IPA 发音"
         });
       }
       firstKeys = Array.isArray(meta.firstKeys) ? meta.firstKeys : [];
@@ -1121,12 +1121,13 @@
       const score = Math.round((result.score || 0) * 100);
       const label = score >= 99 ? "读音一致" : "近似读音 " + score + "%";
       const meanings = (() => {
-        const found = findFrenchGloss(result.zh);
-        if (found.length) return found.slice(0, 4).join("；");
+        // User corrections and shared additions take precedence over the base glossary.
         const custom = activeRows().find(x =>
           normalizeFrenchGlossKey(x.word) === normalizeFrenchGlossKey(result.zh)
         );
         if (custom && custom.meanings && custom.meanings.length) return custom.meanings.join("；");
+        const found = findFrenchGloss(result.zh);
+        if (found.length) return found.slice(0, 4).join("；");
         return "该法语词形暂未收录中文释义（法中词典没有对应词条）";
       })();
       const ipa = variant.latin ? "/" + variant.latin + "/" : "音标待补";
@@ -1137,14 +1138,11 @@
         '<div class="pronunciation-hit-meta">IPA 音标：' + esc(ipa) + '</div>' +
         '<div class="pronunciation-hit-meta pronunciation-hit-meaning"><strong>中文释义：</strong>' + esc(meanings) + '</div>' +
         '<div class="pronunciation-hit-meta">匹配读音：' + esc(result.matchedReading || reading) + '</div>' +
-        '</div><div class="pronunciation-hit-actions">' +
-        '<button class="soft mini" type="button" data-copy-french="' + esc(result.zh) + '">复制法语</button>' +
-        '<button class="soft mini" type="button" data-copy-french-reading="' + esc(reading) + '">复制谐音</button>' +
         '</div></article>';
     }).join("") || '<div class="nores">没有找到足够接近的法语读音。可换一个同音或近音的中文字符再试；自动拟音只作参考。</div>';
-    host.querySelectorAll("[data-copy-french]").forEach(button => button.addEventListener("click", () => copyText(button.dataset.copyFrench || "", button)));
-    host.querySelectorAll("[data-copy-french-reading]").forEach(button => button.addEventListener("click", () => copyText(button.dataset.copyFrenchReading || "", button)));
   }
+
+  window.DWSSRenderFrenchPronunciationQuery = renderFrenchQuery;
 
   function setQueryMode(mode) {
     activeQueryMode = mode === "fr" ? "fr" : "sw";
