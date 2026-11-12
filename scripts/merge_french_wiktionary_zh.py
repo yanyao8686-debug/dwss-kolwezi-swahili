@@ -142,6 +142,8 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
             if not single_word(word): continue
             key=norm(word)
             if not key: continue
+            ipa=choose_ipa(entry)
+            if not ipa: words_without_ipa+=1
             meanings=[]
             for x in translations(entry):
                 if not chinese_target(x): continue
@@ -149,15 +151,13 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 for v in (x.get("word"),x.get("alt")):
                     z=clean_zh(v)
                     if z and z not in meanings: meanings.append(z)
-            if not meanings: continue
-            entries_zh+=1
-            ipa=choose_ipa(entry)
+            if meanings: entries_zh+=1
             row=candidates.setdefault(key,{"word":word,"meanings":[],"ipa":""})
             if not row["ipa"] and ipa: row["ipa"]=ipa
             for z in meanings:
                 if z not in row["meanings"] and len(row["meanings"])<10: row["meanings"].append(z)
-            if not row["ipa"]: words_without_ipa+=1
-    if not candidates: raise ValueError("No French headwords with explicit Chinese translation records were found.")
+    if not candidates: raise ValueError("No single-word French headwords were found in the Wiktionary source.")
+    words_without_ipa=sum(1 for item in candidates.values() if not item["ipa"])
     keys=set(candidates)
     known_words=load_known(root,keys,"french-word-shards","word")
     known_prons=load_known(root,keys,"french-pronunciation-shards","pron")
@@ -177,7 +177,7 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
         stored_reading=(old or {}).get("reading") or ""
         auto_generated=not stored_reading or stored_reading=="谐音待补"
         reading=ipa_to_chinese(ipa) if auto_generated and ipa else stored_reading
-        if not ipa or not reading or reading=="谐音待补": skipped+=1; continue
+        if not reading or reading=="谐音待补": skipped+=1; continue
         confidence=CONFIDENCE if auto_generated else ((old or {}).get("confidence") or "I")
         source_note=SOURCE_NOTE if auto_generated else "Wiktionary 2026-10-01 中文直译；沿用 DWSS 已有中文近似音"
         word=(old or {}).get("word") or item["word"]; kind=(old or {}).get("kind") or "词形"
@@ -186,21 +186,22 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
         first=pkey.split()[0]; prefix=key[:2] if len(key)>1 else key+"_"
         if key not in known_words: new_word[prefix].append("\t".join((key,word,ipa,reading,confidence,kind)))
         if key not in known_prons: new_pron[first].append("\t".join((word,ipa,reading,confidence,kind)))
-        if key not in gloss_indices:
-            gloss_rows.append([pkey,word,ipa,reading,"¦".join(item["meanings"]),confidence,source_note])
-            gloss_indices[key].append(len(gloss_rows)-1); gloss_meanings[key].update(item["meanings"]); new_gloss+=1
-        else:
-            idx=gloss_indices[key][0]; additions=[m for m in item["meanings"] if m not in gloss_meanings[key]]
-            if additions:
-                gloss_rows[idx][4]="¦".join(list(dict.fromkeys(gloss_rows[idx][4].split("¦")+additions))[:12])
-                existing_source=gloss_rows[idx][6] if len(gloss_rows[idx])>6 else ""
-                if SOURCE_LABEL not in existing_source:
-                    source=(existing_source+"; " if existing_source else "")+SOURCE_LABEL+" / "+source_note
-                    if len(gloss_rows[idx])>6: gloss_rows[idx][6]=source
-                    else: gloss_rows[idx].append(source)
-                gloss_meanings[key].update(additions); merged_meanings+=len(additions)
+        if item["meanings"]:
+            if key not in gloss_indices:
+                gloss_rows.append([pkey,word,ipa,reading,"¦".join(item["meanings"]),confidence,source_note])
+                gloss_indices[key].append(len(gloss_rows)-1); gloss_meanings[key].update(item["meanings"]); new_gloss+=1
+            else:
+                idx=gloss_indices[key][0]; additions=[m for m in item["meanings"] if m not in gloss_meanings[key]]
+                if additions:
+                    gloss_rows[idx][4]="¦".join(list(dict.fromkeys(gloss_rows[idx][4].split("¦")+additions))[:12])
+                    existing_source=gloss_rows[idx][6] if len(gloss_rows[idx])>6 else ""
+                    if SOURCE_LABEL not in existing_source:
+                        source=(existing_source+"; " if existing_source else "")+SOURCE_LABEL+" / "+source_note
+                        if len(gloss_rows[idx])>6: gloss_rows[idx][6]=source
+                        else: gloss_rows[idx].append(source)
+                    gloss_meanings[key].update(additions); merged_meanings+=len(additions)
     # Upsert word rows; preserve every existing verified LeXiK reading.
-    added_word=0; updated_word=0
+    added_word=0; updated_word=0; added_word_with_ipa=0
     for prefix,rows in new_word.items():
         path=root/"french-word-shards"/(prefix+".tsv.gz")
         old=read_gz(path); positions={}
@@ -215,14 +216,16 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 if len(previous)>=6 and (not previous[3] or previous[3]=="谐音待补"):
                     old[idx]="\t".join((previous[0],previous[1] or a[1],previous[2] or a[2],a[3],a[4],previous[5] or a[5]))
                     changed=True; updated_word+=1
+                    if len(previous)>=3 and not previous[2] and a[2]: added_word_with_ipa+=1
             else:
                 positions[key]=len(old); old.append(line); added_word+=1; changed=True
+                if a[2]: added_word_with_ipa+=1
         if changed: write_gz(path,old)
     if new_word:
         path=root/"french-word-index.json"; meta=json.loads(path.read_text(encoding="utf-8"))
         meta["prefixes"]=sorted({p.name[:-7] for p in (root/"french-word-shards").glob("*.tsv.gz")})
         meta["prefixCount"]=len(meta["prefixes"])
-        meta["wordFormsWithIpa"]=int(meta.get("wordFormsWithIpa") or 0)+added_word
+        meta["wordFormsWithIpa"]=int(meta.get("wordFormsWithIpa") or 0)+added_word_with_ipa
         meta["wiktionaryFrenchZhDumpDate"]=dump_date
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
 
@@ -262,19 +265,22 @@ def merge_dictionary(raw_path,root,dump_date,source_sha256=""):
                 counts[a[3] or "I"]+=1; kinds[a[4] or "词形"]+=1
         meta["firstKeys"]=first_keys; meta["indexedRows"]=all_rows
         meta["uniqueForms"]=len(all_words); meta["confidenceCounts"]=dict(counts)
-        meta["kindCounts"]=dict(kinds); meta["wiktionaryFrenchZhDumpDate"]=dump_date
+        meta["kindCounts"]=dict(kinds); meta["formsWithIpa"]=sum(1 for shard in (root/"french-pronunciation-shards").glob("*.tsv.gz") for line in read_gz(shard) if len(line.split("\t"))>=5 and line.split("\t")[1])
+        meta["formsWithoutIpa"]=all_rows-meta["formsWithIpa"]; meta["wiktionaryFrenchZhDumpDate"]=dump_date
         path.write_text(json.dumps(meta,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
 
     write_gz(gloss_path,["\t".join(x) for x in gloss_rows])
     src=root/"french-lexicon-sources.txt"; source_text=src.read_text(encoding="utf-8")
     if SOURCE_LABEL not in source_text:
-        src.write_text(source_text.rstrip()+"\n\nDWSS French Wiktionary Chinese translations\nSource: https://kaikki.org/frwiktionary/rawdata.html\nDump: 2026-10-01; extracted 2026-11-02 with Wiktextract.\nFields: explicit translations with lang_code=zh attached to lang_code=fr single-word headwords.\nLicense: CC BY-SA 4.0 and GFDL. See french-WIKTIONARY-ATTRIBUTION.txt.\nNew Chinese approximations are generated from source IPA and marked W for human review.\n",encoding="utf-8")
+        src.write_text(source_text.rstrip()+"\n\nDWSS French Wiktionary Chinese translations\nSource: https://kaikki.org/frwiktionary/rawdata.html\nDump: 2026-10-01; extracted 2026-11-02 with Wiktextract.\nFields: all single-word lang_code=fr headwords with a usable IPA or existing DWSS reading; direct lang_code=zh translations are attached when available; phrases are excluded.\nLicense: CC BY-SA 4.0 and GFDL. See french-WIKTIONARY-ATTRIBUTION.txt.\nNew Chinese approximations are generated from source IPA and marked W for human review.\n",encoding="utf-8")
     (root/"french-WIKTIONARY-ATTRIBUTION.txt").write_text(
-        "DWSS 法语中文释义与发音补充来源\n来源：法语版 Wiktionary 的 Wiktextract JSONL 数据，由 kaikki.org 发布。\n数据页：https://kaikki.org/frwiktionary/Fran%C3%A7ais/index.html\n原始数据页：https://kaikki.org/frwiktionary/rawdata.html\nDump 日期：2026-10-01；提取日期：2026-11-02。\n本次 raw-wiktextract-data.jsonl.gz SHA-256："+digest+"\n规则：仅收录 lang_code=fr 的单词词头及其明确标注 lang_code=zh 的直接中文翻译；不从中文释义反向猜词义，不导入短语词头。\n发音：优先沿用 DWSS 已有 IPA/中文近似音；仅对 DWSS 缺失但来源含 IPA 的词条，按 IPA 自动生成中文近似音，置信标记 W（IPA 来自 Wiktionary，汉字拟音待核对）。\n许可证：Wiktionary 内容按 CC BY-SA 4.0 与 GNU Free Documentation License (GFDL) 发布。保留本来源说明并遵循相应署名、相同方式共享要求。\n学术引用：Tatu Ylonen, Wiktextract: Wiktionary as Machine-Readable Structured Data, LREC 2022。\n注意：本文件及其自动拟音不表示读音已经由法语母语者逐条核验。\n",encoding="utf-8")
+        "DWSS 法语中文释义与发音补充来源\n来源：法语版 Wiktionary 的 Wiktextract JSONL 数据，由 kaikki.org 发布。\n数据页：https://kaikki.org/frwiktionary/Fran%C3%A7ais/index.html\n原始数据页：https://kaikki.org/frwiktionary/rawdata.html\nDump 日期：2026-10-01；提取日期：2026-11-02。\n本次 raw-wiktextract-data.jsonl.gz SHA-256："+digest+"\n规则：收录 lang_code=fr 的单词词头；有 lang_code=zh 的直接中文翻译时一并写入释义。没有中文译项的单词仍可作为发音词条收录，但不编造中文释义；不导入短语词头。\n发音：优先沿用 DWSS/LeXiK 已有 IPA 和中文近似音；如果已有 IPA 但缺少中文近似音，则按 IPA 自动生成并标记 W（自动拟音待人工核对）。对于 Wiktionary 有 IPA 的新词，使用来源 IPA；没有 IPA 但 DWSS 已有可靠中文谐音的词仍可收录。\n许可证：Wiktionary 内容按 CC BY-SA 4.0 与 GNU Free Documentation License (GFDL) 发布。保留本来源说明并遵循相应署名、相同方式共享要求；本次抽取、整理的衍生词条数据按 CC BY-SA 4.0 与 GFDL 的相同方式共享要求发布。\n学术引用：Tatu Ylonen, Wiktextract: Wiktionary as Machine-Readable Structured Data, LREC 2022。\n注意：本文件及其自动拟音不表示读音已经由法语母语者逐条核验。\n",encoding="utf-8")
     report={
       "source":"French Wiktionary via Kaikki/Wiktextract","sourceDumpDate":dump_date,"sourceSha256":digest,
       "frenchEntriesExamined":french_entries,"frenchHeadwordsWithChineseTranslations":entries_zh,
-      "chineseTranslationRecordsSeen":translations_seen,"uniqueFrenchHeadwordsWithChineseTranslations":len(candidates),
+      "chineseTranslationRecordsSeen":translations_seen,"uniqueFrenchSingleWordHeadwords":len(candidates),
+      "uniqueFrenchHeadwordsWithChineseTranslations":sum(1 for x in candidates.values() if x["meanings"]),
+      "uniqueFrenchHeadwordsWithoutChineseTranslations":sum(1 for x in candidates.values() if not x["meanings"]),
       "headwordsWithoutSourceIPA":words_without_ipa,"newFrenchWordIndexRows":added_word,"updatedFrenchWordIndexRows":updated_word,
       "newFrenchPronunciationRows":added_pron,"newGlossWordEntries":new_gloss,
       "additionalMeaningsMergedIntoExistingGlossEntries":merged_meanings,"headwordsSkippedWithoutReliableIPAOrReading":skipped,

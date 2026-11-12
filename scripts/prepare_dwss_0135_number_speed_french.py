@@ -719,7 +719,7 @@ if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-12", version, count=1, flags=re.M)
     version = version.rstrip() + (
-        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Adds direct French-to-Chinese translations from French Wiktionary, new IPA-based Chinese homophones marked for review, and retains the audited CFDICT exact-word supplements.\n"
+        "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
     )
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
@@ -730,10 +730,10 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
 old_marker = "DWSS_AUTO_UPDATE_0_9_144"
-new_marker = "DWSS_AUTO_UPDATE_0_9_144"
+new_marker = "DWSS_AUTO_UPDATE_0_9_145"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.143 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.144 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1032,7 +1032,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_144" not in html:
+if "DWSS_AUTO_UPDATE_0_9_145" not in html:
     fail("Automatic-update marker was not advanced to 0.9.145.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
