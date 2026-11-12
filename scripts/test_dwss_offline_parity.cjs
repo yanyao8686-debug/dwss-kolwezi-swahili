@@ -240,6 +240,12 @@ mophone search engine is unavailable');
   handlers.fetch({ request, respondWith(promise) { offlineResponsePromise = promise; } });
   const offlineResponse = await offlineResponsePromise;
   assert(offlineResponse && offlineResponse.ok, 'versioned shared-lexicon script failed while offline');
+  const frenchShardRequest = new Request(new URL('./french-pronunciation-shards/bang.tsv.gz?dwss-release=0.9.147', scope).href);
+  let frenchShardResponsePromise;
+  handlers.fetch({ request: frenchShardRequest, respondWith(promise) { frenchShardResponsePromise = promise; } });
+  const frenchShardResponse = await frenchShardResponsePromise;
+  assert(frenchShardResponse && frenchShardResponse.ok,
+    'first-use French pronunciation shard failed when requested offline');
   assert(networkRequests === frenchShards.length, 'offline cache lookup unexpectedly went to the network');
 
   console.log('PASS DWSS 0.9.147 offline parity: Swahili dictionary/search assets, French local translation/gloss, and all ' +
