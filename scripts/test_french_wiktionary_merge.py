@@ -47,7 +47,7 @@ class FrenchWiktionaryMergeTests(unittest.TestCase):
             wm=json.loads((root/"french-word-index.json").read_text())
             self.assertIn("in",wm["prefixes"]); self.assertIn("wo",wm["prefixes"]); self.assertIn("mo",wm["prefixes"]); self.assertEqual(wm["wordFormsWithIpa"],3)
             with gzip.open(root/"french-word-shards"/"mo.tsv.gz","rt",encoding="utf-8") as stream:
-                self.assertTrue(any(row.split("\\t")[0]=="mot" and row.split("\\t")[3]=="莫" for row in stream))
+                self.assertTrue(any(row.split("\t")[0]=="mot" and row.split("\t")[3]=="莫" for row in stream))
             pm=json.loads((root/"french-pronunciation-index.json").read_text())
             self.assertGreaterEqual(pm["indexedRows"],4)
             self.assertEqual(pm["formsWithIpa"],3)
