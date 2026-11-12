@@ -117,4 +117,4 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
-}).finally(() => dom.window.close());
+});
