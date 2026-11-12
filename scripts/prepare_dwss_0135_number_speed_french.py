@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+from html import unescape
 import hashlib
 import json
 import re
