@@ -135,13 +135,14 @@ jobs:
           assert re.fullmatch(r"[0-9a-f]{64}",p["sourceSha256"]),p
           for k in ("frenchEntriesExamined","uniqueFrenchSingleWordHeadwords","uniqueFrenchHeadwordsWithChineseTranslations","uniqueFrenchHeadwordsWithoutChineseTranslations","newFrenchWordIndexRows","newFrenchPronunciationRows","newGlossWordEntries","headwordsSkippedWithoutReliableIPAOrReading"):
             assert isinstance(p.get(k),int) and p[k]>=0,p
-          assert p["newFrenchWordIndexRows"]>0 or p["newFrenchPronunciationRows"]>0,p
+          assert p["uniqueFrenchSingleWordHeadwords"]>1000000,p
+          assert p["uniqueFrenchHeadwordsWithChineseTranslations"]>1000,p
           assert p["newGlossWordEntries"]>0 or p["additionalMeaningsMergedIntoExistingGlossEntries"]>0,p
           print("French Wiktionary coverage:",json.dumps(p,ensure_ascii=False))
           PY
           grep -Fq 'lang_code=zh' "$LIVE/french-WIKTIONARY-ATTRIBUTION.txt"
           grep -Fq 'async function precacheFrenchShardFamilies(cache)' "$LIVE/sw.js"
-          grep -Fq 'cache.match(request, { ignoreSearch: true })' "$LIVE/sw.js"
+          grep -Fq 'activeCache.match(request, { ignoreSearch: true })' "$LIVE/sw.js"
           python3 - "$LIVE/french-pronunciation-index.json" "$LIVE/french-word-index.json" <<'PY'
           import json,sys
           pron=json.load(open(sys.argv[1],encoding='utf-8'))
