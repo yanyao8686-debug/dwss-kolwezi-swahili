@@ -737,6 +737,10 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   editWin.DWSSFrenchTools.renderSingleGloss('你好','Salut');
   assert(glossHost.querySelector('.rd-detail')?.textContent.includes('你好'),
     'the canonical edited French headword must display its matching Chinese meaning');
+  const preferredFrenchHeadwords = editWin.DWSSFrenchQueryTools.preferredHeadwords();
+  assert(editWin.DWSSFrenchQueryTools.isSupersededHeadword('Bonjour', preferredFrenchHeadwords, ['你好']) === true &&
+         editWin.DWSSFrenchQueryTools.isSupersededHeadword('Salut', preferredFrenchHeadwords, ['你好']) === false,
+    'French reverse lookup must suppress the old spelling and retain the canonical replacement');
   const editedWordSave = editWin.document.getElementById('dwssFrenchPronunciationSave');
   assert(editedWordSave && !editedWordSave.disabled,
     'the refreshed French phrase and matching pronunciation must be available to save');
