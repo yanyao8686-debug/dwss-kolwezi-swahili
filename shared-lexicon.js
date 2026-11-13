@@ -363,6 +363,7 @@ async function submitFrenchPronunciationCorrection(entry) {
   // correction gets a fresh ID: reusing an ID that may already have reached the
   // server (but whose response was lost) makes flushQueue treat the old row as the
   // new one after a 23505 duplicate-key response, silently discarding the new reading.
+  const replaced = queuedMatches.length > 0;
   const payload = {
     client_submit_id: uid(),
     chinese_text: chinese,
@@ -388,16 +389,16 @@ async function submitFrenchPronunciationCorrection(entry) {
 
   if (!navigator.onLine) {
     setStatus("法语发音已保存到本机；联网后自动同步所有用户。", "offline");
-    return { synced: false, queued: true, replaced: !!prior };
+    return { synced: false, queued: true, replaced: replaced };
   }
   try {
     const client = await getClient();
     await flushQueue(client);
     const stillQueued = queue.some(q => q.client_submit_id === payload.client_submit_id);
-    return { synced: !stillQueued, queued: stillQueued, replaced: !!prior };
+    return { synced: !stillQueued, queued: stillQueued, replaced: replaced };
   } catch (error) {
     setStatus("法语发音已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
-    return { synced: false, queued: true, replaced: !!prior, error: error && error.message || String(error) };
+    return { synced: false, queued: true, replaced: replaced, error: error && error.message || String(error) };
   }
 }
 function needsAutomaticShare(entry) {
