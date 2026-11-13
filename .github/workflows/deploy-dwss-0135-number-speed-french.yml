@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.149 fast offline-aware French translation
+name: Deploy DWSS 0.9.150 fast offline-aware French translation
 
 on:
   push:
@@ -24,7 +24,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0149-pronunciation-readonly
+  group: dwss-pages-deploy-0150-ime-fallback
   cancel-in-progress: true
 
 jobs:
@@ -52,6 +52,7 @@ jobs:
           node --check public/french-translation-runtime.js
           node --check public/pronunciation-query-editor.js
           node --check scripts/test_dwss_0144_pronunciation_query_editor.cjs
+          node --check scripts/test_dwss_0150_input-ime-fallback.cjs
           node --check scripts/test_dwss_offline_parity.cjs
           python3 -m py_compile scripts/merge_french_wiktionary_zh.py
           python3 -m py_compile scripts/test_french_wiktionary_merge.py
@@ -64,6 +65,7 @@ jobs:
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_offline_parity.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
+          node scripts/test_dwss_0150_input-ime-fallback.cjs
           test -x "$RUNNER_TEMP/dwss-build-venv/bin/python"
           "$RUNNER_TEMP/dwss-build-venv/bin/python" scripts/test_french_wiktionary_merge.py
           unzip -t public/DWSS-Android-Installer.apk >/dev/null
@@ -73,7 +75,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.149
+      - name: Deploy DWSS 0.9.150
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -93,15 +95,15 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_149' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_150' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.149' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_149' "$LIVE/index.html"
-          grep -Fq "version:'0.9.149'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.149';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.150' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_150' "$LIVE/index.html"
+          grep -Fq "version:'0.9.150'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.150';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
           grep -Fq 'background:#FFF9ED!important' "$LIVE/index.html"
@@ -109,9 +111,13 @@ jobs:
           grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
           ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.149' "$LIVE/index.html"
-          grep -Fq 'dwss-pronunciation-query-readonly-0149' "$LIVE/pronunciation-query-editor.js"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.150' "$LIVE/index.html"
+          grep -Fq 'dwss-pronunciation-query-readonly-0150' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSPronunciationQueryReadOnly' "$LIVE/pronunciation-query-editor.js"
+          grep -Fq 'dwss-input-ime-fallback-0150' "$LIVE/index.html"
+          grep -Fq 'finishComposition' "$LIVE/index.html"
+          ! grep -Fq 'observer.observe(document.body' "$LIVE/pronunciation-query-editor.js"
+          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.150' "$LIVE/index.html" | wc -l)" -eq 1
           grep -Fq '.pronunciation-maintenance-entry' "$LIVE/pronunciation-query-editor.js"
           grep -Fq '.dwss-query-inline-tools' "$LIVE/pronunciation-query-editor.js"
           ! grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
@@ -305,4 +311,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.149 has compact copy-free Swahili/French pronunciation results, read-only pronunciation query with main-screen shared correction controls, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
+          echo "PASS: live DWSS 0.9.150 has Android IME fallback for Swahili/French translation, one scoped read-only pronunciation script, and an audited French glossary; protected assets are verified."
