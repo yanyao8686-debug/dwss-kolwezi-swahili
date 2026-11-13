@@ -359,12 +359,12 @@ async function submitFrenchPronunciationCorrection(entry) {
     return { synced: true, existing: true };
   }
 
-  // Keep exactly one pending correction per Chinese + French pair. Re-editing while
-  // offline replaces its reading but preserves the original client ID, so an older
-  // queued pronunciation can never be uploaded later and overwrite the new one.
-  const prior = queuedMatches[0] || null;
+  // Keep exactly one pending correction per Chinese + French pair. Every changed
+  // correction gets a fresh ID: reusing an ID that may already have reached the
+  // server (but whose response was lost) makes flushQueue treat the old row as the
+  // new one after a 23505 duplicate-key response, silently discarding the new reading.
   const payload = {
-    client_submit_id: String(prior && prior.client_submit_id || uid()),
+    client_submit_id: uid(),
     chinese_text: chinese,
     local_text: null,
     local_pronunciation_cn: null,

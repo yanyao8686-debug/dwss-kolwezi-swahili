@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.155"
-NEW_VERSION = "0.9.156"
+OLD_VERSION = "0.9.156"
+NEW_VERSION = "0.9.157"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -799,7 +799,7 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.153/0.9.154 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.156 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
     fail("Live app.js version is not 0.9.153 or 0.9.154.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
@@ -816,6 +816,7 @@ write_asset("shared-lexicon.js", shared_lexicon_source.read_bytes())
 shared_lexicon = (ROOT / "shared-lexicon.js").read_text(encoding="utf-8")
 for required in ("async function submitFrenchPronunciationCorrection(entry)",
                  "french_pronunciation_cn: reading",
+                 "client_submit_id: uid()",
                  "queue.unshift(payload)",
                  "submitFrenchPronunciationCorrection,"):
     if required not in shared_lexicon:
@@ -827,11 +828,15 @@ if not runtime_source.is_file() or runtime_source.stat().st_size < 10000:
     fail("Updated French translation runtime source is missing or unexpectedly small.")
 write_asset("french-translation-runtime.js", runtime_source.read_bytes())
 runtime = (ROOT / "french-translation-runtime.js").read_text(encoding="utf-8")
+if "async function refreshAfterSharedCorrection()" not in runtime or "refreshAfterSharedCorrection," not in runtime:
+    fail("French runtime does not invalidate its unchanged-input cache after shared corrections.")
 extension_source = Path(__file__).with_name("french-extension-0135.js")
 if not extension_source.is_file() or extension_source.stat().st_size < 20000:
     fail("Merged French extension source is missing or unexpectedly small.")
 write_asset("french-extension.js", extension_source.read_bytes())
 extension = (ROOT / "french-extension.js").read_text(encoding="utf-8")
+if "machine.refreshAfterSharedCorrection()" not in extension:
+    fail("French shared-correction event does not force a same-input translation refresh.")
 query_editor_source = Path(__file__).with_name("pronunciation-query-editor.js")
 if not query_editor_source.is_file() or query_editor_source.stat().st_size < 1000:
     fail("Inline pronunciation query editor source is missing or unexpectedly small.")
@@ -982,7 +987,7 @@ if f"Version: {OLD_VERSION}" in version:
 version = version.rstrip() + "\n0.9.148: Each French headword in the single-word gloss list is shown as a compact bordered input; one unified save-and-sync button below the list submits all word edits.\n"
 version = version.rstrip() + "\n0.9.149: Pronunciation lookup is read-only; duplicate result-edit and dictionary-maintenance controls are removed. Swahili and French lookups continue to combine their base dictionaries with saved and pending shared corrections.\n"
 version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallback keeps Swahili and French translation working when compositionend is omitted; the read-only query script loads once and observes only its result lists.\n"
-version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
+version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\nversion = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -991,11 +996,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_155"
-new_marker = "DWSS_AUTO_UPDATE_0_9_156"
+old_marker = "DWSS_AUTO_UPDATE_0_9_156"
+new_marker = "DWSS_AUTO_UPDATE_0_9_157"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.155 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.156 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1390,5 +1395,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.156 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
+print("PASS: DWSS 0.9.157 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
