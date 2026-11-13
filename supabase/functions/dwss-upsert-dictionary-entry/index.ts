@@ -1,7 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ORIGIN = "https://yanyao8686-debug.github.io";
-const ALLOWED_ORIGINS = new Set([ORIGIN, "https://localhost"]);
+const ALLOWED_ORIGINS = new Set([
+  ORIGIN,
+  "https://localhost",
+  "http://localhost",
+  "capacitor://localhost"
+]);
 const PUBLISHABLE_KEY = "sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp";
 const HEADERS = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
