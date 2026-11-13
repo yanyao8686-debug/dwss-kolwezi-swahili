@@ -11,7 +11,7 @@ const source = fs.readFileSync(
 const html = [
 '<!doctype html><html><head></head><body>',
 '<div id="pronunciation" class="panel">',
-'<div class="pronunciation-maintenance-entry"><button>公共词库维护</button></div>',
+'<div class="pronunciation-maintenance-entry"><button id="openPublicPronunciationEditor">公共词库维护</button></div>',
 '<div id="pronunciationResults"><article class="pronunciation-hit">',
 '<div class="pronunciation-hit-main"><div class="pronunciation-hit-zh">明天<span class="pronunciation-match-chip">读音一致</span></div>',
 '<div class="pronunciation-hit-reading">当地斯语中文谐音：该小</div>',
@@ -66,8 +66,10 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(swArticle.querySelector('.pronunciation-hit-reading'), 'Swahili homophone must remain visible');
   assert(swArticle.querySelector('.pronunciation-hit-match'), 'Swahili matched reading must remain visible');
   assert(swArticle.querySelector('.pronunciation-hit-meta'), 'Swahili dictionary source must remain visible');
-  assert.equal(document.querySelectorAll('.pronunciation-maintenance-entry').length, 0,
-    'the duplicate maintenance entry must not appear in pronunciation lookup');
+  assert.equal(document.querySelectorAll('.pronunciation-maintenance-entry').length, 1,
+    'the main-page maintenance entry must remain available for app.js initialization');
+  assert(document.getElementById('openPublicPronunciationEditor'),
+    'the public dictionary pronunciation button required by the Swahili app must remain in the DOM');
   assert(swArticle.textContent.includes('明天') && swArticle.textContent.includes('该小'),
     'Swahili pronunciation result content must be preserved');
   assert(frArticles[0].textContent.includes('bonjour') && frArticles[0].textContent.includes('你好；您好'),
@@ -102,7 +104,7 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(source.includes('getElementById("pronunciationFrenchResults")'));
   assert(!source.includes('observer.observe(document.body'),
     'query cleanup must not observe the full application DOM');
-  console.log('PASS DWSS 0.9.152: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
+  console.log('PASS DWSS 0.9.155: pronunciation result editors are removed while the main dictionary-maintenance button remains intact.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
