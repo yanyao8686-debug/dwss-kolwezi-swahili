@@ -844,11 +844,16 @@
       return Array.from(glossHost.querySelectorAll(".dwss-french-word-pair")).map(row => {
         const wordInput = row.querySelector(".dwss-french-word-original");
         if (!wordInput) return null;
+        let meanings = [];
+        try { meanings = JSON.parse(row.dataset.meanings || "[]"); } catch (_) {}
+        const readingNode = row.querySelector(".dwss-french-word-pronunciation");
         return {
           row,
           wordInput,
           word: String(wordInput.value || "").trim(),
-          originalWord: String(wordInput.dataset.originalWord || "")
+          originalWord: String(wordInput.dataset.originalWord || ""),
+          meanings: Array.isArray(meanings) ? meanings.filter(Boolean) : [],
+          reading: String(readingNode && readingNode.textContent || "").trim()
         };
       }).filter(Boolean);
     };
@@ -936,7 +941,8 @@
           output.removeAttribute("data-dwss-french-draft");
           const glossTools = window.DWSSFrenchTools;
           if (glossTools && typeof glossTools.renderSingleGloss === "function") {
-            glossTools.renderSingleGloss(values.chinese, values.french, generated.wordReadings);
+            const meaningOverrides = new Map(values.rows.map((row, index) => [index, row.meanings]));
+            glossTools.renderSingleGloss(values.chinese, values.french, generated.wordReadings, meaningOverrides);
           }
           output.dispatchEvent(new Event("dwss:french-result-updated"));
           if (Array.isArray(generated.missing) && generated.missing.length) {
@@ -953,7 +959,8 @@
             output.removeAttribute("data-dwss-french-draft");
             const glossTools = window.DWSSFrenchTools;
             if (glossTools && typeof glossTools.renderSingleGloss === "function") {
-              glossTools.renderSingleGloss(values.chinese, values.french);
+              const meaningOverrides = new Map(values.rows.map((row, index) => [index, row.meanings]));
+              glossTools.renderSingleGloss(values.chinese, values.french, null, meaningOverrides);
             }
             output.dispatchEvent(new Event("dwss:french-result-updated"));
             message = "法语单词已修改，但读音重新生成失败：" +
@@ -1044,10 +1051,18 @@
           setStatus("请填写有效的法语中文谐音，最多 500 个字符。", "error");
           return;
         }
+        const wordCorrections = values.rowsEdited ? values.rows
+          .filter(row => row.word && row.word !== row.originalWord && row.meanings.length && row.reading && !isPlaceholderReading(row.reading))
+          .flatMap(row => row.meanings.map(meaning => ({
+            chinese_text: meaning,
+            french_text: row.word,
+            french_pronunciation_cn: row.reading
+          }))) : [];
         const result = await api.submitFrenchPronunciationCorrection({
           chinese_text: values.chinese,
           french_text: values.french,
-          french_pronunciation_cn: values.reading
+          french_pronunciation_cn: values.reading,
+          word_corrections: wordCorrections
         });
         const current = currentValues();
         const sameContext = current.chinese === values.chinese && current.french === values.french;
@@ -1063,7 +1078,8 @@
             row.wordInput.dataset.originalWord = row.word;
           });
           if (tools && typeof tools.renderSingleGloss === "function") {
-            tools.renderSingleGloss(values.chinese, values.french);
+            const meaningOverrides = new Map(values.rows.map((row, index) => [index, row.meanings]));
+            tools.renderSingleGloss(values.chinese, values.french, null, meaningOverrides);
           }
           output.dispatchEvent(new Event("dwss:french-result-updated"));
         }
