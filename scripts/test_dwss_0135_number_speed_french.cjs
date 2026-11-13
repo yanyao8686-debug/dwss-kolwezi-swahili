@@ -763,5 +763,5 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
     'saving a changed French glossary word must submit its new phrase with the newly generated pronunciation');
 
   editDom.window.close();
-  console.log('PASS DWSS 0.9.159: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
+  console.log('PASS DWSS 0.9.160: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
