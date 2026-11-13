@@ -249,7 +249,7 @@ jobs:
           grep -Fq '.dwss-french-edit-hint' "$LIVE/index.html"
           grep -Fq '法语单词可直接修改；中文谐音请在上方结果框修改。' "$LIVE/french-extension.js"
           grep -Fq 'dwss-french-word-original' "$LIVE/index.html"
-          grep -Fq 'border-bottom-color:#D6A34B' "$LIVE/index.html"
+          grep -Fq 'border-color:#A87423!important' "$LIVE/index.html"
           ! grep -Fq 'border:1px solid #D5BE96' "$LIVE/index.html"
           grep -Fq 'border:0!important;border-width:0!important' "$LIVE/index.html"
           grep -Fq 'color:var(--muted)!important;font-size:13px!important' "$LIVE/index.html"
