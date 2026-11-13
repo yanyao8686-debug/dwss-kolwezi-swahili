@@ -553,6 +553,85 @@ elif render_guard not in app:
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 if app.count(render_guard) != 1:
     fail("The Swahili renderer must normalize stale French button state exactly once.")
+# Main-result edits update the actual language headword, not only a pronunciation override row.
+app = replace_app_fragment(
+    app,
+    "window.DWSSActiveTranslationCorrection={chinese:raw,storageChinese,sourceKind,originalReading,overrideReading:legacyReading,currentReading:displayReading,revision:exactOverride?Number(exactOverride.revision||0):0,hasOverride:!!exactOverride,remoteConflict:false,selectedVariant:null,isStandaloneUnknown:standaloneUnknown};",
+    "window.DWSSActiveTranslationCorrection={chinese:raw,storageChinese,sourceKind,originalReading,overrideReading:legacyReading,currentReading:displayReading,localText:(dictionaryItem?localLatinVariants(dictionaryItem).find(Boolean):'')||latin||'',revision:exactOverride?Number(exactOverride.revision||0):0,hasOverride:!!exactOverride,remoteConflict:false,selectedVariant:null,isStandaloneUnknown:standaloneUnknown};",
+    "remember source spelling for direct pronunciation corrections"
+)
+main_correction_start = "async function submitTranslationCorrection(){"
+main_correction_end = "\nasync function submitTranslationPronunciationVariant(){"
+main_correction = """async function submitTranslationCorrection(){
+ const state=window.DWSSActiveTranslationCorrection;
+ const typedChinese=$('inputText').value.trim(),chinese=String(state&&state.storageChinese||typedChinese).trim();
+ const reading=$('resultReading').value.trim(),button=$('submitTranslationCorrection');
+ if(!state||!typedChinese||norm(typedChinese)!==norm(state.chinese)){setTranslationCorrectionStatus('中文输入已改变，请重新翻译后再保存。','error');return;}
+ if(!reading||reading.length>2000){setTranslationCorrectionStatus('请填写 1–2000 个字符的当地中文谐音。','error');return;}
+ const sharedApi=window.DWSSSharedLexicon;
+ if(!sharedApi||typeof sharedApi.submitQuickTranslationTerm!=='function'){
+  setTranslationCorrectionStatus('共享词库组件尚未就绪；你刚才的修改仍保留在输入框中。','error');return;
+ }
+ const previous=String(state.currentReading||state.overrideReading||state.originalReading||'').trim();
+ const sourceKind=state.sourceKind==='dictionary'?'dictionary':'translation';
+ const engine=window.DWSSPronunciationSearch;
+ const pinyinOf=value=>engine&&typeof engine.toSyllables==='function'?engine.toSyllables(String(value||''),true).join(' '):'';
+ const submitVariant=async value=>{
+  const text=String(value||'').trim(),pinyin=pinyinOf(text);
+  if(!text||!pinyin||typeof sharedApi.submitPronunciationVariant!=='function')return null;
+  return await sharedApi.submitPronunciationVariant({
+   chinese_text:chinese,pronunciation_cn:text,pinyin_key:pinyin,source_kind:sourceKind,
+   dialect:'加丹加斯瓦希里语（科卢韦齐）',source_note:'修改首选词条时保留的旧读音候选'
+  });
+ };
+ const selected=state.selectedVariant||window.DWSSSelectedPronunciationVariant||null;
+ savingTranslationCorrection=true;button.disabled=true;button.textContent='正在保存…';
+ setTranslationCorrectionStatus(navigator.onLine?'正在更新该中文词头的共享首选词条…':'正在保存到本机离线词库…');
+ let grouped=false;
+ try{
+  if(sourceKind==='dictionary'&&previous&&norm(previous)!==norm(reading)){
+   const oldResult=await submitVariant(previous);
+   if(oldResult)grouped=!!oldResult.merged||!!oldResult.duplicate;
+  }
+  if(sourceKind==='dictionary'&&selected&&selected.managed&&selected.id&&norm(selected.reading)!==norm(reading)){
+   try{
+    const pinyin=pinyinOf(reading);
+    if(pinyin&&typeof sharedApi.managePronunciationVariant==='function'){
+     const updated=await sharedApi.managePronunciationVariant({action:'update',id:selected.id,expected_revision:Number(selected.revision||1),pronunciation_cn:reading,pinyin_key:pinyin});
+     grouped=grouped||!!updated.merged;
+    }
+   }catch(editError){
+    if(!/REVISION_CONFLICT|刚被其他用户修改|409/i.test(String(editError&&editError.message||editError)))throw editError;
+    const candidate=await submitVariant(reading);grouped=grouped||!!(candidate&&(candidate.merged||candidate.duplicate));
+   }
+  }
+  const saved=await sharedApi.submitQuickTranslationTerm({
+   chinese_text:chinese,local_text:String(state.localText||'').trim()||null,
+   local_pronunciation_cn:reading,category:'主翻译首选词条修正',
+   notes:'由主翻译界面保存的科卢韦齐斯语首选词条'
+  });
+  if(!saved||!saved.ok)throw new Error(saved&&saved.error||'共享首选词条未能保存。');
+  renderTranslation({recordHistory:false});
+  $('resultReading').value=reading;
+  const latest=window.DWSSActiveTranslationCorrection;
+  if(latest){latest.overrideReading=reading;latest.currentReading=reading;latest.hasOverride=true;latest.selectedVariant=null;}
+  window.DWSSSelectedPronunciationVariant=null;
+  const msg=saved.queued
+   ?'修改已立即写入本机首选词库，联网后自动同步到所有用户。'
+   :'首选词条已更新并同步；其他设备会接收新拼写和新中文谐音。';
+  setTranslationCorrectionStatus(msg+(grouped?' 原读音已保留为可查询的其他读音。':''));
+ }catch(error){
+  setTranslationCorrectionStatus('保存失败：'+String(error&&error.message||error)+'。你输入的读音仍保留在框内。','error');
+ }finally{
+  savingTranslationCorrection=false;button.disabled=false;button.textContent='保存并同步';
+ }
+}"""
+main_correction_at = app.find(main_correction_start)
+main_correction_end_at = app.find(main_correction_end, main_correction_at)
+if main_correction_at < 0 or main_correction_end_at < 0:
+    fail("Cannot locate the main pronunciation-correction handler.")
+app = app[:main_correction_at] + main_correction + app[main_correction_end_at:]
+
 # Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
 # remains available in its own French mode, but is not an acceptable Swahili fallback.
 def replace_app_fragment(source, old, new, label):
