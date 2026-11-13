@@ -223,7 +223,8 @@ assert(extension.includes('function setupFrenchPronunciationEditor()') &&
   'French direct result editing and one-click save controls are missing');
 assert(extension.includes('submitFrenchPronunciationCorrection') &&
        extension.includes('french_pronunciation_cn: values.reading') &&
-       extension.includes('const reading = readingFromResult') &&
+       extension.includes('const outputFrenchDraft = !!(parsed && parsed.french && !String(parsed.reading || "").trim())') &&
+       extension.includes('const reading = outputFrenchDraft') &&
        extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))') &&
        !extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))'),
   'French pronunciation correction must submit only the main-result homophone plus the reconstructed French spelling to the dedicated French fields');
