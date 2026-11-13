@@ -626,12 +626,6 @@ app = replace_app_fragment(
 );
 app = replace_app_fragment(
     app,
-    "source:c.source||'云端共享',kind:'云端共享',note:c.note||'',origin:'shared'",
-    "source:c.source||'云端共享',kind:c.__canonical?'云端首选':'云端共享',note:c.note||'',origin:c.__canonical?'canonical':'shared'",
-    "mark French canonical pronunciation headwords"
-);
-app = replace_app_fragment(
-    app,
     "const rank={personal:0,shared:1,builtin:2},rows=(item.variants||[]).map((v,i)=>{",
     "const rank={personal:0,canonical:1,shared:2,builtin:3},rows=(item.variants||[]).map((v,i)=>{",
     "rank canonical French headword"
