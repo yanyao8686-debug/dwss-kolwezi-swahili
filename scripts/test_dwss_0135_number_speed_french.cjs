@@ -702,7 +702,7 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const liveReadings = new Map([["bonjour", "邦茹"], ["salut", "萨吕"]]);
   editWin.DWSSFrenchTools = Object.freeze({
     ...editWin.DWSSFrenchTools,
-    getPhraseWordPairs: async phrase => (String(phrase).match(/[\\p{L}]+/gu) || [])
+    getPhraseWordPairs: async phrase => (String(phrase).match(/[A-Za-z]+/g) || [])
       .map(token => ({ token, reading: liveReadings.get(token.toLowerCase()) || "" }))
       .filter(item => item.reading)
   });
