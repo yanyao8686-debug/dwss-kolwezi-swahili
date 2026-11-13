@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.159 verified Swahili and French translation runtime
+name: Deploy DWSS 0.9.160 French gloss row layout
 
 on:
   push:
@@ -32,7 +32,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0157-swahili-runtime
+  group: dwss-pages-deploy-0160-french-gloss-layout
   cancel-in-progress: true
 
 jobs:
