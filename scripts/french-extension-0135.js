@@ -1184,7 +1184,7 @@
     }
   }
 
-  function reconcileAfterCoreReady() {
+  function restoreSelectedModesAfterCoreReady() {
     // boot.js loads the compressed Swahili dictionary and app.js asynchronously.
     // The deferred French extension can bind before the Swahili renderer exists.
     // Re-apply the selected modes after app.js has defined the real renderers.
@@ -1217,13 +1217,10 @@
     $("dwssPronSwMode").addEventListener("click", () => setQueryMode("sw"));
     $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
 
-    // Install the listener before boot.js completes its asynchronous dictionary load.
-    // The immediate check also covers the case where the core has already finished.
-    const onCoreReady = () => {
-      if (reconcileAfterCoreReady()) window.removeEventListener("dwss:app-ready", onCoreReady);
-    };
-    window.addEventListener("dwss:app-ready", onCoreReady);
-    if (reconcileAfterCoreReady()) window.removeEventListener("dwss:app-ready", onCoreReady);
+    // boot.js can complete before or after this deferred script binds.
+    // The event covers the async path; the immediate check covers the fast-cache path.
+    window.addEventListener("dwss:app-ready", restoreSelectedModesAfterCoreReady, { once: true });
+    restoreSelectedModesAfterCoreReady();
     const scheduleMain = () => {
       if (activeMainMode !== "fr") return;
       const modeGeneration = mainModeGeneration;
