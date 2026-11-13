@@ -24,7 +24,7 @@ const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf
 assert(version.includes('Version: 0.9.157'), 'website version must be 0.9.157');
 assert(app.includes("version:'0.9.157'"), 'app version must match');
 assert(sw.includes("const APP_VERSION = '0.9.157';"), 'Service Worker version must match');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_156'), 'automatic-update marker must match');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_157'), 'automatic-update marker must match');
 assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.157').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
