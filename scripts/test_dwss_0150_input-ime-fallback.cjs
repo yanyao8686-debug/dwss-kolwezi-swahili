@@ -10,7 +10,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const scripts = [...html.matchAll(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/g)];
 assert.equal(scripts.length, 1, 'the Android IME fallback must be embedded exactly once');
 const source = scripts[0][1];
-assert.equal(html.split('pronunciation-query-editor.js?dwss-release=0.9.155').length - 1, 1,
+assert.equal(html.split('pronunciation-query-editor.js?dwss-release=0.9.156').length - 1, 1,
   'the read-only pronunciation script must be loaded once');
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -60,7 +60,7 @@ async function verifyMode(mode) {
 (async () => {
   await verifyMode('sw');
   await verifyMode('fr');
-  console.log('PASS DWSS 0.9.155: stalled Chinese IME composition triggers Swahili and French translation without compositionend.');
+  console.log('PASS DWSS 0.9.156: stalled Chinese IME composition triggers Swahili and French translation without compositionend.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
