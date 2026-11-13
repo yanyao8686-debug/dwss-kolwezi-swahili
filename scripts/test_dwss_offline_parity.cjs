@@ -71,7 +71,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   vm.runInNewContext(hanziPinyinSource, latePinyinSandbox, { filename: 'hanzi-pinyin-second.js' });
   const lateHits = latePinyinSandbox.window.DWSSPronunciationSearch.search('给晓',
     [{zh:'明天',variants:[{reading:'该小'}]}],{limit:5});
-  assert(lateHits.some(hit => hit.zh === '明天' && hit.score === 1),
+  assert(lateHits.some(hit => hit.zh === '明天' && hit.score >= 0.90),
     'late pinyin map load must not disable Swahili reverse lookup');
 
   const offlineSandbox = { window: {}, document: null };

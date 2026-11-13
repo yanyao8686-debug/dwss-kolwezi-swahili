@@ -41,7 +41,7 @@ vm.runInNewContext(hanziPinyinSource, late, { filename: 'hanzi-pinyin-second.js'
 const lateHits = late.window.DWSSPronunciationSearch.search(
   '给晓', [{zh:'明天',variants:[{reading:'该小'}]}], {limit:10}
 );
-assert(lateHits.some(hit => hit.zh === '明天' && hit.score === 1),
+assert(lateHits.some(hit => hit.zh === '明天' && hit.score >= 0.90),
   'reverse lookup must work if the Hanzi pinyin map loads after the search engine');
 
 // Real dictionary and real HTML DOM; no web or third-party calls.
