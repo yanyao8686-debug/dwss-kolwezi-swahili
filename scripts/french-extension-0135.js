@@ -810,6 +810,9 @@
     const status = $("dwssFrenchPronunciationStatus");
     let saving = false;
     let lastDraftSignature = "";
+    let phraseEditTimer = null;
+    let phraseEditRevision = 0;
+    let refreshingEditedPhrase = false;
 
     const isFrenchMode = () => {
       const mode = $("dwssMainFrMode");
@@ -871,10 +874,81 @@
       const valid = isFrenchMode() && !!values.chinese && !!values.french &&
         (values.outputFrenchDraft || (!!values.reading && !placeholder));
       const signature = JSON.stringify([values.chinese, values.french, values.reading]);
-      if (!saving && lastDraftSignature && signature !== lastDraftSignature) setStatus("");
+      if (!saving && !refreshingEditedPhrase && lastDraftSignature && signature !== lastDraftSignature) setStatus("");
       lastDraftSignature = signature;
       wrap.hidden = !valid;
-      saveButton.disabled = saving || !valid;
+      saveButton.disabled = saving || refreshingEditedPhrase || !valid;
+    };
+
+    // Editing a French headword changes the source sentence. Rebuild both the
+    // sentence pronunciation and every word-level pronunciation before save,
+    // instead of submitting the previous phrase's stale homophone.
+    const scheduleEditedFrenchPhraseRefresh = () => {
+      const values = currentValues();
+      if (!values.rowsEdited || !values.chinese || !values.french) {
+        refresh();
+        return;
+      }
+      const revision = ++phraseEditRevision;
+      window.clearTimeout(phraseEditTimer);
+      refreshingEditedPhrase = true;
+      refresh();
+      setStatus("正在根据修改后的法语单词重新生成整句中文谐音和逐词读音…");
+      phraseEditTimer = window.setTimeout(async () => {
+        let message = "";
+        let kind = "";
+        try {
+          const machine = window.DWSSFrenchMachineTranslationController;
+          if (!machine || typeof machine.getReadingForFrenchDraft !== "function") {
+            throw new Error("法语读音生成模块尚未就绪。");
+          }
+          const generated = await machine.getReadingForFrenchDraft(values.french);
+          const latest = currentValues();
+          if (revision !== phraseEditRevision || latest.chinese !== values.chinese ||
+              latest.french !== values.french || !latest.rowsEdited) return;
+          const reading = String(generated && generated.reading || "").trim();
+          if (!reading) throw new Error("没有生成可用的中文近似音。");
+
+          spelling.value = values.french;
+          output.value = reading;
+          output.classList.toggle("empty", !reading);
+          output.removeAttribute("data-dwss-french-draft");
+          const glossTools = window.DWSSFrenchTools;
+          if (glossTools && typeof glossTools.renderSingleGloss === "function") {
+            glossTools.renderSingleGloss(values.chinese, values.french, generated.wordReadings);
+          }
+          output.dispatchEvent(new Event("dwss:french-result-updated"));
+          if (Array.isArray(generated.missing) && generated.missing.length) {
+            message = "法语拼写、整句谐音和逐词读音已更新；仍有单词缺少可靠读音，请在上方结果框补充确认后保存。";
+            kind = "warning";
+          } else {
+            message = "法语拼写、整句中文谐音和逐词读音释义已更新。";
+          }
+        } catch (error) {
+          if (revision === phraseEditRevision) {
+            spelling.value = values.french;
+            output.value = "〔发音待补〕";
+            output.classList.remove("empty");
+            output.removeAttribute("data-dwss-french-draft");
+            const glossTools = window.DWSSFrenchTools;
+            if (glossTools && typeof glossTools.renderSingleGloss === "function") {
+              glossTools.renderSingleGloss(values.chinese, values.french);
+            }
+            output.dispatchEvent(new Event("dwss:french-result-updated"));
+            message = "法语单词已修改，但读音重新生成失败：" +
+              String(error && error.message || error) + "。请检查网络，或手动填写确认的中文近似音。";
+            kind = "warning";
+          }
+        } finally {
+          if (revision === phraseEditRevision) {
+            refreshingEditedPhrase = false;
+            const finalValues = currentValues();
+            lastDraftSignature = JSON.stringify([finalValues.chinese, finalValues.french, finalValues.reading]);
+            refresh();
+            if (message) setStatus(message, kind);
+          }
+        }
+      }, 220);
     };
 
     saveButton.addEventListener("click", async () => {
@@ -991,8 +1065,23 @@
 
     if (input) input.addEventListener("input", refresh);
     if (spelling) spelling.addEventListener("input", refresh);
-    if (glossHost) glossHost.addEventListener("input", refresh);
-    output.addEventListener("input", refresh);
+    if (glossHost) glossHost.addEventListener("input", event => {
+      if (event && event.target && event.target.classList &&
+          event.target.classList.contains("dwss-french-word-original")) {
+        scheduleEditedFrenchPhraseRefresh();
+      } else {
+        refresh();
+      }
+    });
+    output.addEventListener("input", () => {
+      // A manual homophone edit takes precedence over any in-flight auto-refresh.
+      if (refreshingEditedPhrase) {
+        phraseEditRevision += 1;
+        window.clearTimeout(phraseEditTimer);
+        refreshingEditedPhrase = false;
+      }
+      refresh();
+    });
     output.addEventListener("dwss:french-result-updated", refresh);
     output.addEventListener("dwss:french-draft-pending", refresh);
     window.addEventListener("dwss:shared-terms-updated", refresh);
