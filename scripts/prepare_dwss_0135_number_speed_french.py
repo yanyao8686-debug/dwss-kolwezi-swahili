@@ -1395,7 +1395,7 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
-if 'pronunciation-query-editor.js?dwss-release=0.9.152' not in html:
+if f'pronunciation-query-editor.js?dwss-release={NEW_VERSION}' not in html:
     fail("Read-only pronunciation query asset is not loaded by the live HTML.")
 if len(re.findall(r'<script\b[^>]*src=["\'][^"\']*pronunciation-query-editor\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>', html, flags=re.I)) != 1:
     fail("Pronunciation query editor must be included exactly once.")
