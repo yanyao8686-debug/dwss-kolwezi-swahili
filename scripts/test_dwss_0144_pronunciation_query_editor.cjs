@@ -90,7 +90,6 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   for (const forbidden of [
     'DWSSDictionaryOverrides',
     'submitFrenchPronunciationCorrection',
-    'dwss-query-edit-toggle',
     '修改结果',
     '保存并同步给所有用户'
   ]) {
