@@ -829,9 +829,14 @@ if not query_editor_source.is_file() or query_editor_source.stat().st_size < 100
     fail("Inline pronunciation query editor source is missing or unexpectedly small.")
 write_asset("pronunciation-query-editor.js", query_editor_source.read_bytes())
 query_editor = (ROOT / "pronunciation-query-editor.js").read_text(encoding="utf-8")
-for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".pronunciation-maintenance-entry", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults"):
+for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".pronunciation-maintenance-entry", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults",
+                 "#pronunciationResults .pronunciation-hit-reading", "#pronunciationResults .pronunciation-hit-match",
+                 "#pronunciationResults .pronunciation-hit-meta", "#pronunciationFrenchResults .pronunciation-hit-reading",
+                 "#pronunciationFrenchResults .pronunciation-hit-meta", "display:block!important;visibility:visible!important"):
     if required not in query_editor:
         fail("Read-only pronunciation query asset is missing: " + required)
+if ".pronunciation-hit-actions" in query_editor:
+    fail("Read-only pronunciation query must retain the copy action.")
 for forbidden in ("DWSSDictionaryOverrides", "submitFrenchPronunciationCorrection", "修改结果", "保存并同步给所有用户"):
     if forbidden in query_editor:
         fail("Pronunciation query must not expose an editing capability: " + forbidden)
