@@ -128,6 +128,8 @@ assert(queryEditor.includes('DWSSPronunciationQueryReadOnly') &&
        !queryEditor.includes('.pronunciation-maintenance-entry') &&
        queryEditor.includes('.dwss-query-inline-tools'),
   'read-only pronunciation query cleanup is missing');
+assert(byId('openPublicPronunciationEditor').length === 1,
+  'main dictionary maintenance entry must remain in the production HTML');
 for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
   assert(!queryEditor.includes(forbidden), 'pronunciation lookup must not expose correction controls: ' + forbidden);
 }
