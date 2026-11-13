@@ -30,13 +30,24 @@
     return String(reading || "").trim();
   }
   function parseCombinedResult(value) {
-    const text = String(value || "");
-    const marker = "\n中文近似音：";
-    const index = text.indexOf(marker);
-    if (index < 0) return { french: "", reading: text.trim() };
-    const french = text.slice(0, index).replace(/^法语原文：/, "").trim();
-    const reading = text.slice(index + marker.length).trim();
-    return { french, reading };
+    const text = String(value || "").trim();
+    const markerMatch = text.match(/\r?\n中文近似音：/);
+    if (markerMatch && markerMatch.index != null) {
+      const french = text.slice(0, markerMatch.index).replace(/^法语原文：/, "").trim();
+      const reading = text.slice(markerMatch.index + markerMatch[0].length).trim();
+      return { french, reading, isFrenchDraft: !!french && !reading };
+    }
+
+    // The result box normally displays only the Chinese homophone. A plain
+    // Latin/French edit is instead a corrected French source phrase.
+    const labelledFrench = text.match(/^法语原文：([\s\S]*)$/);
+    const candidate = String(labelledFrench ? labelledFrench[1] : text).trim();
+    const hasLatin = /\p{Script=Latin}/u.test(candidate);
+    const hasHan = /\p{Script=Han}/u.test(candidate);
+    if (candidate && hasLatin && !hasHan) {
+      return { french: candidate, reading: "", isFrenchDraft: true };
+    }
+    return { french: "", reading: text, isFrenchDraft: false };
   }
   window.DWSSFrenchCombinedResult = Object.freeze({
     format: formatCombinedResult,
@@ -99,6 +110,7 @@
     writingCombinedOutput = true;
     result.value = text;
     result.classList.toggle("empty", !text.trim());
+    result.removeAttribute("data-dwss-french-draft");
     writingCombinedOutput = false;
     result.dispatchEvent(new Event("dwss:french-result-updated"));
   }
@@ -365,6 +377,16 @@
     reading += french.slice(cursor);
     return { reading: reading.trim(), ipa: [], missing, wordReadings };
   }
+  async function getReadingForFrenchDraft(french) {
+    const phrase = String(french || "").trim();
+    if (!phrase || phrase.length > 500) throw new Error("法语原文不能为空，且最多 500 个字符。");
+    const result = await buildPhraseReading(phrase);
+    return {
+      reading: String(result && result.reading || "").trim(),
+      missing: Array.isArray(result && result.missing) ? result.missing.slice() : []
+    };
+  }
+
   async function renderPronunciation(french, requestId) {
     const spelling = $("dwssFrenchSpelling");
     const result = $("resultFrenchReading");
@@ -727,17 +749,30 @@
         combinedOutput.classList.toggle("empty", !String(combinedOutput.value || "").trim());
         const parsed = parseCombinedResult(combinedOutput.value);
         const french = String(parsed.french || "").trim();
-        if (!french || french === String(spelling.value || "").trim()) return;
+
+        // Han-character edits remain homophone corrections. Plain Latin/French
+        // text updates the French source phrase for the save action.
+        if (!french) {
+          combinedOutput.removeAttribute("data-dwss-french-draft");
+          return;
+        }
         spelling.value = french;
         lastMachineFrench = french;
         pendingChinese = "";
-        const requestId = ++activeRequest;
+        activeRequest += 1;
         window.clearTimeout(combinedEditTimer);
-        combinedEditTimer = window.setTimeout(() => {
-          renderPronunciation(french, requestId).catch(() => {});
-        }, 420);
+        if (parsed.isFrenchDraft || !String(parsed.reading || "").trim()) {
+          combinedOutput.setAttribute("data-dwss-french-draft", "true");
+          combinedOutput.dispatchEvent(new Event("dwss:french-draft-pending"));
+          setGrammarStatus("已识别你修改的法语原文；保存时会生成对应中文近似音。", "info");
+        } else {
+          combinedOutput.removeAttribute("data-dwss-french-draft");
+        }
+        const tools = window.DWSSFrenchTools;
+        if (lastChinese && tools && typeof tools.renderSingleGloss === "function") {
+          tools.renderSingleGloss(lastChinese, french);
+        }
       });
-
     }
     if (isFrenchMode()) scheduleTranslation(50);
   }
@@ -745,6 +780,7 @@
     translateCurrentChinese,
     scheduleTranslation,
     restorePersistentTranslations,
+    getReadingForFrenchDraft,
     isFrenchMode
   });
 
