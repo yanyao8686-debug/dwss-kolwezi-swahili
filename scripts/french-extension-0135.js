@@ -346,6 +346,25 @@
     return map;
   }
 
+  function getFrenchWordMeanings(word) {
+    const key = normalizeFrenchGlossKey(word);
+    if (!key) return [];
+    const customRows = activeRows();
+    const custom = customRows.filter(item => normalizeFrenchGlossKey(item.word) === key)
+      .flatMap(item => Array.isArray(item.meanings) ? item.meanings : []);
+    const replacedBy = customRows.filter(item =>
+      Array.isArray(item.replacesWords) && item.replacesWords.some(old => normalizeFrenchGlossKey(old) === key)
+    );
+    const base = findFrenchGloss(word).filter(meaning => !replacedBy.some(item =>
+      (item.meanings || []).some(chinese => {
+        const replacementContext = normalizeChinese(chinese);
+        const currentMeaning = normalizeChinese(meaning);
+        return replacementContext && currentMeaning && replacementContext.includes(currentMeaning);
+      })
+    ));
+    return [...new Set(custom.concat(base).map(x => String(x || "").trim()).filter(Boolean))];
+  }
+
   function buildFrenchWordPairs(phrase, wordLookup, glossSegments, enrichedWordReadings) {
     const tokens = tokenizeFrenchPhrase(phrase);
     const fallback = buildFrenchPhraseFallback(glossSegments);
@@ -360,6 +379,7 @@
       const reading = record ? getWordChineseReading(record) : getFrenchNumberWordReading(token.word);
       return {
         word: token.display, token: token.word, reading: reading || "谐音待补",
+        meanings: getFrenchWordMeanings(token.word),
         start: token.start, end: token.end
       };
     });
@@ -413,11 +433,12 @@
       const keepPrevious = !!previous &&
         normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
       const wordValue = keepPrevious ? previous.word : token;
+      const meanings = Array.isArray(pair.meanings) ? pair.meanings.filter(Boolean) : [];
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
         '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
-        '<div class="rd">法语：' +
-        '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
+        '<div class="rd">中文释义：<span class="dwss-french-word-meaning">' + esc(meanings.join("；") || "暂未收录中文释义") + '</span></div>' +
+        '<div class="rd">中文谐音：<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
         '</div>';
     }).join("");
     host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
@@ -497,7 +518,7 @@
   function activeRows() {
     const out = [];
     const seen = new Set();
-    const add = (wordValue, chineseValue, readingValue, source) => {
+    const add = (wordValue, chineseValue, readingValue, source, replacesWords) => {
       const word = String(wordValue || "").trim();
       const zh = String(chineseValue || "").trim();
       const reading = String(readingValue || "").trim();
@@ -505,7 +526,10 @@
       const key = normalizeChinese(zh) + "|" + word.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
-      out.push({ word, ipa: "", reading, meanings: [zh], source });
+      out.push({
+        word, ipa: "", reading, meanings: [zh], source,
+        replacesWords: Array.isArray(replacesWords) ? replacesWords.map(x => String(x || "").trim()).filter(Boolean) : []
+      });
     };
 
     // Pending offline corrections win immediately. Published corrections are newest-first,
@@ -513,13 +537,22 @@
     const shared = window.DWSSSharedLexicon;
     if (shared && typeof shared.getTerms === "function") {
       const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr");
-      const pending = all.filter(item => item.__pending);
-      const published = all.filter(item => !item.__pending).sort((a, b) =>
+      const replacements = all.flatMap(item => (Array.isArray(item.replaces_source_texts) ? item.replaces_source_texts : [])
+        .map(word => ({ chinese: normalizeChinese(item.chinese_text), word: normalizeFrenchGlossKey(word) }))
+        .filter(x => x.chinese && x.word));
+      const isSuperseded = item => replacements.some(rule =>
+        rule.chinese === normalizeChinese(item.chinese_text) &&
+        rule.word === normalizeFrenchGlossKey(item.french_text)
+      );
+      const visible = all.filter(item => !isSuperseded(item));
+      const pending = visible.filter(item => item.__pending);
+      const published = visible.filter(item => !item.__pending).sort((a, b) =>
         String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
       for (const item of pending.concat(published)) {
         add(item.french_text, item.chinese_text,
           item.french_pronunciation_cn || item.frenchReadingZh,
-          item.__pending ? "待同步法语修正" : "云端共享修正");
+          item.__pending ? "待同步法语修正" : "云端共享修正",
+          item.replaces_source_texts);
       }
     }
 
@@ -540,6 +573,21 @@
   function createMeaningIndex(customRows) {
     const map = new Map();
     const custom = Array.isArray(customRows) ? customRows : activeRows();
+    const replacedMappings = [];
+    for (const item of custom) {
+      const words = Array.isArray(item.replacesWords) ? item.replacesWords : [];
+      const meanings = Array.isArray(item.meanings) ? item.meanings : [];
+      for (const oldWord of words) {
+        const wordKey = normalizeFrenchGlossKey(oldWord);
+        if (wordKey) replacedMappings.push({ wordKey, meanings: meanings.map(normalizeChinese).filter(Boolean) });
+      }
+    }
+    const isReplaced = (word, meaning) => {
+      const wordKey = normalizeFrenchGlossKey(word);
+      const meaningKey = normalizeChinese(meaning);
+      return replacedMappings.some(item => item.wordKey === wordKey &&
+        item.meanings.some(context => context.includes(meaningKey)));
+    };
     let customOrder = 0;
     for (const item of custom) {
       const prioritizedItem = Object.assign({}, item, { __dwssPriorityOrder: customOrder++ });
@@ -556,7 +604,7 @@
       const meanings = row.meanings || [];
       for (const meaning of meanings) {
         const key = normalizeChinese(meaning);
-        if (!key) continue;
+        if (!key || isReplaced(row.word, meaning)) continue;
         if (!map.has(key)) map.set(key, []);
         const list = map.get(key);
         if (!list.some(x => String(x.word).toLowerCase() === String(row.word).toLowerCase())) list.push(row);
@@ -847,6 +895,13 @@
         parsed && parsed.french || (spelling && spelling.value) || ""
       ).trim();
       const rows = readWordRows();
+      const replacesWords = rows.filter(row => row.word !== row.originalWord).map(row => row.originalWord);
+      const outputDraftPrevious = String(output.dataset.dwssFrenchPreviousSource || "").trim();
+      if (outputFrenchDraft && outputDraftPrevious) {
+        const previousTokens = window.DWSSFrenchTools && window.DWSSFrenchTools.tokenizeFrenchPhrase
+          ? window.DWSSFrenchTools.tokenizeFrenchPhrase(outputDraftPrevious).map(token => token.word) : [];
+        replacesWords.push(...previousTokens);
+      }
       const tools = window.DWSSFrenchTools;
       const tokens = tools && typeof tools.tokenizeFrenchPhrase === "function"
         ? tools.tokenizeFrenchPhrase(baseFrench) : [];
@@ -861,7 +916,8 @@
       if (rowsEdited && tools && typeof tools.replaceFrenchPhraseWords === "function") {
         french = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word));
       }
-      return { chinese, french, reading, baseFrench, rows, rowsEdited, outputFrenchDraft };
+      return { chinese, french, reading, baseFrench, rows, rowsEdited, outputFrenchDraft,
+        replacesWords: [...new Set(replacesWords.filter(Boolean))] };
     };
     const setStatus = (message, kind) => {
       status.textContent = message || "";
@@ -1026,7 +1082,8 @@
         const result = await api.submitFrenchPronunciationCorrection({
           chinese_text: values.chinese,
           french_text: values.french,
-          french_pronunciation_cn: values.reading
+          french_pronunciation_cn: values.reading,
+          replaces_source_texts: values.replacesWords
         });
         const current = currentValues();
         const sameContext = current.chinese === values.chinese && current.french === values.french;
@@ -1263,7 +1320,18 @@
     if (!first) { host.innerHTML = '<div class="nores">没有识别到有效的中文近似音，请换一种同音字输入。</div>'; return; }
     const matchingFirstKeys = nearFirstKeys(first, engine, firstKeys);
     const shardLines = await Promise.all(matchingFirstKeys.map(loadPronunciationShard));
-    const candidates = rowsForShards(shardLines, 24000);
+    const sharedRows = activeRows();
+    const candidates = rowsForShards(shardLines, 24000).filter(candidate => {
+      const meanings = findFrenchGloss(candidate.zh);
+      if (!meanings.length) return true;
+      return meanings.some(meaning => !sharedRows.some(item =>
+        (item.replacesWords || []).some(oldWord =>
+          normalizeFrenchGlossKey(oldWord) === normalizeFrenchGlossKey(candidate.zh)) &&
+        (item.meanings || []).some(chinese =>
+          normalizeChinese(chinese).includes(normalizeChinese(meaning))
+        )
+      ));
+    });
     candidates.push(...customQueryCandidates());
     const results = searchFrenchCandidates(query, candidates, engine, 20);
     const sourceMap = new Map();
@@ -1287,7 +1355,7 @@
           normalizeFrenchGlossKey(x.word) === normalizeFrenchGlossKey(result.zh)
         );
         if (custom && custom.meanings && custom.meanings.length) return custom.meanings.join("；");
-        const found = findFrenchGloss(result.zh);
+        const found = getFrenchWordMeanings(result.zh);
         if (found.length) return found.slice(0, 4).join("；");
         return "该法语词形暂未收录中文释义（法中词典没有对应词条）";
       })();
