@@ -266,7 +266,7 @@ jobs:
           grep -Fq 'machine.getReadingForFrenchDraft(values.french)' "$LIVE/french-extension.js"
           grep -Fq 'values.outputFrenchDraft ||' "$LIVE/french-extension.js"
           grep -Fq 'buildMeaningIndex: createMeaningIndex' "$LIVE/french-extension.js"
-          grep -Fq 'map.get(key).push(item);' "$LIVE/french-extension.js"
+          grep -Fq 'map.get(key).push(prioritizedItem);' "$LIVE/french-extension.js"
           grep -Fq 'glossTools.renderSingleGloss(lastChinese, french);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'enrichedGlossTools.renderSingleGloss(lastChinese, french, enriched.wordReadings);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'expandFrenchNumerals(rawFrench)' "$LIVE/french-translation-runtime.js"
