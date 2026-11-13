@@ -579,6 +579,19 @@ if "async function precacheFrenchShardFamilies(cache)" not in sw or "activeCache
 # and French single-word gloss after each input event. Preserve local history on blur.
 old_render_guard = "const activeResultCard=document.getElementById('resultCard');if(activeResultCard&&activeResultCard.dataset.dwssLang==='fr'){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}"
 render_guard = "const activeResultCard=document.getElementById('resultCard');if(activeResultCard&&activeResultCard.dataset.dwssLang==='fr'){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}const activeFrenchButton=document.getElementById('dwssMainFrMode');const activeSwahiliButton=document.getElementById('dwssMainSwMode');if(activeFrenchButton){activeFrenchButton.classList.remove('active');activeFrenchButton.setAttribute('aria-pressed','false');}if(activeSwahiliButton){activeSwahiliButton.classList.add('active');activeSwahiliButton.setAttribute('aria-pressed','true');}"
+# A prior build could leave the button-state part after the old French guard.
+# Replacing old_render_guard with render_guard without collapsing that suffix
+# duplicated const declarations inside renderTranslation(), making all of app.js
+# syntactically invalid. Normalize this exact repeated suffix before patching.
+button_state_guard = render_guard[len(old_render_guard):]
+if button_state_guard and button_state_guard + button_state_guard in app:
+    app = app.replace(button_state_guard + button_state_guard, button_state_guard, 1)
+# Also collapse the duplicate renderer export left by earlier mirror patches.
+duplicate_translation_export = "window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});\\nwindow.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});"
+single_translation_export = "window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});"
+if duplicate_translation_export in app:
+    app = app.replace(duplicate_translation_export, single_translation_export, 1)
+
 render_anchor = "function renderTranslation(options={}){"
 if old_render_guard in app:
     app = app.replace(old_render_guard, render_guard, 1)
