@@ -7,10 +7,10 @@ const { JSDOM } = require('jsdom');
 
 const root = path.resolve(process.env.DWSS_PUBLIC_DIR || 'public');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const scripts = [...html.matchAll(/<script id="dwss-input-ime-fallback-0150">([\\s\\S]*?)<\\/script>/g)];
+const scripts = [...html.matchAll(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/g)];
 assert.equal(scripts.length, 1, 'the Android IME fallback must be embedded exactly once');
 const source = scripts[0][1];
-assert.equal((html.match(/pronunciation-query-editor\\.js\\?dwss-release=0\\.9\\.150/g) || []).length, 1,
+assert.equal((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.150/g) || []).length, 1,
   'the read-only pronunciation script must be loaded once');
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
