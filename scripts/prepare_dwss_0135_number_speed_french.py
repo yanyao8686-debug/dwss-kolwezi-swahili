@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.153: reconcile asynchronous Swahili startup and pin deferred runtime assets."""
+"""DWSS 0.9.154: keep optional French offline shards out of the core update install."""
 from __future__ import annotations
 
 import gzip
@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.152"
-NEW_VERSION = "0.9.153"
+OLD_VERSION = "0.9.153"
+NEW_VERSION = "0.9.154"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -480,100 +480,47 @@ def ensure_precache_asset(source: str, asset_name: str) -> str:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     sw = ensure_precache_asset(sw, offline_asset)
 
-# Cache every on-demand French spelling/pronunciation shard before the new worker
-# installs. This makes first-time offline searches work, not only previously visited shards.
-offline_shard_helper = r"""async function precacheFrenchShardFamilies(cache) {
-  const scope = self.registration.scope;
-  const readIndex = async relative => {
-    const url = new URL(relative, scope).href;
-    const response = await cache.match(url);
-    if (!response) throw new Error('DWSS offline French index missing from base precache: ' + relative);
-    return response.json();
-  };
-  const [pronunciationMeta, wordMeta] = await Promise.all([
-    readIndex('./french-pronunciation-index.json'),
-    readIndex('./french-word-index.json')
-  ]);
-  const families = [
-    { folder: 'french-pronunciation-shards/', keys: pronunciationMeta.firstKeys },
-    { folder: 'french-word-shards/', keys: wordMeta.prefixes }
-  ];
-  const assets = [];
-  for (const family of families) {
-    if (!Array.isArray(family.keys) || family.keys.length < 100 || family.keys.length > 1200) {
-      throw new Error('DWSS offline French shard index has an unexpected size: ' + family.folder);
-    }
-    const unique = [...new Set(family.keys)];
-    if (unique.length !== family.keys.length || unique.some(key =>
-      typeof key !== 'string' || !/^[a-z0-9_]{1,24}$/.test(key))) {
-      throw new Error('DWSS offline French shard index contains invalid keys: ' + family.folder);
-    }
-    for (const key of unique) {
-      assets.push(new URL(family.folder + encodeURIComponent(key) + '.tsv.gz', scope).href);
-    }
-  }
-  if (assets.length < 500 || assets.length > 2000) {
-    throw new Error('DWSS offline French shard set is incomplete or unexpectedly large: ' + assets.length);
-  }
-  const batchSize = 12;
-  for (let offset = 0; offset < assets.length; offset += batchSize) {
-    const batch = assets.slice(offset, offset + batchSize);
-    await Promise.all(batch.map(async url => {
-      if (await cache.match(url)) return;
-      let lastError = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const response = await fetch(url, { cache: 'no-store' });
-          if (!response || !response.ok) {
-            throw new Error('HTTP ' + (response && response.status || 'network error'));
-          }
-          await cache.put(url, response.clone());
-          return;
-        } catch (error) {
-          lastError = error;
-          if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
-        }
-      }
-      throw new Error('DWSS could not cache an offline French shard: ' + url + ' · ' + String(lastError));
-    }));
-  }
-  for (const url of assets) {
-    if (!(await cache.match(url))) throw new Error('DWSS offline French shard verification failed: ' + url);
-  }
-  return assets.length;
-}
-
-"""
-if "async function precacheFrenchShardFamilies(cache)" not in sw:
-    install_anchor = "self.addEventListener('install', (event) => {"
-    if sw.count(install_anchor) != 1:
-        fail("Cannot locate Service Worker install handler for full French offline caching.")
-    sw = sw.replace(install_anchor, offline_shard_helper + "\n" + install_anchor, 1)
-if "const frenchOfflineShardCount =" not in sw:
-    if sw.count("await cache.addAll(PRECACHE_URLS);") != 1:
-        fail("Cannot locate the Service Worker base precache call.")
-    sw = sw.replace(
-        "await cache.addAll(PRECACHE_URLS);",
-        "await cache.addAll(PRECACHE_URLS);\\n    const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);\\n    if (frenchOfflineShardCount < 700) throw new Error('French offline shard cache is incomplete: ' + frenchOfflineShardCount);",
-        1
-    )
-elif sw.count("const frenchOfflineShardCount =") != 1:
-    fail("Duplicate French offline shard installation code detected in Service Worker.")
+# French pronunciation/spelling shards remain published as immutable static assets.
+# The Service Worker normal fetch handler caches each requested shard on first use.
+# Do not download all ~38.4 MiB of optional French shards inside the install event:
+# one weak-network failure must never prevent the new Swahili core from activating.
+helper_start = sw.find("async function precacheFrenchShardFamilies(cache) {")
+if helper_start >= 0:
+    helper_end = sw.find("\\nself.addEventListener('install', (event) => {", helper_start)
+    if helper_end < 0:
+        fail("Could not isolate the blocking French shard precache helper.")
+    sw = sw[:helper_start] + sw[helper_end + 1:]
+if "frenchOfflineShardCount" in sw:
+    lines = sw.splitlines()
+    removed_call = False
+    for index, line in enumerate(lines):
+        if "const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);" in line:
+            if index + 1 >= len(lines) or "if (frenchOfflineShardCount < 700)" not in lines[index + 1]:
+                fail("Unexpected blocking French shard install check.")
+            del lines[index:index + 2]
+            removed_call = True
+            break
+    if not removed_call:
+        fail("Could not remove the blocking French shard downloads from the install event.")
+    sw = "\\n".join(lines) + "\\n"
 if "activeCache.match(request, { ignoreSearch: true })" not in sw:
     old_cache_lookup = "const cached = await caches.match(request);"
     if sw.count(old_cache_lookup) != 1:
         fail("Cannot locate Service Worker cache lookup for versioned static assets.")
     sw = sw.replace(old_cache_lookup,
-        "const activeCache = await caches.open(CACHE_NAME);\n    const cached = await activeCache.match(request, { ignoreSearch: true });", 1)
+        "const activeCache = await caches.open(CACHE_NAME);\\n    const cached = await activeCache.match(request, { ignoreSearch: true });", 1)
 if "const canonicalUrl = new URL(request.url);" not in sw:
     old_cache_write = "cache.put(request, fresh.clone()).catch(() => {});"
     if sw.count(old_cache_write) != 1:
         fail("Cannot locate Service Worker cache write for canonical asset keys.")
     sw = sw.replace(old_cache_write,
-        "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
-if "async function precacheFrenchShardFamilies(cache)" not in sw or "activeCache.match(request, { ignoreSearch: true })" not in sw:
-    fail("Full French offline shard caching or versioned asset cache lookup was not installed.")
-
+        "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
+if "precacheFrenchShardFamilies" in sw or "frenchOfflineShardCount" in sw:
+    fail("Optional French shard downloads are still blocking Service Worker installation.")
+if "activeCache.match(request, { ignoreSearch: true })" not in sw:
+    fail("Versioned asset cache lookup was not installed.")
+if "const canonicalUrl = new URL(request.url);" not in sw:
+    fail("On-demand French shard requests will not be saved under a canonical cache URL.")
 
 # In French mode, stop the Swahili renderer from overwriting the French result
 # and French single-word gloss after each input event. Preserve local history on blur.
@@ -852,11 +799,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.152/0.9.153 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.153/0.9.154 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.152 or 0.9.153.")
+    fail("Live app.js version is not 0.9.153 or 0.9.154.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.152 or 0.9.153.")
+    fail("Live Service Worker version is not 0.9.153 or 0.9.154.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -1031,7 +978,7 @@ if f"Version: {OLD_VERSION}" in version:
 version = version.rstrip() + "\n0.9.148: Each French headword in the single-word gloss list is shown as a compact bordered input; one unified save-and-sync button below the list submits all word edits.\n"
 version = version.rstrip() + "\n0.9.149: Pronunciation lookup is read-only; duplicate result-edit and dictionary-maintenance controls are removed. Swahili and French lookups continue to combine their base dictionaries with saved and pending shared corrections.\n"
 version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallback keeps Swahili and French translation working when compositionend is omitted; the read-only query script loads once and observes only its result lists.\n"
-version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n"
+version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1040,8 +987,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_152"
-new_marker = "DWSS_AUTO_UPDATE_0_9_153"
+old_marker = "DWSS_AUTO_UPDATE_0_9_153"
+new_marker = "DWSS_AUTO_UPDATE_0_9_154"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.146 auto-update marker; found " + str(html.count(old_marker)))
@@ -1349,8 +1296,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_153" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.153.")
+if "DWSS_AUTO_UPDATE_0_9_154" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.154.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1439,5 +1386,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.153 pins deferred runtime scripts to one release and reconciles both Swahili views after asynchronous core startup.")
+print("PASS: DWSS 0.9.154 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
