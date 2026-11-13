@@ -131,9 +131,10 @@ assert(queryEditor.includes('DWSSPronunciationQueryReadOnly') &&
 for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
   assert(!queryEditor.includes(forbidden), 'pronunciation lookup must not expose correction controls: ' + forbidden);
 }
-assert(queryEditor.includes('#pronunciationResults .pronunciation-hit-actions') &&
-       queryEditor.includes('#pronunciationFrenchResults .pronunciation-hit-actions'),
-  'legacy copy buttons are not hidden in both query modes');
+assert(!queryEditor.includes('.pronunciation-hit-actions') &&
+       queryEditor.includes('#pronunciationResults .pronunciation-hit-reading') &&
+       queryEditor.includes('#pronunciationFrenchResults .pronunciation-hit-meta'),
+  'read-only query must preserve visible pronunciation details and not hide the copy action');
 assert(!extension.includes('data-copy-french') &&
        !extension.includes('data-copy-french-reading') &&
        !extension.includes('复制法语') && !extension.includes('复制谐音'),
