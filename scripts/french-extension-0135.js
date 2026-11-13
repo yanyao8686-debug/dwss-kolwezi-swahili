@@ -1279,8 +1279,13 @@
   }
   function isSupersededFrenchHeadword(word, preferred, knownMeanings) {
     const key = normalizeFrenchGlossKey(word);
-    const meanings = (Array.isArray(knownMeanings) ? knownMeanings : findFrenchGloss(word))
-      .map(normalizeChinese).filter(Boolean);
+    // The active Chinese-to-French index intentionally drops obsolete static rows.
+    // For reverse-lookup suppression, consult the original static rows directly so
+    // that an edited Bonjour -> Salut entry can still identify Bonjour as obsolete.
+    const sourceMeanings = Array.isArray(knownMeanings) ? knownMeanings :
+      meaningRows.filter(row => normalizeFrenchGlossKey(row.word) === key)
+        .flatMap(row => Array.isArray(row.meanings) ? row.meanings : []);
+    const meanings = sourceMeanings.map(normalizeChinese).filter(Boolean);
     if (!key || !meanings.length || !preferred || typeof preferred.get !== "function") return false;
     const mapped = meanings.filter(meaning => preferred.has(meaning));
     return mapped.length > 0 && mapped.length === meanings.length && mapped.every(meaning => preferred.get(meaning) !== key);
