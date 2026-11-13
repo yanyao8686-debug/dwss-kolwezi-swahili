@@ -149,7 +149,7 @@ if not query_editor_source.is_file():
 query_editor_text = query_editor_source.read_text(encoding="utf-8")
 if ".pronunciation-maintenance-entry" in query_editor_text or "maintenance.remove()" in query_editor_text:
     fail("Read-only pronunciation cleanup must not hide or remove the main maintenance entry.")
-(ROOT / "pronunciation-query-editor.js").write_text(query_editor_text, encoding="utf-8", newline="\\n")
+(ROOT / "pronunciation-query-editor.js").write_text(query_editor_text, encoding="utf-8", newline="\n")
 
 # Copy the on-demand pronunciation files too; they are intentionally not all in the
 # Service Worker precache, but both French lookup and translated-sentence reading need them.
