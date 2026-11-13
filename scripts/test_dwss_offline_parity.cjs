@@ -118,9 +118,9 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const swApi = swDom.window.KolweziSwahili;
   assert(swApi && typeof swApi.translate === 'function', 'offline Swahili translator API is unavailable');
   const swHeadword = swDom.window.SW_DB.find(item =>
-    item && item.zh && Array.isArray(item.variants) && item.variants.some(v => String(v.reading || '').trim()));
-  assert(swHeadword, 'no usable offline Swahili dictionary record was found');
-  const swTranslation = swApi.translate(swHeadword.zh);
+    item && item.zh === '明天' && Array.isArray(item.variants) && item.variants.some(v => String(v.reading || '').trim()));
+  assert(swHeadword, 'known 明天 offline Swahili dictionary record was not found');
+  const swTranslation = swApi.translate('明天');
   assert(swTranslation && swTranslation.localHits > 0 &&
     swTranslation.segments.some(segment => segment.type === 'local' && segment.reading),
     'Swahili main translation did not produce a local reading while offline');
@@ -134,10 +134,13 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   resultCard.removeAttribute('data-dwss-lang');
   staleFrenchButton.classList.add('active');
   assert(typeof swDom.window.DWSSRenderTranslation === 'function', 'main result hook is missing');
+  mainInput.dispatchEvent(new swDom.window.Event('input', { bubbles: true }));
   swDom.window.DWSSRenderTranslation();
   const expectedReading = swTranslation.segments.find(segment => segment.type === 'local' && segment.reading).reading;
   assert(!mainResult.hidden && mainResult.value.includes(expectedReading),
-    'actual Swahili result box must show the local homophone despite stale French button styling; got: ' + mainResult.value);
+    'actual 明天 Swahili result box must show its local homophone despite stale French button styling; got: ' +
+    JSON.stringify({ value: mainResult.value, expected: expectedReading, input: mainInput.value,
+      activeFrenchClass: staleFrenchButton.classList.contains('active'), lang: resultCard.dataset.dwssLang || 'sw' }));
 
   const queryInput = swDom.window.document.getElementById('pronunciationSearch');
   const queryResults = swDom.window.document.getElementById('pronunciationResults');
