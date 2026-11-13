@@ -1184,6 +1184,28 @@
     }
   }
 
+  function reconcileAfterCoreReady() {
+    // boot.js loads the compressed Swahili dictionary and app.js asynchronously.
+    // The deferred French extension can bind before the Swahili renderer exists.
+    // Re-apply the selected modes after app.js has defined the real renderers.
+    if (!window.KolweziSwahili ||
+        typeof window.DWSSRenderTranslation !== "function" ||
+        typeof window.DWSSRenderPronunciationLookup !== "function") return false;
+
+    setMainMode(activeMainMode);
+    setQueryMode(activeQueryMode);
+
+    const input = $("inputText");
+    if (activeMainMode === "sw" && input && String(input.value || "").trim()) {
+      window.DWSSRenderTranslation();
+    }
+    const query = $("pronunciationSearch");
+    if (activeQueryMode === "sw" && query && String(query.value || "").trim()) {
+      window.DWSSRenderPronunciationLookup();
+    }
+    return true;
+  }
+
   function bind() {
     const frenchQueryInstruction = document.querySelector("#dwssFrenchQueryPanel .pronunciation-lookup-instruction");
     if (frenchQueryInstruction) {
@@ -1194,6 +1216,14 @@
     setupFrenchPronunciationEditor();
     $("dwssPronSwMode").addEventListener("click", () => setQueryMode("sw"));
     $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
+
+    // Install the listener before boot.js completes its asynchronous dictionary load.
+    // The immediate check also covers the case where the core has already finished.
+    const onCoreReady = () => {
+      if (reconcileAfterCoreReady()) window.removeEventListener("dwss:app-ready", onCoreReady);
+    };
+    window.addEventListener("dwss:app-ready", onCoreReady);
+    if (reconcileAfterCoreReady()) window.removeEventListener("dwss:app-ready", onCoreReady);
     const scheduleMain = () => {
       if (activeMainMode !== "fr") return;
       const modeGeneration = mainModeGeneration;
