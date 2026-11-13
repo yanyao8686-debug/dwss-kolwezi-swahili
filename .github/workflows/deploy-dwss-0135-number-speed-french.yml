@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.153 verified Swahili and French translation runtime
+name: Deploy DWSS 0.9.154 verified Swahili and French translation runtime
 
 on:
   push:
@@ -87,7 +87,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.153
+      - name: Deploy DWSS 0.9.154
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -107,15 +107,15 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_153' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_154' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.153' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_153' "$LIVE/index.html"
-          grep -Fq "version:'0.9.153'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.153';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.154' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_154' "$LIVE/index.html"
+          grep -Fq "version:'0.9.154'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.154';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
           grep -Fq 'background:#FFF9ED!important' "$LIVE/index.html"
@@ -129,14 +129,14 @@ jobs:
           grep -Fq 'setQueryMode(activeQueryMode);' "$LIVE/french-extension.js"
           grep -Fq 'dwss:app-ready' "$LIVE/french-extension.js"
           grep -Fq 'restoreSelectedModesAfterCoreReady' "$LIVE/french-extension.js"
-          grep -Fq 'french-extension.js?dwss-release=0.9.153' "$LIVE/index.html"
-          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.153' "$LIVE/index.html"
+          grep -Fq 'french-extension.js?dwss-release=0.9.154' "$LIVE/index.html"
+          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.154' "$LIVE/index.html"
           gzip -t "$LIVE/dictionary.js.gz"
           node --check "$LIVE/app.js"
           node --check "$LIVE/pronunciation-search.js"
           ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.153' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.154' "$LIVE/index.html"
           grep -Fq 'dwss-pronunciation-query-readonly-0151' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSPronunciationQueryReadOnly' "$LIVE/pronunciation-query-editor.js"
           grep -Fq '#pronunciationResults .pronunciation-hit-reading' "$LIVE/pronunciation-query-editor.js"
@@ -146,7 +146,7 @@ jobs:
           grep -Fq 'dwss-input-ime-fallback-0150' "$LIVE/index.html"
           grep -Fq 'finishComposition' "$LIVE/index.html"
           ! grep -Fq 'observer.observe(document.body' "$LIVE/pronunciation-query-editor.js"
-          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.153' "$LIVE/index.html" | wc -l)" -eq 1
+          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.154' "$LIVE/index.html" | wc -l)" -eq 1
           grep -Fq '.pronunciation-maintenance-entry' "$LIVE/pronunciation-query-editor.js"
           grep -Fq '.dwss-query-inline-tools' "$LIVE/pronunciation-query-editor.js"
           ! grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
@@ -190,7 +190,9 @@ jobs:
           print("French Wiktionary coverage:",json.dumps(p,ensure_ascii=False))
           PY
           grep -Fq 'lang_code=zh' "$LIVE/french-WIKTIONARY-ATTRIBUTION.txt"
-          grep -Fq 'async function precacheFrenchShardFamilies(cache)' "$LIVE/sw.js"
+          ! grep -Fq 'precacheFrenchShardFamilies' "$LIVE/sw.js"
+          ! grep -Fq 'frenchOfflineShardCount' "$LIVE/sw.js"
+          grep -Fq 'cache.put(canonicalUrl.href, fresh.clone())' "$LIVE/sw.js"
           grep -Fq 'activeCache.match(request, { ignoreSearch: true })' "$LIVE/sw.js"
           python3 - "$LIVE/french-pronunciation-index.json" "$LIVE/french-word-index.json" <<'PY'
           import json,sys
@@ -345,4 +347,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.153 includes runtime-verified Swahili translation and reverse lookup, plus Android IME fallback for Swahili/French translation, one scoped read-only pronunciation script, and an audited French glossary; protected assets are verified."
+          echo "PASS: live DWSS 0.9.154 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."

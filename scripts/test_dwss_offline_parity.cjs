@@ -16,9 +16,9 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const html = readText('index.html');
   const sw = readText('sw.js');
   const version = readText('VERSION.txt');
-  assert(version.includes('Version: 0.9.153'), 'offline parity test must target DWSS 0.9.153');
-  assert(sw.includes("const APP_VERSION = '0.9.153';"), 'offline cache version must match site version');
-  assert(sw.includes('async function precacheFrenchShardFamilies(cache)'), 'Service Worker must precache both French shard families');
+  assert(version.includes('Version: 0.9.154'), 'offline parity test must target DWSS 0.9.154');
+  assert(sw.includes("const APP_VERSION = '0.9.154';"), 'offline cache version must match site version');
+  assert(!sw.includes('precacheFrenchShardFamilies') && !sw.includes('frenchOfflineShardCount'), 'optional French shards must not block Service Worker installation');
   assert(sw.includes('activeCache.match(request, { ignoreSearch: true })'), 'cache-busted scripts must resolve to canonical offline cache entries');
 
   const pronMeta = JSON.parse(readText('french-pronunciation-index.json'));
@@ -238,7 +238,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const handlers = {};
   const context = {
     URL, Request, Response, Promise, setTimeout, clearTimeout,
-    caches: { open: async () => cache, keys: async () => ['dwss-kolwezi-0.9.153'], delete: async () => true },
+    caches: { open: async () => cache, keys: async () => ['dwss-kolwezi-0.9.154'], delete: async () => true },
     fetch: async () => { networkRequests++; return new Response('cached-french-shard', { status: 200 }); },
     self: {
       registration: { scope }, location: new URL(scope),
@@ -252,39 +252,49 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   handlers.install({ waitUntil(promise) { installPromise = promise; } });
   assert(installPromise, 'Service Worker install handler did not register its promise');
   await installPromise;
-  assert(networkRequests === frenchShards.length,
-    'Service Worker did not fetch all French shards: ' + networkRequests + ' / ' + frenchShards.length);
+  assert(networkRequests === 0,
+    'Service Worker install must not download optional French shards: ' + networkRequests);
   for (const asset of frenchShards) {
     const url = new URL('./' + asset, scope).href;
-    assert(await cache.match(url), 'French shard was not cached at install: ' + asset);
+    assert(!(await cache.match(url)), 'French shard should be cached on demand, not during core installation: ' + asset);
   }
   const cacheBustedScripts = [
-    './supabase.min.js?dwss-release=0.9.153',
-    './shared-lexicon.js?dwss-release=0.9.153',
-    './boot.js?dwss-release=0.9.153',
-    './french-extension.js?dwss-release=0.9.153',
-    './french-translation-runtime.js?dwss-release=0.9.153',
-    './pronunciation-query-editor.js?dwss-release=0.9.153'
+    './supabase.min.js?dwss-release=0.9.154',
+    './shared-lexicon.js?dwss-release=0.9.154',
+    './boot.js?dwss-release=0.9.154',
+    './french-extension.js?dwss-release=0.9.154',
+    './french-translation-runtime.js?dwss-release=0.9.154',
+    './pronunciation-query-editor.js?dwss-release=0.9.154'
   ];
   for (const asset of cacheBustedScripts) {
     assert(await cache.match(new URL(asset, scope).href, { ignoreSearch: true }),
       'versioned script cannot resolve to cached offline asset: ' + asset);
   }
-  const request = new Request(new URL('./shared-lexicon.js?dwss-release=0.9.153', scope).href);
+  const request = new Request(new URL('./shared-lexicon.js?dwss-release=0.9.154', scope).href);
   let offlineResponsePromise;
   context.fetch = async () => { throw new Error('offline'); };
   handlers.fetch({ request, respondWith(promise) { offlineResponsePromise = promise; } });
   const offlineResponse = await offlineResponsePromise;
   assert(offlineResponse && offlineResponse.ok, 'versioned shared-lexicon script failed while offline');
-  const frenchShardRequest = new Request(new URL('./french-pronunciation-shards/bang.tsv.gz?dwss-release=0.9.153', scope).href);
+  const frenchShardUrl = new URL('./french-pronunciation-shards/bang.tsv.gz', scope).href;
+  const frenchShardRequest = new Request(frenchShardUrl + '?dwss-release=0.9.154');
   let frenchShardResponsePromise;
+  context.fetch = async () => { networkRequests++; return new Response('cached-french-shard', { status: 200 }); };
   handlers.fetch({ request: frenchShardRequest, respondWith(promise) { frenchShardResponsePromise = promise; } });
   const frenchShardResponse = await frenchShardResponsePromise;
-  assert(frenchShardResponse && frenchShardResponse.ok,
-    'first-use French pronunciation shard failed when requested offline');
-  assert(networkRequests === frenchShards.length, 'offline cache lookup unexpectedly went to the network');
+  assert(frenchShardResponse && frenchShardResponse.ok && networkRequests === 1,
+    'first-use French pronunciation shard must load online without being part of the install event');
+  assert(await cache.match(frenchShardUrl), 'first-use French shard was not saved to the active cache');
 
-  console.log('PASS DWSS 0.9.153 offline parity: Swahili dictionary/search assets, French local translation/gloss, and all ' +
-    frenchShards.length + ' French spelling/pronunciation shards are installed and available offline (' +
-    (shardBytes / 1024 / 1024).toFixed(1) + ' MiB French shards).');
+  context.fetch = async () => { throw new Error('offline'); };
+  const frenchShardOfflineRequest = new Request(frenchShardUrl + '?dwss-release=0.9.154&offline-check=1');
+  let frenchShardOfflinePromise;
+  handlers.fetch({ request: frenchShardOfflineRequest, respondWith(promise) { frenchShardOfflinePromise = promise; } });
+  const frenchShardOffline = await frenchShardOfflinePromise;
+  assert(frenchShardOffline && frenchShardOffline.ok && networkRequests === 1,
+    'a previously requested French shard must remain available offline from its on-demand cache');
+
+  console.log('PASS DWSS 0.9.154 offline parity: Swahili core installation does not wait for optional French shards; all ' +
+    frenchShards.length + ' French spelling/pronunciation shard files remain available for on-demand caching (' +
+    (shardBytes / 1024 / 1024).toFixed(1) + ' MiB inventory).');
 })().catch(error => { console.error(error); process.exitCode = 1; });
