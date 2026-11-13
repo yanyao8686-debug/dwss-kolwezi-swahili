@@ -766,6 +766,7 @@
         if (writingCombinedOutput) return;
         userEditedCombined = true;
         combinedOutput.classList.toggle("empty", !String(combinedOutput.value || "").trim());
+        const previousFrenchSource = String(spelling.value || "").trim();
         const parsed = parseCombinedResult(combinedOutput.value);
         const french = String(parsed.french || "").trim();
 
@@ -773,6 +774,7 @@
         // text updates the French source phrase for the save action.
         if (!french) {
           combinedOutput.removeAttribute("data-dwss-french-draft");
+          delete combinedOutput.dataset.dwssFrenchPreviousSource;
           return;
         }
         spelling.value = french;
@@ -781,11 +783,15 @@
         activeRequest += 1;
         window.clearTimeout(combinedEditTimer);
         if (parsed.isFrenchDraft || !String(parsed.reading || "").trim()) {
+          if (previousFrenchSource && previousFrenchSource !== french) {
+            combinedOutput.dataset.dwssFrenchPreviousSource = previousFrenchSource;
+          }
           combinedOutput.setAttribute("data-dwss-french-draft", "true");
           combinedOutput.dispatchEvent(new Event("dwss:french-draft-pending"));
           setGrammarStatus("已识别你修改的法语原文；保存时会生成对应中文近似音。", "info");
         } else {
           combinedOutput.removeAttribute("data-dwss-french-draft");
+          delete combinedOutput.dataset.dwssFrenchPreviousSource;
         }
         const tools = window.DWSSFrenchTools;
         if (lastChinese && tools && typeof tools.renderSingleGloss === "function") {
