@@ -6,8 +6,14 @@ const SUPABASE_URL = "https://pautxzcfmtwkaunjxghj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_9BB_pwnlj6-gVHPFzpjivA_L7SGU_Bp";
 const CACHE_KEY = "dwss_shared_terms_cache_v1";
 const QUEUE_KEY = "dwss_shared_terms_queue_v1";
+const CANONICAL_CACHE_KEY = "dwss_canonical_dictionary_cache_v1";
+const PRONUNCIATION_VARIANTS_CACHE_KEY = "dwss_shared_pronunciation_variants_v1";
+const CANONICAL_UPSERT_URL = SUPABASE_URL + "/functions/v1/dwss-upsert-dictionary-entry";
+const VARIANT_SUBMIT_URL = SUPABASE_URL + "/functions/v1/dwss-submit-pronunciation-variant";
+const VARIANT_MANAGE_URL = SUPABASE_URL + "/functions/v1/dwss-manage-pronunciation-variant";
 let supabase = null, channel = null, panelOpen = false, language = "sw";
 let terms = readArray(CACHE_KEY), queue = readArray(QUEUE_KEY);
+let canonicalTerms = readArray(CANONICAL_CACHE_KEY), pronunciationVariants = readArray(PRONUNCIATION_VARIANTS_CACHE_KEY);
 let flushing = false;
 const personalSyncing = new Set();
 function readArray(key) {
@@ -15,8 +21,37 @@ function readArray(key) {
   catch (_) { return []; }
 }
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
+function normalizeCanonicalChinese(value) {
+  return String(value || "").normalize("NFKC").replace(/[\\s，。！？；：、,.!?;:（）()“”"　]+/gu, "").toLowerCase();
+}
+function canonicalTermKey(item) {
+  const source = item && item.source_language === "fr" ? "fr" : "sw";
+  const key = normalizeCanonicalChinese(item && (item.chinese_text || item.zh));
+  return key ? source + "|" + key : "";
+}
+function canonicalAsSharedTerm(item, pending) {
+  return Object.assign({}, item, { id: item.id || item.client_submit_id || "", __canonical: true, __pending: !!pending });
+}
 function getPublicTerms() {
-  return terms.concat(queue.map(t => Object.assign({}, t, { __pending: true }))).map(t => Object.assign({}, t));
+  const activeCanonical = new Map();
+  canonicalTerms.forEach(item => {
+    const key = canonicalTermKey(item);
+    if (key) activeCanonical.set(key, canonicalAsSharedTerm(item, false));
+  });
+  queue.filter(item => item && item.__canonical).forEach(item => {
+    const key = canonicalTermKey(item);
+    if (key) activeCanonical.set(key, canonicalAsSharedTerm(item, true));
+  });
+  const legacy = terms.concat(queue.filter(item => !item.__canonical).map(t => Object.assign({}, t, { __pending: true })));
+  return legacy.filter(item => !activeCanonical.has(canonicalTermKey(item)))
+    .concat(Array.from(activeCanonical.values())).map(item => Object.assign({}, item));
+}
+function getPronunciationVariants() {
+  const rows = pronunciationVariants.map(item => Object.assign({}, item));
+  for (const item of queue.filter(item => item && item.__variant)) {
+    rows.unshift(Object.assign({}, item.variant || item, { __pending: true }));
+  }
+  return rows;
 }
 function notifyApp() {
   try { window.dispatchEvent(new CustomEvent("dwss:shared-terms-updated", { detail: { terms: getPublicTerms() } })); }
@@ -38,7 +73,7 @@ function setStatus(message, type) {
 }
 function count() {
   const el = document.getElementById("dwss-shared-count");
-  if (el) el.textContent = String(terms.length + queue.length);
+  if (el) el.textContent = String(terms.length + canonicalTerms.length + queue.length);
 }
 function mergeTerm(t) {
   if (!t) return;
@@ -47,6 +82,72 @@ function mergeTerm(t) {
   if (found >= 0) terms[found] = t; else terms.unshift(t);
   terms.sort((a,b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
   save(CACHE_KEY, terms); render(); count(); notifyApp();
+}
+function mergeCanonicalTerm(t) {
+  if (!t) return;
+  const key = canonicalTermKey(t);
+  if (!key) return;
+  const found = canonicalTerms.findIndex(x => canonicalTermKey(x) === key || (x.id && x.id === t.id));
+  const clean = Object.assign({}, t, { __canonical: true });
+  if (found >= 0) canonicalTerms[found] = clean; else canonicalTerms.unshift(clean);
+  canonicalTerms.sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
+  save(CANONICAL_CACHE_KEY, canonicalTerms); render(); count(); notifyApp();
+}
+function removeCanonicalTerm(t) {
+  const key = canonicalTermKey(t);
+  canonicalTerms = canonicalTerms.filter(x => key ? canonicalTermKey(x) !== key : x.id !== t.id);
+  save(CANONICAL_CACHE_KEY, canonicalTerms); render(); count(); notifyApp();
+}
+function mergePronunciationVariant(row) {
+  if (!row) return;
+  const index = pronunciationVariants.findIndex(x => (row.id && x.id === row.id) ||
+    (row.client_submit_id && x.client_submit_id === row.client_submit_id));
+  if (index >= 0) pronunciationVariants[index] = row; else pronunciationVariants.unshift(row);
+  pronunciationVariants.sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
+  save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
+  window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
+}
+function removePronunciationVariant(row) {
+  pronunciationVariants = pronunciationVariants.filter(x => x.id !== row.id);
+  save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
+  window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
+}
+async function postJson(url, payload) {
+  const response = await fetch(url, { method: "POST", headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  let result = {}; try { result = await response.json(); } catch (_) {}
+  if (!response.ok || !result.ok) throw new Error(result.error || ("共享词库服务器返回错误（" + response.status + "）"));
+  return result;
+}
+async function submitCanonicalNow(payload) {
+  const result = await postJson(CANONICAL_UPSERT_URL, payload);
+  if (result.entry) mergeCanonicalTerm(result.entry);
+  return result;
+}
+async function queueCanonicalEntry(entry, personalEntryId) {
+  const source = entry && entry.source_language === "fr" ? "fr" : "sw";
+  const chinese = String(entry && entry.chinese_text || "").trim();
+  const normalized = normalizeCanonicalChinese(chinese);
+  if (!chinese || !normalized) throw new Error("中文词条不能为空。");
+  const payload = Object.assign({}, entry, { source_language: source, chinese_text: chinese, client_submit_id: uid(), __canonical: true });
+  if (personalEntryId) payload.__personal_entry_id = personalEntryId;
+  const key = canonicalTermKey(payload);
+  const wasKnown = canonicalTerms.some(item => canonicalTermKey(item) === key) || terms.some(item => canonicalTermKey(item) === key);
+  queue = queue.filter(item => !(item && item.__canonical && canonicalTermKey(item) === key));
+  queue.unshift(payload);
+  save(QUEUE_KEY, queue); render(); count(); notifyApp();
+  if (!navigator.onLine) {
+    setStatus("已保存到本机词库，联网后自动同步所有用户。", "offline");
+    return { ok: true, queued: true, entry: payload, replaced: wasKnown, created: !wasKnown };
+  }
+  try {
+    const result = await submitCanonicalNow(payload);
+    queue = queue.filter(item => !(item && item.__canonical && item.client_submit_id === payload.client_submit_id));
+    save(QUEUE_KEY, queue); render(); count(); notifyApp();
+    return { ok: true, queued: false, entry: result.entry, replaced: wasKnown, created: !wasKnown };
+  } catch (error) {
+    setStatus("本机词条已保存；云端暂不可用，联网后自动同步。", "offline");
+    return { ok: true, queued: true, entry: payload, replaced: wasKnown, created: !wasKnown, error: error.message || String(error) };
+  }
 }
 function render() {
   const list = document.getElementById("dwss-shared-list");
@@ -187,28 +288,39 @@ async function flushQueue(client) {
       const item = queue[0];
       const payload = Object.assign({}, item);
       const personalEntryId = payload.__personal_entry_id || "";
+      const isCanonical = !!payload.__canonical;
+      const isVariant = !!payload.__variant;
       delete payload.__pending;
       delete payload.__personal_entry_id;
+      delete payload.__canonical;
+      delete payload.__variant;
       delete payload.id;
-      let result = await client.from("shared_terms").insert(payload).select("*").single();
-      if (result.error && result.error.code === "23505") {
-        result = await client.from("shared_terms").select("*").eq("client_submit_id", item.client_submit_id).single();
+      let result;
+      if (isCanonical) {
+        const response = await submitCanonicalNow(payload);
+        result = { data: response.entry, error: null };
+      } else if (isVariant) {
+        const response = await postJson(VARIANT_SUBMIT_URL, payload);
+        result = { data: response.variant, error: null };
+      } else {
+        result = await client.from("shared_terms").insert(payload).select("*").single();
+        if (result.error && result.error.code === "23505") {
+          result = await client.from("shared_terms").select("*").eq("client_submit_id", item.client_submit_id).single();
+        }
       }
       if (result.error) {
-        if (personalEntryId) {
-          setPersonalStatus(personalEntryId, "queued", item.client_submit_id,
-            "新词已保存在本机；云端暂时未响应，联网后会自动补传。", "offline");
-        }
+        if (personalEntryId) setPersonalStatus(personalEntryId, "queued", item.client_submit_id,
+          "新词已保存在本机；云端暂时未响应，联网后会自动补传。", "offline");
         setStatus("有 " + queue.length + " 条待同步，联网后自动重试", "offline");
         return;
       }
       queue = queue.filter(q => q.client_submit_id !== item.client_submit_id);
       save(QUEUE_KEY, queue);
-      mergeTerm(result.data);
-      if (personalEntryId) {
-        setPersonalStatus(personalEntryId, "synced", item.client_submit_id,
-          "新词已保存，并已自动同步到共享词库。", "ok");
-      }
+      if (isCanonical) mergeCanonicalTerm(result.data);
+      else if (isVariant) mergePronunciationVariant(result.data);
+      else mergeTerm(result.data);
+      if (personalEntryId) setPersonalStatus(personalEntryId, "synced", item.client_submit_id,
+        "新词已保存，并已自动同步到共享词库。", "ok");
     }
     count();
     setStatus("云端共享词库已同步 · 共 " + terms.length + " 条", "ok");
@@ -267,67 +379,38 @@ async function submitPersonalTerm(entry) {
   if (!entry || !entry.id || personalSyncing.has(entry.id)) return;
   personalSyncing.add(entry.id);
   try {
-    let existingQueue = queue.find(q => q.__personal_entry_id === entry.id);
-    const submitId = String(entry.sharedSubmitId || (existingQueue && existingQueue.client_submit_id) || uid());
-    const existingCloud = terms.find(t => entry.sharedSubmitId && t.client_submit_id === entry.sharedSubmitId);
-    if (existingCloud) {
-      if (existingQueue) {
-        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
-        save(QUEUE_KEY, queue); render(); count(); notifyApp();
-      }
-      setPersonalStatus(entry.id, "synced", existingCloud.client_submit_id,
-        "这条新词已经在共享词库中，无需重复提交。", "ok");
-      return;
+    const chinese = String(entry.zh || "").trim();
+    const swReading = String(entry.reading || "").trim();
+    const swText = String(entry.latin || "").trim();
+    const french = String(entry.french || "").trim();
+    const app = window.KolweziSwahili;
+    const frenchReading = String(entry.frenchReadingZh || "").trim() ||
+      (french && app && typeof app.frenchReading === "function" ? String(app.frenchReading(french) || "").trim() : "");
+    if (!chinese) { setPersonalStatus(entry.id, "needs-info", "", "缺少中文意思，暂不能同步。", "offline"); return; }
+    const payloads = [];
+    if (swReading) payloads.push({
+      source_language: "sw", chinese_text: chinese, local_text: swText || null,
+      local_pronunciation_cn: swReading, category: String(entry.category || "未分类"), notes: entry.note || null
+    });
+    if (french && frenchReading) payloads.push({
+      source_language: "fr", chinese_text: chinese, french_text: french,
+      french_pronunciation_cn: frenchReading, category: String(entry.category || "未分类"), notes: entry.note || null
+    });
+    if (!payloads.length) {
+      const message = swText ? "斯语拼写已保存；还需补充当地斯语中文谐音后才能共享。" :
+        french ? "法语词条缺少中文近似音，请补充后再同步。" : "请至少填写一项语言表达及其中文谐音。";
+      setPersonalStatus(entry.id, "needs-info", "", message, "offline"); return;
     }
-    const built = buildPersonalPayload(entry, submitId);
-    if (!built.payload) {
-      if (existingQueue) {
-        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
-        save(QUEUE_KEY, queue); render(); count(); notifyApp();
-      }
-      setPersonalStatus(entry.id, "needs-info", submitId, built.error, "offline");
-      return;
+    let queued = false, latestId = "";
+    for (const payload of payloads) {
+      const outcome = await queueCanonicalEntry(payload, entry.id);
+      queued = queued || !!outcome.queued;
+      latestId = outcome.entry && outcome.entry.client_submit_id || latestId;
     }
-    const payload = Object.assign({}, built.payload, { __personal_entry_id: entry.id });
-    const duplicate = terms.find(t =>
-      normalizeSharedText(t.chinese_text) === normalizeSharedText(payload.chinese_text) &&
-      (t.source_language || "sw") === payload.source_language &&
-      normalizeSharedText(t.local_text) === normalizeSharedText(payload.local_text) &&
-      normalizeSharedText(t.french_pronunciation_cn || t.local_pronunciation_cn) ===
-        normalizeSharedText(payload.french_pronunciation_cn || payload.local_pronunciation_cn) &&
-      normalizeSharedText(t.french_text) === normalizeSharedText(payload.french_text)
-    );
-    if (duplicate) {
-      if (existingQueue) {
-        queue = queue.filter(q => q.__personal_entry_id !== entry.id);
-        save(QUEUE_KEY, queue); render(); count(); notifyApp();
-      }
-      setPersonalStatus(entry.id, "synced", duplicate.client_submit_id || submitId,
-        "共享词库已有完全相同的词条，已自动关联，没有重复添加。", "ok");
-      return;
-    }
-
-    // Keep one queue record per local entry. Editing an offline pending word refreshes
-    // that record while preserving its client_submit_id, so the server never gets a duplicate.
-    if (existingQueue) Object.assign(existingQueue, payload);
-    else queue.push(payload);
-    save(QUEUE_KEY, queue);
-    render(); count(); notifyApp();
-    setPersonalStatus(entry.id, "queued", submitId,
-      navigator.onLine ? "新词已保存，正在自动同步共享词库…" : "新词已保存到本机；联网后自动同步共享词库。",
-      navigator.onLine ? "connecting" : "offline");
-    if (!navigator.onLine) {
-      setStatus("有 " + queue.length + " 条待同步，联网后自动上传", "offline");
-      return;
-    }
-    try {
-      const client = await getClient();
-      await flushQueue(client);
-    } catch (error) {
-      setPersonalStatus(entry.id, "queued", submitId,
-        "新词已保存到本机；云端未连接，恢复网络后自动补传。", "offline");
-      setStatus("新词已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
-    }
+    setPersonalStatus(entry.id, queued ? "queued" : "synced", latestId,
+      queued ? "词条已保存在本机；联网后自动同步并覆盖该中文词头的旧首选词条。" :
+        "词条已保存为该语言的当前首选词条；其他用户的翻译和发音查询会使用新结果。",
+      queued ? "offline" : "ok");
   } finally {
     personalSyncing.delete(entry.id);
   }
@@ -339,67 +422,52 @@ async function submitFrenchPronunciationCorrection(entry) {
   if (!chinese || chinese.length > 500) throw new Error("中文原文不能为空，且最多 500 个字符。");
   if (!french || french.length > 500) throw new Error("法语原文不能为空，且最多 500 个字符。");
   if (!reading || reading.length > 500) throw new Error("法语中文谐音不能为空，且最多 500 个字符。");
-
-  const sameSource = item =>
-    item && item.source_language === "fr" &&
-    normalizeSharedText(item.chinese_text) === normalizeSharedText(chinese) &&
-    normalizeSharedText(item.french_text) === normalizeSharedText(french);
-  const same = item => sameSource(item) &&
-    normalizeSharedText(item.french_pronunciation_cn) === normalizeSharedText(reading);
-
-  const cloudMatch = terms.find(same);
-  const queuedMatches = queue.filter(sameSource);
-  if (cloudMatch) {
-    if (queuedMatches.length) {
-      const ids = new Set(queuedMatches.map(item => item.client_submit_id));
-      queue = queue.filter(item => !ids.has(item.client_submit_id));
-      save(QUEUE_KEY, queue);
-      render(); count(); notifyApp();
-    }
-    return { synced: true, existing: true };
-  }
-
-  // Keep exactly one pending correction per Chinese + French pair. Every changed
-  // correction gets a fresh ID: reusing an ID that may already have reached the
-  // server (but whose response was lost) makes flushQueue treat the old row as the
-  // new one after a 23505 duplicate-key response, silently discarding the new reading.
-  const replaced = queuedMatches.length > 0;
-  const payload = {
-    client_submit_id: uid(),
-    chinese_text: chinese,
-    local_text: null,
-    local_pronunciation_cn: null,
-    french_text: french,
-    french_pronunciation_cn: reading,
-    source_language: "fr",
-    category: "法语发音修正",
-    notes: "用户修改法语中文谐音"
-  };
-  const duplicateIds = new Set(queuedMatches.map(item => item.client_submit_id));
-  queue = queue.filter(item => !duplicateIds.has(item.client_submit_id));
-  queue.unshift(payload);
-  save(QUEUE_KEY, queue);
-  const persisted = readArray(QUEUE_KEY);
-  if (!persisted.some(item => item && item.client_submit_id === payload.client_submit_id &&
-      item.french_pronunciation_cn === reading)) {
-    queue = persisted;
-    throw new Error("设备没有成功写入本机待同步记录，请检查浏览器存储空间后重试。");
-  }
-  render(); count(); notifyApp();
-
+  return await queueCanonicalEntry({
+    source_language: "fr", chinese_text: chinese, french_text: french,
+    french_pronunciation_cn: reading, category: "法语词库修正",
+    notes: "用户修改后的法语词条及对应中文近似音"
+  });
+}
+async function submitQuickTranslationTerm(entry) {
+  const chinese = String(entry && entry.chinese_text || "").trim();
+  const reading = String(entry && entry.local_pronunciation_cn || "").trim();
+  if (!chinese || !reading) throw new Error("中文词条和当地斯语中文谐音不能为空。");
+  return await queueCanonicalEntry({ source_language: "sw", chinese_text: chinese,
+    local_text: String(entry.local_text || "").trim() || null,
+    local_pronunciation_cn: reading, category: "翻译新增词条", notes: "主翻译界面新增词条" });
+}
+async function submitPronunciationVariant(entry) {
+  const payload = Object.assign({}, entry, { client_submit_id: entry && entry.client_submit_id || uid() });
   if (!navigator.onLine) {
-    setStatus("法语发音已保存到本机；联网后自动同步所有用户。", "offline");
-    return { synced: false, queued: true, replaced: replaced };
+    const local = Object.assign({}, payload, { id: payload.client_submit_id, status: "pending", __pending: true });
+    queue = queue.filter(item => !(item && item.__variant && item.chinese_text === payload.chinese_text && item.pinyin_key === payload.pinyin_key && item.source_kind === payload.source_kind));
+    queue.unshift(Object.assign({}, payload, { __variant: true, variant: local }));
+    save(QUEUE_KEY, queue);
+    window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
+    render(); count(); return { ok: true, queued: true, variant: local };
   }
+  const result = await postJson(VARIANT_SUBMIT_URL, payload);
+  if (result.variant) mergePronunciationVariant(result.variant);
+  return result;
+}
+async function managePronunciationVariant(payload) {
+  const result = await postJson(VARIANT_MANAGE_URL, payload);
   try {
     const client = await getClient();
-    await flushQueue(client);
-    const stillQueued = queue.some(q => q.client_submit_id === payload.client_submit_id);
-    return { synced: !stillQueued, queued: stillQueued, replaced: replaced };
-  } catch (error) {
-    setStatus("法语发音已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
-    return { synced: false, queued: true, replaced: replaced, error: error && error.message || String(error) };
-  }
+    const refreshed = await client.from("shared_pronunciation_variants").select("*").order("updated_at", { ascending: false }).limit(5000);
+    if (!refreshed.error) {
+      pronunciationVariants = refreshed.data || [];
+      save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
+      window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
+    }
+  } catch (_) {}
+  return result;
+}
+async function retryPending() {
+  if (!navigator.onLine) return { ok: false, message: "当前离线；待同步记录仍保存在本机。" };
+  await connectCloud();
+  const pending = queue.length;
+  return { ok: pending === 0, message: pending ? "仍有 " + pending + " 条待同步记录，将在网络恢复后继续重试。" : "全部新词和读音修正均已同步。" };
 }
 function needsAutomaticShare(entry) {
   const status = String(entry && entry.shareSyncStatus || "");
@@ -422,24 +490,43 @@ async function syncPendingPersonalTerms() {
   }
 }
 async function connectCloud() {
-  if (!navigator.onLine) { setStatus("离线：显示缓存，新词会排队等待联网", "offline"); return; }
+  if (!navigator.onLine) { setStatus("离线：显示本机词库和缓存，新词会排队等待联网", "offline"); return; }
   try {
     const client = await getClient();
-    const result = await client.from("shared_terms").select("*").order("created_at", { ascending: false }).limit(1000);
-    if (result.error) throw result.error;
-    terms = result.data || []; save(CACHE_KEY, terms); render(); count(); notifyApp();
+    const [legacy, canonical, variants] = await Promise.all([
+      client.from("shared_terms").select("*").order("created_at", { ascending: false }).limit(1500),
+      client.from("shared_dictionary_entries").select("*").order("updated_at", { ascending: false }).limit(5000),
+      client.from("shared_pronunciation_variants").select("*").order("updated_at", { ascending: false }).limit(5000)
+    ]);
+    if (legacy.error) throw legacy.error;
+    if (canonical.error) throw canonical.error;
+    if (variants.error) throw variants.error;
+    terms = legacy.data || []; save(CACHE_KEY, terms);
+    canonicalTerms = canonical.data || []; save(CANONICAL_CACHE_KEY, canonicalTerms);
+    pronunciationVariants = variants.data || []; save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
+    render(); count(); notifyApp();
+    window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
     if (!channel) {
-      channel = client.channel("dwss-shared-terms-live")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "shared_terms" }, payload => {
-          mergeTerm(payload.new);
-          setStatus("实时同步已连接 · 最新 " + terms.length + " 条", "ok");
+      channel = client.channel("dwss-shared-lexicon-live")
+        .on("postgres_changes", { event: "*", schema: "public", table: "shared_terms" }, payload => {
+          if (payload.eventType === "DELETE") {
+            terms = terms.filter(item => item.id !== payload.old.id); save(CACHE_KEY, terms); render(); count(); notifyApp();
+          } else mergeTerm(payload.new);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "shared_dictionary_entries" }, payload => {
+          if (payload.eventType === "DELETE") removeCanonicalTerm(payload.old);
+          else mergeCanonicalTerm(payload.new);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "shared_pronunciation_variants" }, payload => {
+          if (payload.eventType === "DELETE") removePronunciationVariant(payload.old);
+          else mergePronunciationVariant(payload.new);
         })
         .subscribe(state => {
-          if (state === "SUBSCRIBED") setStatus("实时同步已连接 · 最新 " + terms.length + " 条", "ok");
-          else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") setStatus("实时连接暂不可用，仍可刷新读取云端词条", "error");
+          if (state === "SUBSCRIBED") setStatus("实时同步已连接 · 词条与读音修正自动更新", "ok");
+          else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") setStatus("实时连接暂不可用，仍会定期读取云端词库", "error");
         });
     }
-    setStatus("云端已连接 · " + terms.length + " 条共享词", "ok");
+    setStatus("云端已连接 · 当前首选词条与本机缓存已更新", "ok");
     await flushQueue(client);
     await syncPendingPersonalTerms();
   } catch (e) {
@@ -457,28 +544,16 @@ async function submitTerm(event) {
   if (!chinese || !pron || (src === "fr" && !french)) {
     alert("请填写中文意思、中文近似读音，以及对应的斯语或法语表达。"); return;
   }
-  const payload = {
-    client_submit_id: uid(), chinese_text: chinese,
-    local_text: src === "sw" ? (local || null) : null,
-    local_pronunciation_cn: src === "sw" ? pron : null,
-    french_pronunciation_cn: src === "fr" ? pron : null,
-    source_language: src, french_text: src === "fr" ? french : null,
-    category: String(data.get("category") || "").trim() || "未分类",
-    notes: String(data.get("notes") || "").trim() || null
-  };
+  const payload = src === "fr"
+    ? { source_language: "fr", chinese_text: chinese, french_text: french, french_pronunciation_cn: pron,
+        category: String(data.get("category") || "未分类"), notes: String(data.get("notes") || "") }
+    : { source_language: "sw", chinese_text: chinese, local_text: local || null, local_pronunciation_cn: pron,
+        category: String(data.get("category") || "未分类"), notes: String(data.get("notes") || "") };
   const btn = form.querySelector('button[type="submit"]');
-  btn.disabled = true; btn.textContent = "提交中…";
-  if (!navigator.onLine) {
-    queue.unshift(payload); save(QUEUE_KEY, queue); render(); count(); notifyApp();
-    setStatus("已保存到本机，联网后自动提交", "offline");
-    form.reset(); setLanguage("sw"); toggleForm(false);
-    btn.disabled = false; btn.textContent = "提交共享"; return;
-  }
+  btn.disabled = true; btn.textContent = "正在保存…";
   try {
-    const client = await getClient();
-    const result = await client.from("shared_terms").insert(payload).select("*").single();
-    if (result.error) throw result.error;
-    mergeTerm(result.data); setStatus("提交成功，已加入共享词库", "ok");
+    const outcome = await queueCanonicalEntry(payload);
+    setStatus(outcome.queued ? "已保存到本机首选词库；联网后自动同步所有用户。" : "已更新该语言的首选词条，其他用户会自动同步。", outcome.queued ? "offline" : "ok");
     form.reset(); setLanguage("sw"); toggleForm(false);
   } catch (e) {
     setStatus("提交失败：" + (e && e.message ? e.message : "请检查网络后重试"), "error");
@@ -487,10 +562,15 @@ async function submitTerm(event) {
 }
 window.DWSSSharedLexicon = Object.freeze({
   getTerms: getPublicTerms,
+  getPronunciationVariants,
   refresh: connectCloud,
   submitPersonalTerm,
   submitFrenchPronunciationCorrection,
-  get count() { return terms.length + queue.length; }
+  submitQuickTranslationTerm,
+  submitPronunciationVariant,
+  managePronunciationVariant,
+  retryPending,
+  get count() { return terms.length + canonicalTerms.length + queue.length; }
 });
 function start() {
   // Shared vocabulary is automatic; do not create a separate floating UI.
