@@ -687,6 +687,8 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   const machineController = editWin.DWSSFrenchMachineTranslationController;
   assert(machineController && typeof machineController.refreshAfterSharedCorrection === 'function',
     'the French runtime must expose a forced refresh for newly saved shared corrections');
+  assert(machineController.isFrenchMode() === true,
+    'the French runtime test must enter French mode before testing same-input refresh');
   await machineController.refreshAfterSharedCorrection();
   assert(resultBox.value === activeCorrectedReading,
     'a shared correction must immediately repaint the current result even when the Chinese input is unchanged');
