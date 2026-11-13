@@ -21,7 +21,7 @@ assert(runtime.includes('async function refreshAfterSharedCorrection()'),
 assert(extension.includes('machine.refreshAfterSharedCorrection()'),
   'shared-term updates must invoke the forced French refresh');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.160 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.161 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -35,6 +35,30 @@ for (const selector of [
 const dom = new JSDOM(html);
 const doc = dom.window.document;
 const byId = id => doc.querySelectorAll('#' + id);
+
+const apkSection = doc.getElementById('dwss-apk-download');
+const apkNote = apkSection && apkSection.querySelector('.apk-note');
+const siteUrlSection = doc.getElementById('dwss-apk-site-url');
+const siteUrlField = doc.getElementById('dwss-apk-site-url-value');
+const siteUrlCopy = doc.getElementById('dwss-apk-site-url-copy');
+assert(apkSection && apkNote && siteUrlSection && apkNote.nextElementSibling === siteUrlSection,
+  'official translation URL must appear immediately under the Android installer note');
+assert(siteUrlField && siteUrlField.readOnly &&
+       siteUrlField.value === 'https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/',
+  'installer panel must show the exact official website URL in a selectable read-only field');
+assert(siteUrlSection.querySelector('.apk-site-url-label')?.textContent.trim() === '翻译应用网址：',
+  'installer URL must use the requested label');
+assert(siteUrlCopy && siteUrlCopy.textContent.trim() === '复制',
+  'installer URL must expose a visible copy button');
+assert(html.includes('id="dwss-apk-site-url-style-0161"'),
+  'compact Android installer URL styles are missing');
+const siteUrlCopyScript = html.match(/<script id="dwss-apk-site-url-copy-controller-0161">([\s\S]*?)<\/script>/);
+assert(siteUrlCopyScript &&
+       siteUrlCopyScript[1].includes('navigator.clipboard.writeText(value)') &&
+       siteUrlCopyScript[1].includes("document.execCommand('copy')") &&
+       siteUrlCopyScript[1].includes("button.addEventListener('click'"),
+  'installer URL copy must support Clipboard API and the Android WebView copy fallback');
+
 for (const id of [
   'resultReading','resultFrenchReading','dwssFrenchSpellingBlock',
   'pronunciationSearch','pronunciationResults',
@@ -110,15 +134,15 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.160'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.160'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.160';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_160'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.160'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.161'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.161'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.161';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_161'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.161'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.160'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.161'),
   'inline pronunciation query editor is not loaded');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.160').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.161').length - 1 === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
@@ -170,8 +194,8 @@ assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
        extension.includes('setMainMode(activeMainMode);') &&
        extension.includes('setQueryMode(activeQueryMode);'),
   'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
-assert(html.includes('french-extension.js?dwss-release=0.9.160') &&
-       html.includes('french-translation-runtime.js?dwss-release=0.9.160'),
+assert(html.includes('french-extension.js?dwss-release=0.9.161') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.161'),
   'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
@@ -763,5 +787,5 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
     'saving a changed French glossary word must submit its new phrase with the newly generated pronunciation');
 
   editDom.window.close();
-  console.log('PASS DWSS 0.9.160: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
+  console.log('PASS DWSS 0.9.161: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
