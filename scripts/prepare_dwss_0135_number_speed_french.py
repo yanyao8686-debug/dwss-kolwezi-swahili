@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.152: deterministic Swahili startup, runtime lookup validation and safe pinyin loading."""
+"""DWSS 0.9.153: reconcile asynchronous Swahili startup and pin deferred runtime assets."""
 from __future__ import annotations
 
 import gzip
@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.151"
-NEW_VERSION = "0.9.152"
+OLD_VERSION = "0.9.152"
+NEW_VERSION = "0.9.153"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -775,7 +775,7 @@ inline_fallback_script = r'''<script id="dwss-input-ime-fallback-0150">
   });
 })();
 </script>'''
-query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.152"></script>'
+query_editor_script = f'<script defer src="./pronunciation-query-editor.js?dwss-release={NEW_VERSION}"></script>'
 query_editor_tag = re.compile(
     r'<script\b[^>]*\bsrc=["\'][^"\']*pronunciation-query-editor\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>',
     re.IGNORECASE
@@ -796,17 +796,49 @@ if len(query_editor_tag.findall(html)) != 1:
 if html.count('id="dwss-input-ime-fallback-0150"') != 1:
     fail("Android IME translation fallback must be included exactly once.")
 
+# Pin every parser-deferred runtime script to the same release. The French
+# extension and French translation runtime were unversioned in 0.9.152, which
+# allowed WebViews to combine stale extension code with the new async Swahili core.
+versioned_runtime_scripts = {
+    "supabase.min.js", "shared-lexicon.js", "boot.js",
+    "french-extension.js", "french-translation-runtime.js",
+    "pronunciation-query-editor.js",
+}
+def pin_runtime_script(match):
+    tag = match.group(0)
+    src_match = re.search(r'\bsrc=(["\'])([^"\']+)\1', tag, re.I)
+    if not src_match:
+        return tag
+    src = src_match.group(2)
+    basename = urlparse(src).path.rsplit("/", 1)[-1]
+    if basename not in versioned_runtime_scripts:
+        return tag
+    clean_src = src.split("?", 1)[0].split("#", 1)[0]
+    next_src = clean_src + "?dwss-release=" + NEW_VERSION
+    return tag[:src_match.start(2)] + next_src + tag[src_match.end(2):]
+
+html = re.sub(
+    r'<script\b(?=[^>]*\bsrc=)[^>]*>\s*</script>',
+    pin_runtime_script,
+    html,
+    flags=re.I
+)
+for script_name in sorted(versioned_runtime_scripts):
+    expected_src = script_name + "?dwss-release=" + NEW_VERSION
+    if html.count(expected_src) != 1:
+        fail("Expected exactly one release-pinned URL for " + script_name + "; found " + str(html.count(expected_src)))
+
 if 'id="singleReadingGlossLabel"' not in html:
     if html.count(old_gloss_title) != 1:
         fail("Expected one static Swahili single-word gloss title to make language-aware.")
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.151/0.9.152 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.152/0.9.153 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.150 or 0.9.151.")
+    fail("Live app.js version is not 0.9.152 or 0.9.153.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.150 or 0.9.151.")
+    fail("Live Service Worker version is not 0.9.152 or 0.9.153.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -981,7 +1013,7 @@ if f"Version: {OLD_VERSION}" in version:
 version = version.rstrip() + "\n0.9.148: Each French headword in the single-word gloss list is shown as a compact bordered input; one unified save-and-sync button below the list submits all word edits.\n"
 version = version.rstrip() + "\n0.9.149: Pronunciation lookup is read-only; duplicate result-edit and dictionary-maintenance controls are removed. Swahili and French lookups continue to combine their base dictionaries with saved and pending shared corrections.\n"
 version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallback keeps Swahili and French translation working when compositionend is omitted; the read-only query script loads once and observes only its result lists.\n"
-version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n"
+version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -990,8 +1022,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_151"
-new_marker = "DWSS_AUTO_UPDATE_0_9_152"
+old_marker = "DWSS_AUTO_UPDATE_0_9_152"
+new_marker = "DWSS_AUTO_UPDATE_0_9_153"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.146 auto-update marker; found " + str(html.count(old_marker)))
@@ -1300,7 +1332,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_152" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.152.")
+    fail("Automatic-update marker was not advanced to 0.9.153.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1327,6 +1359,11 @@ if render_guard not in app:
     fail("Swahili renderer can still be suppressed by stale French UI state or overwrite the French-language gloss.")
 if "function renderPronunciationLookup()" not in app:
     fail("Cannot expose the actual Swahili pronunciation lookup renderer for runtime validation.")
+if 'window.addEventListener("dwss:app-ready", restoreSelectedModesAfterCoreReady, { once: true });' not in extension:
+    fail("Swahili UI does not reconcile after asynchronous core startup.")
+for script_name in ("french-extension.js", "french-translation-runtime.js"):
+    if script_name + "?dwss-release=" + NEW_VERSION not in html:
+        fail("French runtime script is not release-pinned: " + script_name)
 
 if ux_style_id not in html:
     fail("French result style and French-mode-only detail hiding rules are missing.")
@@ -1340,12 +1377,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.152" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.152.")
-if "Version: 0.9.152" not in version or "version:'0.9.152'" not in app:
-    fail("Website and app version markers do not agree at 0.9.152.")
-if "const APP_VERSION = '0.9.152';" not in sw:
-    fail("Service Worker cache version is not 0.9.152.")
+if f"dwss-release={NEW_VERSION}" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to " + NEW_VERSION + ".")
+if f"Version: {NEW_VERSION}" not in version or f"version:'{NEW_VERSION}'" not in app:
+    fail("Website and app version markers do not agree at " + NEW_VERSION + ".")
+if f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
+    fail("Service Worker cache version is not " + NEW_VERSION + ".")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -1384,5 +1421,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.152 initializes Swahili as the active mode, renders real translation and reverse-lookup results, and prevents stale French state from suppressing Swahili output.")
+print("PASS: DWSS 0.9.153 pins deferred runtime scripts to one release and reconciles both Swahili views after asynchronous core startup.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
