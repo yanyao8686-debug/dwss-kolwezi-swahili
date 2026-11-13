@@ -422,11 +422,36 @@ async function submitFrenchPronunciationCorrection(entry) {
   if (!chinese || chinese.length > 500) throw new Error("中文原文不能为空，且最多 500 个字符。");
   if (!french || french.length > 500) throw new Error("法语原文不能为空，且最多 500 个字符。");
   if (!reading || reading.length > 500) throw new Error("法语中文谐音不能为空，且最多 500 个字符。");
-  return await queueCanonicalEntry({
+
+  const outcomes = [await queueCanonicalEntry({
     source_language: "fr", chinese_text: chinese, french_text: french,
     french_pronunciation_cn: reading, category: "法语词库修正",
     notes: "用户修改后的法语词条及对应中文近似音"
-  });
+  })];
+  const headwords = Array.isArray(entry.word_corrections) ? entry.word_corrections : [];
+  const seen = new Set([normalizeCanonicalChinese(chinese)]);
+  for (const word of headwords) {
+    const wordChinese = String(word && word.chinese_text || "").trim();
+    const wordFrench = String(word && word.french_text || "").trim();
+    const wordReading = String(word && word.french_pronunciation_cn || "").trim();
+    const key = normalizeCanonicalChinese(wordChinese);
+    if (!wordChinese || !wordFrench || !wordReading || !key || seen.has(key)) continue;
+    if (wordChinese.length > 500 || wordFrench.length > 500 || wordReading.length > 500) continue;
+    seen.add(key);
+    outcomes.push(await queueCanonicalEntry({
+      source_language: "fr", chinese_text: wordChinese, french_text: wordFrench,
+      french_pronunciation_cn: wordReading, category: "法语单词修正",
+      notes: "从整句翻译逐词修改后写入的首选词条"
+    }));
+  }
+  const queued = outcomes.some(item => item.queued);
+  return {
+    ok: true, synced: !queued, queued,
+    replaced: outcomes.some(item => item.replaced),
+    created: outcomes.some(item => item.created),
+    entry: outcomes[0] && outcomes[0].entry,
+    wordEntries: outcomes.slice(1).map(item => item.entry).filter(Boolean)
+  };
 }
 async function submitQuickTranslationTerm(entry) {
   const chinese = String(entry && entry.chinese_text || "").trim();
