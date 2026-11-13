@@ -16,6 +16,7 @@
   let activeMeaningIndex = new Map();
   let activeRowsSignature = "";
   let activeMainMode = "sw";
+  let mainModeGeneration = 0;
   let activeQueryMode = "sw";
   let mainTimer = null;
   let queryTimer = null;
@@ -710,6 +711,8 @@
 
   function setMainMode(mode) {
     activeMainMode = mode === "fr" ? "fr" : "sw";
+    const modeGeneration = ++mainModeGeneration;
+    const isCurrentFrenchMode = () => modeGeneration === mainModeGeneration && activeMainMode === "fr";
     const card = $("resultCard");
     const heading = card && card.querySelector(".sectionTitle h2");
     const sw = $("dwssMainSwMode");
@@ -731,10 +734,14 @@
       $("resultReading").hidden = true;
       const currentChinese = String($("inputText") && $("inputText").value || "").trim();
       const refreshFrenchMode = () => {
+        // A delayed French dictionary load must never repaint the shared result
+        // card after the user has switched back to Swahili.
+        if (!isCurrentFrenchMode()) return;
         renderMainFrench();
         renderFrenchSingleGloss(currentChinese);
       };
       loadLexicon().then(refreshFrenchMode).catch(error => {
+        if (!isCurrentFrenchMode()) return;
         $("resultFrenchReading").value = "";
         $("resultFrenchReading").placeholder = "法语词库暂时无法加载";
         $("dwssFrenchIpaMeta").textContent = error.message || String(error);
@@ -744,6 +751,9 @@
       const machine = window.DWSSFrenchMachineTranslationController;
       if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(50);
     } else {
+      // Cancel delayed French input renders as soon as Swahili is selected.
+      window.clearTimeout(mainTimer);
+      mainTimer = null;
       $("resultFrenchReading").hidden = true;
       $("dwssFrenchSpellingBlock").hidden = true;
       const frenchCorrectionPanel = $("dwssFrenchCorrectionPanel");
@@ -1186,15 +1196,20 @@
     $("dwssPronFrMode").addEventListener("click", () => setQueryMode("fr"));
     const scheduleMain = () => {
       if (activeMainMode !== "fr") return;
+      const modeGeneration = mainModeGeneration;
+      const isCurrentFrenchMode = () => modeGeneration === mainModeGeneration && activeMainMode === "fr";
       window.clearTimeout(mainTimer);
       mainTimer = window.setTimeout(() => {
+        if (!isCurrentFrenchMode()) return;
         const currentChinese = String($("inputText") && $("inputText").value || "").trim();
         const refreshFrenchMode = () => {
+          if (!isCurrentFrenchMode()) return;
           renderMainFrench();
           const currentFrench = String($("dwssFrenchSpelling") && $("dwssFrenchSpelling").value || "").trim();
           renderFrenchSingleGloss(currentChinese, currentFrench);
         };
         if (!rows.length) loadLexicon().then(refreshFrenchMode).catch(error => {
+          if (!isCurrentFrenchMode()) return;
           $("dwssFrenchIpaMeta").textContent = error.message || String(error);
           renderFrenchSingleGloss(currentChinese);
         });
