@@ -96,9 +96,9 @@ assert.equal((extension.match(/function restoreSelectedModesAfterCoreReady\(\)/g
 if (win.document.readyState === 'loading') {
   win.document.dispatchEvent(new win.Event('DOMContentLoaded', {bubbles:true}));
 }
-assert.equal(typeof win.DWSSRenderTranslation, 'undefined',
 assert(win.document.getElementById('openPublicPronunciationEditor'),
   'read-only query cleanup must preserve the main dictionary-maintenance button after DOMContentLoaded');
+assert.equal(typeof win.DWSSRenderTranslation, 'undefined',
   'renderer must not exist before the asynchronous core starts');
 
 win.eval(app); // app.js dispatches dwss:app-ready after exporting the real renderers
