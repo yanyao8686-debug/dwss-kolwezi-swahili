@@ -369,7 +369,7 @@
     });
   }
 
-  function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings) {
+  function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides) {
     const label = $("singleReadingGlossLabel") || document.querySelector(".dwss-secondary-title");
     const host = $("segmentList");
     const text = String(raw || "").trim();
@@ -417,12 +417,16 @@
       const keepPrevious = !!previous &&
         normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
       const wordValue = keepPrevious ? previous.word : token;
-      return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
+      const overriddenMeanings = meaningOverrides && typeof meaningOverrides.get === "function"
+        ? meaningOverrides.get(index) : null;
+      const meanings = Array.isArray(overriddenMeanings) && overriddenMeanings.length
+        ? overriddenMeanings : (pair.meanings || []);
+      return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '" data-meanings="' + esc(JSON.stringify(meanings)) + '">' +
         '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd">法语：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
-        '<div class="rd-detail">中文释义：' + esc((pair.meanings || []).join('；') || '释义待补') + '</div>' +
+        '<div class="rd-detail">中文释义：' + esc(meanings.join('；') || '释义待补') + '</div>' +
         '</div>';
     }).join("");
     host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
