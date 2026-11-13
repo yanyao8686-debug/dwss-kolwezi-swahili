@@ -422,11 +422,11 @@
       const meanings = Array.isArray(overriddenMeanings) && overriddenMeanings.length
         ? overriddenMeanings : (pair.meanings || []);
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '" data-meanings="' + esc(JSON.stringify(meanings)) + '">' +
-        '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
-        'data-original-word="' + esc(editOriginalWords && typeof editOriginalWords.get === "function" ? (editOriginalWords.get(index) || token) : token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
-        '<div class="rd">法语：' +
-        '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
+        '<div class="zh"><span class="dwss-french-word-label">法文：</span><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
+        'data-original-word="' + esc(editOriginalWords && typeof editOriginalWords.get === "function" ? (editOriginalWords.get(index) || token) : token) + '" value="' + esc(wordValue) + '" aria-label="法文单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd-detail">中文释义：' + esc(meanings.join('；') || '释义待补') + '</div>' +
+        '<div class="rd">中文谐音：' +
+        '<span class="dwss-french-word-pronunciation" aria-label="法文单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
         '</div>';
     }).join("");
     host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
