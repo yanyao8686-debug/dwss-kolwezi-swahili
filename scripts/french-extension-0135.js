@@ -885,7 +885,7 @@
     // instead of submitting the previous phrase's stale homophone.
     const scheduleEditedFrenchPhraseRefresh = () => {
       const values = currentValues();
-      if (!values.rowsEdited || !values.chinese || !values.french) {
+      if (!isFrenchMode() || !values.rowsEdited || !values.chinese || !values.french) {
         refresh();
         return;
       }
@@ -904,7 +904,7 @@
           }
           const generated = await machine.getReadingForFrenchDraft(values.french);
           const latest = currentValues();
-          if (revision !== phraseEditRevision || latest.chinese !== values.chinese ||
+          if (revision !== phraseEditRevision || !isFrenchMode() || latest.chinese !== values.chinese ||
               latest.french !== values.french || !latest.rowsEdited) return;
           const reading = String(generated && generated.reading || "").trim();
           if (!reading) throw new Error("没有生成可用的中文近似音。");
