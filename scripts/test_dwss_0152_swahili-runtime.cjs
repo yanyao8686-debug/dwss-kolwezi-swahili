@@ -53,6 +53,40 @@ win.confirm=()=>true; win.alert=()=>{}; win.scrollTo=()=>{};
 win.eval(dictionarySource);
 win.eval(hanziPinyinSource);
 win.eval(pronunciationSource);
+
+// Reproduce the actual production order: french-extension.js is a deferred
+// HTML script, while boot.js asynchronously injects app.js after gzip decoding.
+// The extension must recover when the core emits dwss:app-ready.
+const input=win.document.getElementById('inputText');
+const output=win.document.getElementById('resultReading');
+const card=win.document.getElementById('resultCard');
+const frenchButton=win.document.getElementById('dwssMainFrMode');
+const swButton=win.document.getElementById('dwssMainSwMode');
+const frenchQueryButton=win.document.getElementById('dwssPronFrMode');
+const swQueryButton=win.document.getElementById('dwssPronSwMode');
+const queryInput=win.document.getElementById('pronunciationSearch');
+const queryResults=win.document.getElementById('pronunciationResults');
+assert(input && output && card && frenchButton && swButton && frenchQueryButton && swQueryButton && queryInput && queryResults,
+  'main result or language-mode DOM is incomplete');
+const rows=win.SW_DB;
+assert(Array.isArray(rows) && rows.length>1000, 'real bundled Swahili dictionary must load');
+const row=rows.find(item=>item && item.zh==='明天' && Array.isArray(item.variants) &&
+  item.variants.some(v=>String(v.reading||'').trim()));
+assert(row, 'known 明天 entry must exist in bundled dictionary');
+const translated={segments:[]};
+input.value='明天';
+card.dataset.dwssLang='fr';
+frenchButton.classList.add('active');
+frenchQueryButton.classList.add('active');
+queryInput.value='给晓';
+
+// Execute the extension before app.js, exactly as on the live page.
+win.eval(extension);
+if(win.document.readyState==='loading'){
+  win.document.dispatchEvent(new win.Event('DOMContentLoaded',{bubbles:true}));
+}
+assert.equal(typeof win.DWSSRenderTranslation,'undefined',
+  'the Swahili renderer should not exist before asynchronous core startup');
 win.eval(app);
 const api=win.KolweziSwahili;
 assert(api && typeof api.translate==='function', 'local Swahili translation API must initialize');
@@ -65,44 +99,19 @@ const translated=api.translate('明天');
 const match=translated && translated.segments.find(x=>x.type==='local' && x.reading);
 assert(match, 'main translator must produce a local Swahili homophone');
 
-const input=win.document.getElementById('inputText');
-const output=win.document.getElementById('resultReading');
-const card=win.document.getElementById('resultCard');
-const frenchButton=win.document.getElementById('dwssMainFrMode');
-const swButton=win.document.getElementById('dwssMainSwMode');
-const frenchQueryButton=win.document.getElementById('dwssPronFrMode');
-const swQueryButton=win.document.getElementById('dwssPronSwMode');
-assert(input && output && card && frenchButton && swButton && frenchQueryButton && swQueryButton,
-  'main result or language-mode DOM is incomplete');
-input.value='明天';
-card.dataset.dwssLang='fr';
-frenchButton.classList.add('active'); // emulate a WebView restored with stale French state
-frenchQueryButton.classList.add('active');
-win.eval(extension);
-if(win.document.readyState==='loading'){
-  win.document.dispatchEvent(new win.Event('DOMContentLoaded',{bubbles:true}));
-}
 assert.equal(card.dataset.dwssLang,undefined,
-  'real extension startup must clear a stale French result-card marker');
+  'app-ready reconciliation must clear stale French result-card marker');
 assert(swButton.classList.contains('active') && !frenchButton.classList.contains('active'),
-  'real extension startup must select Swahili for the main translator');
+  'app-ready reconciliation must select Swahili for the main translator');
 assert(swQueryButton.classList.contains('active') && !frenchQueryButton.classList.contains('active'),
-  'real extension startup must select Swahili for reverse pronunciation lookup');
-assert.equal(typeof win.DWSSRenderTranslation,'function','main render hook missing');
-input.dispatchEvent(new win.Event('input',{bubbles:true}));
-win.DWSSRenderTranslation();
+  'app-ready reconciliation must select Swahili for reverse pronunciation lookup');
+const match=api.translate('明天') && api.translate('明天').segments.find(x=>x.type==='local' && x.reading);
+assert(match, 'main translator must produce a local Swahili homophone');
 assert(!output.hidden && output.value.includes(match.reading),
-  'real result textarea must show the local homophone after the actual extension restores Swahili mode');
-
-const queryInput=win.document.getElementById('pronunciationSearch');
-const queryResults=win.document.getElementById('pronunciationResults');
-assert(queryInput && queryResults, 'Swahili pronunciation lookup DOM is incomplete');
-queryInput.value='给晓';
-assert.equal(typeof win.DWSSRenderPronunciationLookup,'function','actual reverse renderer hook missing');
-win.DWSSRenderPronunciationLookup();
+  'app-ready event must automatically render the existing Chinese draft to the Swahili result box');
 assert(queryResults.textContent.includes('明天') && queryResults.textContent.includes('该小'),
-  'actual pronunciation lookup result list must show 明天 / 该小');
+  'app-ready event must automatically restore the Swahili reverse lookup results');
 
 win.close();
-console.log('PASS DWSS 0.9.153: real dictionary -> Swahili result box -> reverse lookup result card.');
+console.log('PASS DWSS 0.9.153: real production order (extension before async app.js) reconciles Swahili main output and reverse lookup on dwss:app-ready.');
 console.log('PASS DWSS 0.9.153: late pinyin data cannot permanently disable reverse lookup.');
