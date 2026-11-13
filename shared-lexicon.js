@@ -22,7 +22,7 @@ function readArray(key) {
 }
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
 function normalizeCanonicalChinese(value) {
-  return String(value || "").normalize("NFKC").replace(/[\\s，。！？；：、,.!?;:（）()“”"　]+/gu, "").toLowerCase();
+  return String(value || "").normalize("NFKC").replace(/[\s，。！？；：、,.!?;:（）()“”"　]+/gu, "").toLowerCase();
 }
 function canonicalTermKey(item) {
   const source = item && item.source_language === "fr" ? "fr" : "sw";
