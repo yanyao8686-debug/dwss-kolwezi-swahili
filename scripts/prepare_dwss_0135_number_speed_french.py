@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.157"
-NEW_VERSION = "0.9.158"
+OLD_VERSION = "0.9.158"
+NEW_VERSION = "0.9.159"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -553,7 +553,6 @@ elif render_guard not in app:
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 if app.count(render_guard) != 1:
     fail("The Swahili renderer must normalize stale French button state exactly once.")
-
 # Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
 # remains available in its own French mode, but is not an acceptable Swahili fallback.
 def replace_app_fragment(source, old, new, label):
@@ -563,6 +562,11 @@ def replace_app_fragment(source, old, new, label):
         return source.replace(old, new, 1)
     if old_count == 0 and new_count == 1:
         return source
+    if label == "prefer personal then canonical Swahili entries over old overrides and built-ins":
+        print("DEBUG canonical Swahili resolver context:")
+        for needle in ("publicOverride", "pronunciation-variant", "function localOrigin", "origin:'override'"):
+            pos = source.find(needle)
+            print("DEBUG needle", needle, "pos", pos, "context", repr(source[max(0, pos-700):pos+1300] if pos >= 0 else "not found"))
     fail("Could not apply Swahili/French separation patch: " + label)
 
 def remove_french_fallback(source):
@@ -573,6 +577,211 @@ def remove_french_fallback(source):
     if "if(frenchMatch){" not in source:
         return source
     fail("Could not remove the French fallback segment from the Swahili tokenizer.")
+
+# Main-result edits update the actual language headword, not only a pronunciation override row.
+app = replace_app_fragment(
+    app,
+    "window.DWSSActiveTranslationCorrection={chinese:raw,storageChinese,sourceKind,originalReading,overrideReading:legacyReading,currentReading:displayReading,revision:exactOverride?Number(exactOverride.revision||0):0,hasOverride:!!exactOverride,remoteConflict:false,selectedVariant:null,isStandaloneUnknown:standaloneUnknown};",
+    "window.DWSSActiveTranslationCorrection={chinese:raw,storageChinese,sourceKind,originalReading,overrideReading:legacyReading,currentReading:displayReading,localText:(dictionaryItem?localLatinVariants(dictionaryItem).find(Boolean):'')||latin||'',revision:exactOverride?Number(exactOverride.revision||0):0,hasOverride:!!exactOverride,remoteConflict:false,selectedVariant:null,isStandaloneUnknown:standaloneUnknown};",
+    "remember source spelling for direct pronunciation corrections"
+)
+main_correction_start = "async function submitTranslationCorrection(){"
+main_correction_end = "\nasync function submitTranslationPronunciationVariant(){"
+main_correction = """async function submitTranslationCorrection(){
+ const state=window.DWSSActiveTranslationCorrection;
+ const typedChinese=$('inputText').value.trim(),chinese=String(state&&state.storageChinese||typedChinese).trim();
+ const reading=$('resultReading').value.trim(),button=$('submitTranslationCorrection');
+ if(!state||!typedChinese||norm(typedChinese)!==norm(state.chinese)){setTranslationCorrectionStatus('中文输入已改变，请重新翻译后再保存。','error');return;}
+ if(!reading||reading.length>2000){setTranslationCorrectionStatus('请填写 1–2000 个字符的当地中文谐音。','error');return;}
+ const sharedApi=window.DWSSSharedLexicon;
+ if(!sharedApi||typeof sharedApi.submitQuickTranslationTerm!=='function'){
+  setTranslationCorrectionStatus('共享词库组件尚未就绪；你刚才的修改仍保留在输入框中。','error');return;
+ }
+ const previous=String(state.currentReading||state.overrideReading||state.originalReading||'').trim();
+ const sourceKind=state.sourceKind==='dictionary'?'dictionary':'translation';
+ const engine=window.DWSSPronunciationSearch;
+ const pinyinOf=value=>engine&&typeof engine.toSyllables==='function'?engine.toSyllables(String(value||''),true).join(' '):'';
+ const submitVariant=async value=>{
+  const text=String(value||'').trim(),pinyin=pinyinOf(text);
+  if(!text||!pinyin||typeof sharedApi.submitPronunciationVariant!=='function')return null;
+  return await sharedApi.submitPronunciationVariant({
+   chinese_text:chinese,pronunciation_cn:text,pinyin_key:pinyin,source_kind:sourceKind,
+   dialect:'加丹加斯瓦希里语（科卢韦齐）',source_note:'修改首选词条时保留的旧读音候选'
+  });
+ };
+ const selected=state.selectedVariant||window.DWSSSelectedPronunciationVariant||null;
+ savingTranslationCorrection=true;button.disabled=true;button.textContent='正在保存…';
+ setTranslationCorrectionStatus(navigator.onLine?'正在更新该中文词头的共享首选词条…':'正在保存到本机离线词库…');
+ let grouped=false;
+ try{
+  if(sourceKind==='dictionary'&&previous&&norm(previous)!==norm(reading)){
+   const oldResult=await submitVariant(previous);
+   if(oldResult)grouped=!!oldResult.merged||!!oldResult.duplicate;
+  }
+  if(sourceKind==='dictionary'&&selected&&selected.managed&&selected.id&&norm(selected.reading)!==norm(reading)){
+   try{
+    const pinyin=pinyinOf(reading);
+    if(pinyin&&typeof sharedApi.managePronunciationVariant==='function'){
+     const updated=await sharedApi.managePronunciationVariant({action:'update',id:selected.id,expected_revision:Number(selected.revision||1),pronunciation_cn:reading,pinyin_key:pinyin});
+     grouped=grouped||!!updated.merged;
+    }
+   }catch(editError){
+    if(!/REVISION_CONFLICT|刚被其他用户修改|409/i.test(String(editError&&editError.message||editError)))throw editError;
+    const candidate=await submitVariant(reading);grouped=grouped||!!(candidate&&(candidate.merged||candidate.duplicate));
+   }
+  }
+  const saved=await sharedApi.submitQuickTranslationTerm({
+   chinese_text:chinese,local_text:String(state.localText||'').trim()||null,
+   local_pronunciation_cn:reading,category:'主翻译首选词条修正',
+   notes:'由主翻译界面保存的科卢韦齐斯语首选词条'
+  });
+  if(!saved||!saved.ok)throw new Error(saved&&saved.error||'共享首选词条未能保存。');
+  renderTranslation({recordHistory:false});
+  $('resultReading').value=reading;
+  const latest=window.DWSSActiveTranslationCorrection;
+  if(latest){latest.overrideReading=reading;latest.currentReading=reading;latest.hasOverride=true;latest.selectedVariant=null;}
+  window.DWSSSelectedPronunciationVariant=null;
+  const msg=saved.queued
+   ?'修改已立即写入本机首选词库，联网后自动同步到所有用户。'
+   :'首选词条已更新并同步；其他设备会接收新拼写和新中文谐音。';
+  setTranslationCorrectionStatus(msg+(grouped?' 原读音已保留为可查询的其他读音。':''));
+ }catch(error){
+  setTranslationCorrectionStatus('保存失败：'+String(error&&error.message||error)+'。你输入的读音仍保留在框内。','error');
+ }finally{
+  savingTranslationCorrection=false;button.disabled=false;button.textContent='保存并同步';
+ }
+}"""
+main_correction_at = app.find(main_correction_start)
+main_correction_end_at = app.find(main_correction_end, main_correction_at)
+if main_correction_at < 0 or main_correction_end_at < 0:
+    fail("Cannot locate the main pronunciation-correction handler.")
+app = app[:main_correction_at] + main_correction + app[main_correction_end_at:]
+
+
+# A canonical shared headword must completely supersede the older built-in spelling/reading.
+# Personal rows remain device-priority; the one shared canonical row is preferred over
+# legacy shared and built-in data for the same Chinese headword.
+app = replace_app_fragment(
+    app,
+    "source:'云端共享词库', kind:'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:'shared'",
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "mark canonical shared entries in the local dictionary"
+)
+app = replace_app_fragment(
+    app,
+    """ const rank={personal:0,shared:1,builtin:2,'pronunciation-variant':3};
+ const variants=(item.variants||[])
+  .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??4)-(rank[b.v.origin]??4)||a.index-b.index)
+  .map(x=>x.v);""",
+    """ const canonical=(item.variants||[]).filter(v=>v.origin==='canonical'&&(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
+ if(canonical.length)return canonical.concat(verified);
+ const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};
+ const variants=(item.variants||[])
+  .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??5)-(rank[b.v.origin]??5)||a.index-b.index)
+  .map(x=>x.v);""",
+    "prefer canonical shared Swahili word readings"
+);
+app = replace_app_fragment(
+    app,
+    "for(const origin of ['override','personal','shared','builtin','pronunciation-variant']){",
+    "for(const origin of ['override','personal','canonical','shared','builtin','pronunciation-variant']){",
+    "include canonical shared origin"
+);
+app = replace_app_fragment(
+    app,
+    "const ranks={override:-1,personal:0,shared:1,builtin:2,'pronunciation-variant':3};",
+    "const ranks={override:-1,personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};",
+    "rank canonical shared entries"
+);
+app = replace_app_fragment(
+    app,
+    "id:t.id||t.client_submit_id||''\n })).filter",
+    "id:t.id||t.client_submit_id||'',\n  __canonical:!!t.__canonical\n })).filter",
+    "pass canonical marker into translation dictionary"
+);
+app = replace_app_fragment(
+    app,
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "preserve canonical source marker"
+);
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2},rows=(item.variants||[]).map((v,i)=>{",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3},rows=(item.variants||[]).map((v,i)=>{",
+    "rank canonical French headword"
+);
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2};\n for(const entry of keys){",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
+    "rank canonical French reverse-lookup results"
+);
+# Canonical shared entries are the preferred dictionary headword for both languages.
+app = replace_app_fragment(
+    app,
+    "  id:t.id||t.client_submit_id||''\n })).filter",
+    "  id:t.id||t.client_submit_id||'',\n  __canonical:!!t.__canonical\n })).filter",
+    "carry canonical marker from shared cache into translation dictionary"
+)
+app = replace_app_fragment(
+    app,
+    "origin:'shared'\n  });",
+    "origin:c.__canonical?'canonical':'shared'\n  });",
+    "mark shared canonical rows"
+)
+# The actual production app assembles pronunciation rows using these functions.
+# Replace the whole functions so preference is explicit and independent of minified line layout.
+preferred_start = app.find("function preferredLocalVariants(item){")
+preferred_end = app.find("\nfunction pronunciationLookupVariants(item){", preferred_start)
+if preferred_start < 0 or preferred_end < 0:
+    fail("Cannot locate the production preferred Swahili pronunciation resolver.")
+preferred_function = r"""function preferredLocalVariants(item){
+ const variants=(item&&Array.isArray(item.variants)?item.variants:[]);
+ const usable=v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||'');
+ const verified=variants.filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
+ const personal=variants.filter(v=>v.origin==='personal'&&usable(v));
+ const canonical=variants.filter(v=>v.origin==='canonical'&&usable(v));
+ if(personal.length)return personal.concat(canonical,verified);
+ if(canonical.length)return canonical.concat(verified);
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim()){
+  const base=variants.find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||''));
+  return [{reading:String(item.publicOverride.local_pronunciation_cn).trim(),latin:base?base.latin||'':'',source:'公共词库修订',kind:'公共修订',origin:'override'},...verified];
+ }
+ const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};
+ const ordered=variants.filter(v=>usable(v)&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??5)-(rank[b.v.origin]??5)||a.index-b.index)
+  .map(x=>x.v);
+ const seen=new Set();
+ return ordered.filter(v=>{
+  const key=v.reading?'r:'+norm(v.reading):'l:'+norm(v.latin||'');
+  if(seen.has(key))return false;seen.add(key);return true;
+ });
+}"""
+app = app[:preferred_start] + preferred_function + app[preferred_end:]
+origin_start = app.find("function localOrigin(item){")
+origin_end = app.find("\nfunction normalizedInputSpan(", origin_start)
+if origin_start < 0 or origin_end < 0:
+    fail("Cannot locate the production Swahili pronunciation-origin resolver.")
+origin_function = r"""function localOrigin(item){
+ const variants=(item&&Array.isArray(item.variants)?item.variants:[]);
+ const usable=v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||'');
+ for(const origin of ['personal','canonical']){
+  if(variants.some(v=>v.origin===origin&&usable(v)))return origin;
+ }
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
+ for(const origin of ['shared','builtin','pronunciation-variant']){
+  if(variants.some(v=>v.origin===origin&&usable(v)&&
+    (origin!=='pronunciation-variant'||['confirmed','common'].includes(v.variantStatus))))return origin;
+ }
+ return null;
+}"""
+app = app[:origin_start] + origin_function + app[origin_end:]
 
 app = replace_app_fragment(
     app,
@@ -799,11 +1008,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.157 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.158 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.157 or 0.9.158.")
+    fail("Live app.js version is not 0.9.158 or 0.9.159.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.157 or 0.9.158.")
+    fail("Live Service Worker version is not 0.9.158 or 0.9.159.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -880,7 +1089,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "machine.scheduleTranslation(50)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
                  "nearFirstKeys", "rowsForShards",
-                 "function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)",
+                 "function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords)",
                  "tokenizeFrenchPhrase", "buildFrenchWordReadingLookup", "buildFrenchWordPairs",
                  'const GLOSS_URL = "./french-gloss-index.tsv.gz";',
                  'const META_URL = "./french-pronunciation-index.json";',
@@ -904,6 +1113,11 @@ for forbidden in ('id="dwssFrenchPronunciationEdit"', 'id="dwssFrenchPronunciati
 
 if 'const results = searchFrenchCandidates(query, candidates, engine, 20);' not in extension:
     fail("French pronunciation query is still using the overly strict generic matcher.")
+if '中文释义：' not in extension or 'rd-detail' not in extension or 'preferredFrenchHeadwordByMeaning' not in extension or 'isSupersededFrenchHeadword' not in extension:
+    fail("Edited French words must refresh Chinese meanings and shadow obsolete spellings in reverse lookup.")
+for required in ("shared_dictionary_entries", "dwss-upsert-dictionary-entry", "__canonical", "submitQuickTranslationTerm", "getPronunciationVariants", "managePronunciationVariant"):
+    if required not in shared_lexicon:
+        fail("Canonical offline/shared dictionary runtime is missing: " + required)
 if 'host.innerHTML = pairs.map((pair, index) =>' not in extension or 'class="seg dwss-french-word-pair"' not in extension:
     fail("French original sentence is not rendered as editable Swahili-style word-by-word segment rows.")
 if 'findFrenchGloss(result.zh)' not in extension:
@@ -914,8 +1128,10 @@ if "function tokenizeFrenchPhrase(value)" not in extension or "buildFrenchWordRe
     fail("French sentence is not being split and matched by individual word.")
 if "originalMarkup" in extension or "dwss-french-original-in-gloss" in extension:
     fail("The verbose full-sentence block remains in the French word renderer.")
-if 'const candidates = rowsForShards(shardLines, 24000);' not in extension:
-    fail("French pronunciation query does not use on-demand LeXiK pronunciation shards.")
+if ('rowsForShards(shardLines, 24000)' not in extension or
+        'const preferred = preferredFrenchHeadwordByMeaning();' not in extension or
+        '.filter(item => !isSupersededFrenchHeadword(item.word, preferred))' not in extension):
+    fail("French pronunciation query must use on-demand LeXiK shards and suppress replaced static headwords.")
 if 'firstRanges' in extension or 'const DATA_URL =' in extension:
     fail("Legacy monolithic French pronunciation loader remains enabled.")
 for required in ('action: "translate"', 'action: "check"',
@@ -990,6 +1206,7 @@ version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallbac
 version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
+version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
