@@ -85,7 +85,8 @@ Deno.serve(async (req: Request) => {
       payload = { client_submit_id: submitId, source_language: "fr", normalized_chinese: normalized, chinese_text: chinese,
         local_text: null, local_pronunciation_cn: null, french_text: french, french_pronunciation_cn: reading, category, notes };
     }
-    const { data, error } = await getDb().from("shared_dictionary_entries")
+    payload.updated_at = new Date().toISOString();
+  const { data, error } = await getDb().from("shared_dictionary_entries")
       .upsert(payload, { onConflict: "source_language,normalized_chinese" }).select("*").single();
     if (error) {
       console.error("[DWSS] Canonical dictionary upsert failed:", error);
