@@ -1128,8 +1128,10 @@ if "function tokenizeFrenchPhrase(value)" not in extension or "buildFrenchWordRe
     fail("French sentence is not being split and matched by individual word.")
 if "originalMarkup" in extension or "dwss-french-original-in-gloss" in extension:
     fail("The verbose full-sentence block remains in the French word renderer.")
-if 'const candidates = rowsForShards(shardLines, 24000);' not in extension:
-    fail("French pronunciation query does not use on-demand LeXiK pronunciation shards.")
+if ('rowsForShards(shardLines, 24000)' not in extension or
+        'const preferred = preferredFrenchHeadwordByMeaning();' not in extension or
+        '.filter(item => !isSupersededFrenchHeadword(item.word, preferred))' not in extension):
+    fail("French pronunciation query must use on-demand LeXiK shards and suppress replaced static headwords.")
 if 'firstRanges' in extension or 'const DATA_URL =' in extension:
     fail("Legacy monolithic French pronunciation loader remains enabled.")
 for required in ('action: "translate"', 'action: "check"',
