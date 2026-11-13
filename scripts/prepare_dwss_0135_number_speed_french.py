@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.159"
-NEW_VERSION = "0.9.160"
+OLD_VERSION = "0.9.160"
+NEW_VERSION = "0.9.161"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -1229,6 +1229,7 @@ version = version.rstrip() + "\n0.9.157: Forces the French result to refresh fro
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
 version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
 version = version.rstrip() + "\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\n"
+version = version.rstrip() + "\n0.9.161: The Android installer panel displays the official translation-app URL and provides a copy button with an Android WebView-compatible fallback.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1237,8 +1238,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_157"
-new_marker = "DWSS_AUTO_UPDATE_0_9_160"
+old_marker = "DWSS_AUTO_UPDATE_0_9_160"
+new_marker = "DWSS_AUTO_UPDATE_0_9_161"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.157 auto-update marker; found " + str(html.count(old_marker)))
@@ -1546,7 +1547,87 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_160" not in html:
+# Put the official web address directly inside the existing Android installer card.
+apk_url_section_id = 'id="dwss-apk-site-url"'
+if apk_url_section_id not in html:
+    apk_note = '<p class="apk-note">首次安装一次即可；联网后软件自动更新，无需重新下载 APK</p>'
+    if html.count(apk_note) != 1:
+        fail("Cannot find the unique Android installer note for the application URL.")
+    apk_url_markup = """<div id="dwss-apk-site-url" class="apk-site-url" aria-label="翻译应用网址">
+  <p class="apk-site-url-label">翻译应用网址：</p>
+  <div class="apk-site-url-row">
+    <input id="dwss-apk-site-url-value" class="apk-site-url-value" type="text" value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/" readonly aria-label="翻译应用网址，可复制" spellcheck="false">
+    <button id="dwss-apk-site-url-copy" class="apk-site-url-copy" type="button" aria-label="复制翻译应用网址">复制</button>
+  </div>
+  <p id="dwss-apk-site-url-status" class="apk-site-url-status" role="status" aria-live="polite"></p>
+</div>"""
+    html = html.replace(apk_note, apk_note + "\n" + apk_url_markup, 1)
+elif html.count(apk_url_section_id) != 1:
+    fail("Android installer URL section is duplicated.")
+
+apk_url_style_id = 'id="dwss-apk-site-url-style-0161"'
+apk_url_style = """<style id="dwss-apk-site-url-style-0161">
+#dwss-apk-download .apk-site-url{width:100%;box-sizing:border-box;margin-top:3px;padding-top:7px;border-top:1px solid #ece4d5}
+#dwss-apk-download .apk-site-url-label{margin:0 0 5px;color:#53647a;font-size:10px;line-height:1.35;font-weight:700}
+#dwss-apk-download .apk-site-url-row{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box}
+#dwss-apk-download .apk-site-url-value{flex:1;min-width:0;box-sizing:border-box;padding:7px 8px;border:1px solid #dfe6ee;border-radius:9px;background:#f7f9fc;color:#53647a;font:10px/1.35 system-ui,sans-serif;text-align:left;white-space:nowrap;overflow-x:auto;user-select:text}
+#dwss-apk-download .apk-site-url-copy{flex:0 0 auto;min-height:30px;padding:5px 10px;border:1px solid #d5b45f;border-radius:9px;background:#fff8e8;color:#6c4a19;font:700 10px/1.2 system-ui,sans-serif}
+#dwss-apk-download .apk-site-url-copy:focus-visible{outline:3px solid rgba(207,169,77,.35);outline-offset:2px}
+#dwss-apk-download .apk-site-url-status{min-height:11px;margin:3px 0 0;color:#78869a;font-size:9px;line-height:1.3}
+</style>"""
+if html.count(apk_url_style_id) > 1:
+    fail("Android installer URL styles are duplicated.")
+if apk_url_style_id not in html:
+    if "</head>" not in html:
+        fail("Cannot find </head> for the Android installer URL styles.")
+    html = html.replace("</head>", apk_url_style + "\n</head>", 1)
+
+apk_url_script_id = '<script id="dwss-apk-site-url-copy-controller-0161">'
+apk_url_script = """<script id="dwss-apk-site-url-copy-controller-0161">
+(function(){
+  'use strict';
+  var field=document.getElementById('dwss-apk-site-url-value');
+  var button=document.getElementById('dwss-apk-site-url-copy');
+  var status=document.getElementById('dwss-apk-site-url-status');
+  if(!field||!button||!status)return;
+  function selectUrl(){field.focus();field.select();field.setSelectionRange(0,field.value.length);}
+  field.addEventListener('click',selectUrl);
+  field.addEventListener('focus',function(){field.select();});
+  button.addEventListener('click',async function(){
+    var copied=false;
+    var value=field.value;
+    if(navigator.clipboard&&window.isSecureContext){
+      try{await navigator.clipboard.writeText(value);copied=true;}catch(error){}
+    }
+    if(!copied){
+      try{selectUrl();copied=document.execCommand('copy')===true;}catch(error){}
+    }
+    if(copied){
+      button.textContent='已复制';
+      status.textContent='网址已复制';
+    }else{
+      button.textContent='长按网址复制';
+      status.textContent='已选中网址，请使用手机复制菜单完成复制';
+    }
+  });
+})();
+</script>"""
+if html.count(apk_url_script_id) > 1:
+    fail("Android installer URL copy controller is duplicated.")
+if apk_url_script_id not in html:
+    if "</body>" not in html:
+        fail("Cannot find </body> for the Android installer URL copy controller.")
+    html = html.replace("</body>", apk_url_script + "\n</body>", 1)
+
+if html.count('id="dwss-apk-site-url"') != 1 or \
+   html.count('id="dwss-apk-site-url-value"') != 1 or \
+   html.count('id="dwss-apk-site-url-copy"') != 1 or \
+   html.count(apk_url_script_id) != 1:
+    fail("Android installer URL copy UI must appear exactly once.")
+if 'value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"' not in html:
+    fail("Android installer URL does not match the official DWSS website.")
+
+if "DWSS_AUTO_UPDATE_0_9_161" not in html:
     fail("Automatic-update marker was not advanced to 0.9.160.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
