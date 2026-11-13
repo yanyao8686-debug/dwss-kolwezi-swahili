@@ -415,6 +415,15 @@ assert(!matchedPronunciations.some(item=>item.zh==='Unrelated sound'),
 const frenchTools = extensionSandbox.window.DWSSFrenchTools;
 assert(frenchTools && typeof frenchTools.translateChinese === 'function',
   'French word-level dictionary matcher must be available');
+assert(typeof frenchTools.buildMeaningIndex === 'function',
+  'French correction priority index must be available for regression validation');
+const priorityIndex = frenchTools.buildMeaningIndex([
+  {word:'Salut', reading:'萨吕', meanings:['你好'], source:'云端共享修正'},
+  {word:'Bonjour', reading:'邦茹', meanings:['你好'], source:'云端共享修正'}
+]);
+const priorityResult = frenchTools.translateChinese('你好', priorityIndex);
+assert(priorityResult.words === 'Salut' && priorityResult.reading === '萨吕',
+  'the newest French correction must stay ahead of an older shared translation for the same Chinese meaning');
 assert(typeof frenchTools.numberToFrench === 'function' && typeof frenchTools.isNumericExpression === 'function' &&
        typeof frenchTools.expandFrenchNumerals === 'function', 'French numeral helpers must be exported');
 const numberCases=[['123','cent vingt-trois'],['2026','deux mille vingt-six'],['1,234','mille deux cent trente-quatre'],
