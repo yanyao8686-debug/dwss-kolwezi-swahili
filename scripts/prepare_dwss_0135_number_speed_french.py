@@ -35,6 +35,7 @@ REQUIRED = [
     "french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json",
     "french-lexicon-sources.txt", "french-LEXIK-LICENSE.txt",
     "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt", "french-ipa-index.tsv.gz",
+    "french-wiktionary-coverage.json", "french-WIKTIONARY-ATTRIBUTION.txt",
 ]
 PROTECTED = [
     "cover.webp", "DWSS-Android-Installer.apk", "dictionary.js.gz",
