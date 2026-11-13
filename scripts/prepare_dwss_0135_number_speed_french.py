@@ -784,24 +784,9 @@ origin_function = r"""function localOrigin(item){
 app = app[:origin_start] + origin_function + app[origin_end:]
 
 
-app = replace_app_fragment(
-    app,
-    "const ranks={override:-1,personal:0,shared:1,builtin:2,'pronunciation-variant':3};",
-    "const ranks={personal:-2,canonical:-1,override:0,shared:1,builtin:2,'pronunciation-variant':3};",
-    "rank canonical Swahili lookup"
-)
-app = replace_app_fragment(
-    app,
-    "const rank={personal:0,shared:1,builtin:2},rows=(item.variants||[]).map((v,i)=>{",
-    "const rank={personal:0,canonical:1,shared:2,builtin:3},rows=(item.variants||[]).map((v,i)=>{",
-    "rank canonical French pronunciation"
-)
-app = replace_app_fragment(
-    app,
-    "const rank={personal:0,shared:1,builtin:2};\n for(const entry of keys){",
-    "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
-    "rank canonical French reverse pronunciation lookup"
-);
+
+
+;
 
 
 app = replace_app_fragment(
