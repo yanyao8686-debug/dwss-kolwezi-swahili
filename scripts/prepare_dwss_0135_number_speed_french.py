@@ -141,16 +141,6 @@ for name in REQUIRED:
     if not path.is_file() or path.stat().st_size == 0:
         fail("Required live asset is missing: " + name)
 
-# Never republish the legacy read-only cleanup script that deletes the main
-# pronunciation-maintenance DOM required by the Swahili app initializer.
-query_editor_source = Path(__file__).with_name("pronunciation-query-editor.js")
-if not query_editor_source.is_file():
-    fail("Tracked read-only pronunciation cleanup source is missing.")
-query_editor_text = query_editor_source.read_text(encoding="utf-8")
-if ".pronunciation-maintenance-entry" in query_editor_text or "maintenance.remove()" in query_editor_text:
-    fail("Read-only pronunciation cleanup must not hide or remove the main maintenance entry.")
-(ROOT / "pronunciation-query-editor.js").write_text(query_editor_text, encoding="utf-8", newline="\n")
-
 # Copy the on-demand pronunciation files too; they are intentionally not all in the
 # Service Worker precache, but both French lookup and translated-sentence reading need them.
 pron_meta = json.loads((ROOT / "french-pronunciation-index.json").read_text(encoding="utf-8"))
@@ -1307,7 +1297,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_155" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.154.")
+    fail("Automatic-update marker was not advanced to 0.9.155.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1396,5 +1386,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.154 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
+print("PASS: DWSS 0.9.155 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
