@@ -11,6 +11,7 @@ on:
       - 'scripts/french-translation-runtime.js'
       - 'scripts/pronunciation-query-editor.js'
       - 'scripts/test_dwss_0144_pronunciation_query_editor.cjs'
+      - 'scripts/test_dwss_0150_input-ime-fallback.cjs'
       - 'scripts/merge_french_wiktionary_zh.py'
       - 'scripts/test_french_wiktionary_merge.py'
       - 'scripts/test_dwss_offline_parity.cjs'
@@ -281,6 +282,8 @@ jobs:
           grep -Fq 'showInstantLocalDraft(chinese)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'buildLocalPhraseReading(french)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'scheduleTranslation(60)' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'scheduleCompositionFallback' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'compositionFallbackTimer' "$LIVE/french-translation-runtime.js"
           grep -Fq 'french-gloss-index.tsv.gz' "$LIVE/sw.js"
           grep -Fq 'french-pronunciation-index.json' "$LIVE/sw.js"
           grep -Fq 'french-word-index.json' "$LIVE/sw.js"
