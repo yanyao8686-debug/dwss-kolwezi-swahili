@@ -783,19 +783,7 @@ origin_function = r"""function localOrigin(item){
 }"""
 app = app[:origin_start] + origin_function + app[origin_end:]
 
-app = replace_app_fragment(
-    app,
-    """function localOrigin(item){
- if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
- for(const origin of ['override','personal','shared','builtin','pronunciation-variant']){""",
-    """function localOrigin(item){
- for(const origin of ['personal','canonical']){
-  if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')))return origin;
- }
- if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
- for(const origin of ['shared','builtin','pronunciation-variant']){""",
-    "canonical Swahili headword beats previous override"
-)
+
 app = replace_app_fragment(
     app,
     "const ranks={override:-1,personal:0,shared:1,builtin:2,'pronunciation-variant':3};",
