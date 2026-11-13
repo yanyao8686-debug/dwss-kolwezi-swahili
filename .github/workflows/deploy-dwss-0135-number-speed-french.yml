@@ -107,13 +107,13 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_152' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_153' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
           grep -Fxq 'Version: 0.9.153' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_152' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_153' "$LIVE/index.html"
           grep -Fq "version:'0.9.153'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.153';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
@@ -125,7 +125,8 @@ jobs:
           grep -Fq 'window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();' "$LIVE/app.js"
           grep -Fq 'function getPinyinMap()' "$LIVE/pronunciation-search.js"
           grep -Fq 'getPinyinMap()[character]' "$LIVE/pronunciation-search.js"
-          grep -Fq 'setMainMode("sw");' "$LIVE/french-extension.js"
+          grep -Fq 'setMainMode(activeMainMode);' "$LIVE/french-extension.js"
+          grep -Fq 'setQueryMode(activeQueryMode);' "$LIVE/french-extension.js"
           grep -Fq 'dwss:app-ready' "$LIVE/french-extension.js"
           grep -Fq 'restoreSelectedModesAfterCoreReady' "$LIVE/french-extension.js"
           grep -Fq 'french-extension.js?dwss-release=0.9.153' "$LIVE/index.html"
