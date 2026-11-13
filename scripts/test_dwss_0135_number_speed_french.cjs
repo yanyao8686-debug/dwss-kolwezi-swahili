@@ -637,5 +637,5 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   assert(!resultBox.hasAttribute('data-dwss-french-draft'),
     'successful save must clear the pending French-edit marker');
   editDom.window.close();
- })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.156: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');
+  console.log('PASS DWSS 0.9.156: French translation, direct result edits, newest-correction priority, language isolation and shared corrections validated.');
+})().catch(error => { console.error(error); process.exitCode = 1; });
