@@ -154,10 +154,14 @@ function render() {
   if (!list) return;
   const q = ((document.getElementById("dwss-shared-search") || {}).value || "").trim().toLowerCase();
   const pending = queue.map(t => Object.assign({}, t, { __pending: true }));
-  const filtered = terms.filter(t => !q ||
+  const pendingCanonicalKeys = new Set(queue.filter(t => t && t.__canonical).map(canonicalTermKey));
+  const canonical = canonicalTerms.filter(t => !pendingCanonicalKeys.has(canonicalTermKey(t)));
+  const preferredKeys = new Set(canonicalTerms.concat(queue.filter(t => t && t.__canonical)).map(canonicalTermKey));
+  const legacy = terms.filter(t => !preferredKeys.has(canonicalTermKey(t)));
+  const matches = t => !q ||
     [t.chinese_text,t.local_text,t.local_pronunciation_cn,t.french_pronunciation_cn,t.french_text,t.category,t.notes]
-      .join(" ").toLowerCase().includes(q));
-  const rows = pending.concat(filtered).slice(0,300);
+      .join(" ").toLowerCase().includes(q);
+  const rows = pending.concat(canonical, legacy).filter(matches).slice(0,300);
   if (!rows.length) {
     list.innerHTML = '<div class="dwss-shared-empty">暂无匹配词条。你可以添加第一个共享词条。</div>';
     return;
