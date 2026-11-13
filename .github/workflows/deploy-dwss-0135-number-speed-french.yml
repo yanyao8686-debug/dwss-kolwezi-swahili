@@ -99,13 +99,13 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_150' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_151' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
           grep -Fxq 'Version: 0.9.151' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_150' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_151' "$LIVE/index.html"
           grep -Fq "version:'0.9.151'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.151';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
@@ -116,7 +116,7 @@ jobs:
           ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
           grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.151' "$LIVE/index.html"
-          grep -Fq 'dwss-pronunciation-query-readonly-0150' "$LIVE/pronunciation-query-editor.js"
+          grep -Fq 'dwss-pronunciation-query-readonly-0151' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSPronunciationQueryReadOnly' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'dwss-input-ime-fallback-0150' "$LIVE/index.html"
           grep -Fq 'finishComposition' "$LIVE/index.html"
