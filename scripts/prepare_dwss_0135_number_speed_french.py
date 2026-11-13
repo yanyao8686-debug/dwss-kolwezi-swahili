@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.154"
-NEW_VERSION = "0.9.155"
+OLD_VERSION = "0.9.155"
+NEW_VERSION = "0.9.156"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -991,11 +991,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_154"
-new_marker = "DWSS_AUTO_UPDATE_0_9_155"
+old_marker = "DWSS_AUTO_UPDATE_0_9_155"
+new_marker = "DWSS_AUTO_UPDATE_0_9_156"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.154 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.155 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1300,8 +1300,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_155" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.155.")
+if "DWSS_AUTO_UPDATE_0_9_156" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.156.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1390,5 +1390,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.155 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
+print("PASS: DWSS 0.9.156 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
