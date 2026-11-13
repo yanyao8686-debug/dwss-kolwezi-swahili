@@ -221,13 +221,12 @@ assert(extension.includes('function setupFrenchPronunciationEditor()') &&
        !extension.includes('id="dwssFrenchPronunciationValue"') &&
        extension.includes('保存并同步给所有用户'),
   'French direct result editing and one-click save controls are missing');
-assert(extension.includes('submitFrenchPronunciationCorrection') &&
+assert(extension.includes('api.submitFrenchPronunciationCorrection({') &&
        extension.includes('french_pronunciation_cn: values.reading') &&
-       extension.includes('const outputFrenchDraft = !!(parsed && parsed.french && !String(parsed.reading || "").trim())') &&
-       extension.includes('const reading = outputFrenchDraft') &&
-       extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))') &&
-       !extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.reading))'),
-  'French pronunciation correction must submit only the main-result homophone plus the reconstructed French spelling to the dedicated French fields');
+       extension.includes('values.outputFrenchDraft ||') &&
+       extension.includes('machine.getReadingForFrenchDraft(values.french)') &&
+       extension.includes('tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word))'),
+  'French pronunciation correction must save the edited French source and its matching generated homophone to the dedicated French fields');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
 assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
