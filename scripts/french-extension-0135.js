@@ -1206,6 +1206,26 @@
     return true;
   }
 
+  function restoreSelectedModesAfterCoreReady() {
+    // boot.js asynchronously decompresses the Swahili dictionary and injects
+    // app.js after parser-deferred scripts have already executed. The extension
+    // must reconcile both views only after the real core renderers are available.
+    if (!window.KolweziSwahili ||
+        typeof window.DWSSRenderTranslation !== "function" ||
+        typeof window.DWSSRenderPronunciationLookup !== "function") return false;
+
+    // Preserve the user's current selection; do not force French back to Swahili
+    // if the user changed language while the dictionary was still loading.
+    setMainMode(activeMainMode);
+    setQueryMode(activeQueryMode);
+
+    const query = $("pronunciationSearch");
+    if (activeQueryMode === "sw" && query && String(query.value || "").trim()) {
+      window.DWSSRenderPronunciationLookup();
+    }
+    return true;
+  }
+
   function bind() {
     const frenchQueryInstruction = document.querySelector("#dwssFrenchQueryPanel .pronunciation-lookup-instruction");
     if (frenchQueryInstruction) {
