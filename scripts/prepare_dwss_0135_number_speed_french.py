@@ -550,13 +550,16 @@ if "async function precacheFrenchShardFamilies(cache)" not in sw:
     if sw.count(install_anchor) != 1:
         fail("Cannot locate Service Worker install handler for full French offline caching.")
     sw = sw.replace(install_anchor, offline_shard_helper + "\n" + install_anchor, 1)
-if sw.count("await cache.addAll(PRECACHE_URLS);") != 1:
-    fail("Cannot locate the Service Worker base precache call.")
-sw = sw.replace(
-    "await cache.addAll(PRECACHE_URLS);",
-    "await cache.addAll(PRECACHE_URLS);\n    const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);\n    if (frenchOfflineShardCount < 700) throw new Error('French offline shard cache is incomplete: ' + frenchOfflineShardCount);",
-    1
-)
+if "const frenchOfflineShardCount =" not in sw:
+    if sw.count("await cache.addAll(PRECACHE_URLS);") != 1:
+        fail("Cannot locate the Service Worker base precache call.")
+    sw = sw.replace(
+        "await cache.addAll(PRECACHE_URLS);",
+        "await cache.addAll(PRECACHE_URLS);\\n    const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);\\n    if (frenchOfflineShardCount < 700) throw new Error('French offline shard cache is incomplete: ' + frenchOfflineShardCount);",
+        1
+    )
+elif sw.count("const frenchOfflineShardCount =") != 1:
+    fail("Duplicate French offline shard installation code detected in Service Worker.")
 if "activeCache.match(request, { ignoreSearch: true })" not in sw:
     old_cache_lookup = "const cached = await caches.match(request);"
     if sw.count(old_cache_lookup) != 1:
