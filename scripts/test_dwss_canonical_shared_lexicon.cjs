@@ -87,6 +87,36 @@ for (const token of [
     'all three language-specific canonical headword corrections must persist on device');
   assert(queue.some(item => item.__variant), 'the offline pronunciation correction must persist in the same queue');
 
+  let capturedUrl = '', capturedPayload = null;
+  win.fetch = async (url, options) => {
+    capturedUrl = String(url);
+    capturedPayload = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        entry: {
+          id:'online-entry', client_submit_id:capturedPayload.client_submit_id,
+          source_language:'fr', normalized_chinese:'测试词', chinese_text:'测试词',
+          french_text:'terme de test', french_pronunciation_cn:'特斯特',
+          updated_at:'2026-11-13T22:00:00.000Z'
+        }
+      })
+    };
+  };
+  Object.defineProperty(win.navigator, 'onLine', { value: true, configurable: true });
+  const online = await api.submitFrenchPronunciationCorrection({
+    chinese_text:'测试词', french_text:'terme de test', french_pronunciation_cn:'特斯特'
+  });
+  assert(online.ok && online.queued === false, 'online canonical correction must complete immediately');
+  assert(capturedUrl.includes('/functions/v1/dwss-upsert-dictionary-entry') &&
+    capturedPayload.source_language === 'fr' && capturedPayload.chinese_text === '测试词',
+    'online corrections must call the canonical upsert endpoint with the correct language-scoped payload');
+  assert(api.getTerms().some(item => item.source_language === 'fr' && item.chinese_text === '测试词' &&
+    item.french_text === 'terme de test' && item.__canonical),
+    'online upsert result must be merged into the immediately active local dictionary');
+
   dom.window.close();
   console.log('PASS DWSS 0.9.159: canonical Swahili/French entries replace stale active headwords offline; language-scoped entries coexist; pending pronunciation variants are instantly searchable and all changes persist for later sync.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
