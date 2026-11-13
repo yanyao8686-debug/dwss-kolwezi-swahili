@@ -934,7 +934,8 @@
           }
           if (missing.length || /〔[^〕]*(?:待补|待核)[^〕]*〕/u.test(generatedReading)) {
             const partialReading = /〔[^〕]*(?:待补|待核)[^〕]*〕/u.test(generatedReading)
-              ? generatedReading : generatedReading + " 〔发音待补〕";
+              ? generatedReading.replace(/〔[^〕]*(?:待补|待核)[^〕]*〕/gu, "〔发音待补〕")
+              : generatedReading + " 〔发音待补〕";
             output.value = partialReading;
             output.classList.remove("empty");
             output.removeAttribute("data-dwss-french-draft");
@@ -1312,10 +1313,10 @@
         renderMainFrench();
         const machine = window.DWSSFrenchMachineTranslationController;
         if (machine && typeof machine.refreshAfterSharedCorrection === "function") {
-        machine.refreshAfterSharedCorrection();
-      } else if (machine && typeof machine.scheduleTranslation === "function") {
-        machine.scheduleTranslation(60);
-      }
+          machine.refreshAfterSharedCorrection();
+        } else if (machine && typeof machine.scheduleTranslation === "function") {
+          machine.scheduleTranslation(60);
+        }
       }
       if (activeQueryMode === "fr" && $("pronunciationFrenchSearch").value.trim()) renderFrenchQuery().catch(() => {});
     };
