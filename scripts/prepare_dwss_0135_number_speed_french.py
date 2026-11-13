@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.153"
-NEW_VERSION = "0.9.154"
+OLD_VERSION = "0.9.154"
+NEW_VERSION = "0.9.155"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -140,6 +140,16 @@ for name in REQUIRED:
     path = ROOT / name
     if not path.is_file() or path.stat().st_size == 0:
         fail("Required live asset is missing: " + name)
+
+# Never republish the legacy read-only cleanup script that deletes the main
+# pronunciation-maintenance DOM required by the Swahili app initializer.
+query_editor_source = Path(__file__).with_name("pronunciation-query-editor.js")
+if not query_editor_source.is_file():
+    fail("Tracked read-only pronunciation cleanup source is missing.")
+query_editor_text = query_editor_source.read_text(encoding="utf-8")
+if ".pronunciation-maintenance-entry" in query_editor_text or "maintenance.remove()" in query_editor_text:
+    fail("Read-only pronunciation cleanup must not hide or remove the main maintenance entry.")
+(ROOT / "pronunciation-query-editor.js").write_text(query_editor_text, encoding="utf-8", newline="\\n")
 
 # Copy the on-demand pronunciation files too; they are intentionally not all in the
 # Service Worker precache, but both French lookup and translated-sentence reading need them.
