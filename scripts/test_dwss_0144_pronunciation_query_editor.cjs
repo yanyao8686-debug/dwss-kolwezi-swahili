@@ -47,12 +47,8 @@ const { window } = dom;
 const { document } = window;
 let swWrites = 0;
 let frWrites = 0;
-window.DWSSDictionaryOverrides = {
-  async update() { swWrites += 1; }
-};
-window.DWSSSharedLexicon = {
-  async submitFrenchPronunciationCorrection() { frWrites += 1; }
-};
+window.DWSSDictionaryOverrides = { async update() { swWrites += 1; } };
+window.DWSSSharedLexicon = { async submitFrenchPronunciationCorrection() { frWrites += 1; } };
 
 window.eval(source);
 document.dispatchEvent(new window.Event('DOMContentLoaded'));
@@ -76,29 +72,32 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(frArticles[1].textContent.includes('inconnu'),
     'French results without a Chinese gloss must remain searchable');
 
-  // Controls inserted by stale cached code are removed as well.
-  const stale = document.createElement('div');
-  stale.className = 'dwss-query-inline-tools';
-  stale.innerHTML = '<button class="dwss-query-edit-toggle">旧版修改入口</button>';
-  document.querySelector('#pronunciationResults').appendChild(stale);
+  const staleSw = document.createElement('div');
+  staleSw.className = 'dwss-query-inline-tools';
+  staleSw.innerHTML = '<button class="dwss-query-edit-toggle">旧版斯语修改入口</button>';
+  document.querySelector('#pronunciationResults').appendChild(staleSw);
+  const staleFr = document.createElement('div');
+  staleFr.className = 'dwss-query-inline-tools';
+  staleFr.innerHTML = '<button class="dwss-query-edit-toggle">旧版法语修改入口</button>';
+  document.querySelector('#pronunciationFrenchResults').appendChild(staleFr);
   await pause(20);
   assert.equal(document.querySelectorAll('.dwss-query-inline-tools').length, 0,
-    'stale edit controls must be stripped after dynamic result rendering');
+    'stale edit controls must be stripped from both result lists');
   assert.equal(swWrites, 0, 'read-only pronunciation lookup must never write Swahili corrections');
   assert.equal(frWrites, 0, 'read-only pronunciation lookup must never write French corrections');
 
-  for (const forbidden of [
-    'DWSSDictionaryOverrides',
-    'submitFrenchPronunciationCorrection',
-    '修改结果',
-    '保存并同步给所有用户'
-  ]) {
+  for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
     assert(!source.includes(forbidden), 'read-only query script must not contain edit capability: ' + forbidden);
   }
-  const css = document.getElementById('dwss-pronunciation-query-readonly-0149').textContent;
+  const css = document.getElementById('dwss-pronunciation-query-readonly-0150').textContent;
   assert(css.includes('#pronunciationResults .pronunciation-hit-actions'));
   assert(css.includes('#pronunciationFrenchResults .pronunciation-hit-actions'));
-  console.log('PASS DWSS 0.9.149: Swahili and French pronunciation lookup are read-only and preserve both result lists.');
+  assert(source.includes('MutationObserver'));
+  assert(source.includes('getElementById("pronunciationResults")'));
+  assert(source.includes('getElementById("pronunciationFrenchResults")'));
+  assert(!source.includes('observer.observe(document.body'),
+    'query cleanup must not observe the full application DOM');
+  console.log('PASS DWSS 0.9.150: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
