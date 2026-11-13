@@ -17,7 +17,7 @@ const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const queryEditor = read('pronunciation-query-editor.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.152 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.153 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -105,13 +105,13 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.152'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.152'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.152';"), 'Service Worker cache version mismatch');
+assert(version.includes('Version: 0.9.153'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.153'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.153';"), 'Service Worker cache version mismatch');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_152'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.152'), 'cache-busted page assets were not advanced');
+assert(html.includes('dwss-release=0.9.153'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.152'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.153'),
   'inline pronunciation query editor is not loaded');
 assert((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.152/g) || []).length === 1,
   'read-only pronunciation query script must be referenced exactly once');
@@ -158,7 +158,14 @@ assert(glossCoverage.pinnedCFDICTCommit === 'ebf1d269182d84e4068d1ce383eaf272c7a
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'), 'real Swahili pronunciation renderer hook is exposed');
 assert(app.includes("activeResultCard.dataset.dwssLang==='fr'"), 'stale French button styling cannot suppress Swahili translation');
-assert(extension.includes('setMainMode("sw");') && extension.includes('setQueryMode("sw");'), 'main and pronunciation panels initialize to Swahili');
+assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
+       extension.includes('dwss:app-ready') &&
+       extension.includes('setMainMode(activeMainMode);') &&
+       extension.includes('setQueryMode(activeQueryMode);'),
+  'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
+assert(html.includes('french-extension.js?dwss-release=0.9.153') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.153'),
+  'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
 assert(runtime.includes('const storedReading = String(item.reading || "").trim();') &&
@@ -548,4 +555,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.152: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');
+console.log('PASS DWSS 0.9.153: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');
