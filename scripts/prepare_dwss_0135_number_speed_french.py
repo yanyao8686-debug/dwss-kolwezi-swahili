@@ -1090,7 +1090,7 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "machine.scheduleTranslation(50)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
                  "nearFirstKeys", "rowsForShards",
-                 "function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)",
+                 "function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords)",
                  "tokenizeFrenchPhrase", "buildFrenchWordReadingLookup", "buildFrenchWordPairs",
                  'const GLOSS_URL = "./french-gloss-index.tsv.gz";',
                  'const META_URL = "./french-pronunciation-index.json";',
