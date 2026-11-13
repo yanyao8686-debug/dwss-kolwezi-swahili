@@ -1228,7 +1228,7 @@ version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary call
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
 version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
-version = version.rstrip() + "\\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\\n"
+version = version.rstrip() + "\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1546,8 +1546,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_157" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.158.")
+if "DWSS_AUTO_UPDATE_0_9_160" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.160.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
