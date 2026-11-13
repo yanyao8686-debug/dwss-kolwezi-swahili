@@ -68,14 +68,30 @@ const input=win.document.getElementById('inputText');
 const output=win.document.getElementById('resultReading');
 const card=win.document.getElementById('resultCard');
 const frenchButton=win.document.getElementById('dwssMainFrMode');
-assert(input && output && card && frenchButton, 'main result DOM is incomplete');
+const swButton=win.document.getElementById('dwssMainSwMode');
+const frenchQueryButton=win.document.getElementById('dwssPronFrMode');
+const swQueryButton=win.document.getElementById('dwssPronSwMode');
+assert(input && output && card && frenchButton && swButton && frenchQueryButton && swQueryButton,
+  'main result or language-mode DOM is incomplete');
 input.value='明天';
-card.removeAttribute('data-dwss-lang');
-frenchButton.classList.add('active'); // emulate stale WebView button state
+card.dataset.dwssLang='fr';
+frenchButton.classList.add('active'); // emulate a WebView restored with stale French state
+frenchQueryButton.classList.add('active');
+win.eval(extension);
+if(win.document.readyState==='loading'){
+  win.document.dispatchEvent(new win.Event('DOMContentLoaded',{bubbles:true}));
+}
+assert.equal(card.dataset.dwssLang,undefined,
+  'real extension startup must clear a stale French result-card marker');
+assert(swButton.classList.contains('active') && !frenchButton.classList.contains('active'),
+  'real extension startup must select Swahili for the main translator');
+assert(swQueryButton.classList.contains('active') && !frenchQueryButton.classList.contains('active'),
+  'real extension startup must select Swahili for reverse pronunciation lookup');
 assert.equal(typeof win.DWSSRenderTranslation,'function','main render hook missing');
+input.dispatchEvent(new win.Event('input',{bubbles:true}));
 win.DWSSRenderTranslation();
 assert(!output.hidden && output.value.includes(match.reading),
-  'real result textarea must show the local homophone even if French button styling is stale');
+  'real result textarea must show the local homophone after the actual extension restores Swahili mode');
 
 const queryInput=win.document.getElementById('pronunciationSearch');
 const queryResults=win.document.getElementById('pronunciationResults');
