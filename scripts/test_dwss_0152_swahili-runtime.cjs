@@ -23,7 +23,7 @@ const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf
 assert(version.includes('Version: 0.9.153'), 'website version must be 0.9.153');
 assert(app.includes("version:'0.9.153'"), 'app version must match');
 assert(sw.includes("const APP_VERSION = '0.9.153';"), 'Service Worker version must match');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_152'), 'automatic-update marker must match');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_153'), 'automatic-update marker must match');
 assert((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.152/g) || []).length === 1,
   'query cleanup script must load exactly once');
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
