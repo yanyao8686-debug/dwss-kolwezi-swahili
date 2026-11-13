@@ -562,11 +562,32 @@ def replace_app_fragment(source, old, new, label):
         return source.replace(old, new, 1)
     if old_count == 0 and new_count == 1:
         return source
-    if label == "prefer personal then canonical Swahili entries over old overrides and built-ins":
-        print("DEBUG canonical Swahili resolver context:")
-        for needle in ("publicOverride", "pronunciation-variant", "function localOrigin", "origin:'override'"):
-            pos = source.find(needle)
-            print("DEBUG needle", needle, "pos", pos, "context", repr(source[max(0, pos-700):pos+1300] if pos >= 0 else "not found"))
+    # Make the production build safe to rerun against the already-published 0.9.159
+    # app.js. A previous successful Pages deployment is now the source mirror, so
+    # its canonical resolver patches are expected to exist in their final form.
+    if label == "prefer canonical shared Swahili word readings":
+        if ("function preferredLocalVariants(item){" in source and
+                "origin==='canonical'" in source and "canonical.concat(verified)" in source):
+            return source
+    if label == "include canonical shared origin":
+        if "function localOrigin(item){" in source and "['personal','canonical']" in source:
+            return source
+    if label == "rank canonical shared entries":
+        lookup = source.find("function lookupLocalAt(")
+        if lookup >= 0 and "canonical" in source[lookup:lookup+500]:
+            return source
+    if label == "pass canonical marker into translation dictionary":
+        if "__canonical:!!t.__canonical" in source:
+            return source
+    if label in ("rank canonical French headword", "rank canonical French reverse-lookup results"):
+        if re.search(r"const rank=\\{[^}]*canonical[^}]*\\}", source):
+            return source
+    if label in ("mark canonical shared rows", "preserve canonical source marker"):
+        if "origin:c.__canonical?'canonical':'shared'" in source:
+            return source
+    if label == "carry canonical marker from shared cache into translation dictionary":
+        if "__canonical:!!t.__canonical" in source:
+            return source
     fail("Could not apply Swahili/French separation patch: " + label)
 
 def remove_french_fallback(source):
