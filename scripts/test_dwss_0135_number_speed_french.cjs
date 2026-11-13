@@ -681,7 +681,8 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
     ...editWin.DWSSFrenchTools,
     translateOfflineChinese: () => ({
       words: 'qzqxv', reading: activeCorrectedReading, misses: []
-    })
+    }),
+    getPhraseWordPairs: async () => [{ token: 'qzqxv', reading: activeCorrectedReading }]
   });
   const machineController = editWin.DWSSFrenchMachineTranslationController;
   assert(machineController && typeof machineController.refreshAfterSharedCorrection === 'function',
