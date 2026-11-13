@@ -371,6 +371,8 @@
     const original = String(frenchOriginal || "").trim();
     if (label) label.textContent = "单个法语读法释义：";
     if (!host) return;
+    ensureFrenchWordGlossEditorStyle();
+    ensureFrenchWordGlossSaveHandler(host);
     const parent = host.closest(".dwss-secondary-details");
     if (parent) parent.style.display = "block";
     host.classList.remove("dwss-french-word-grid");
@@ -393,10 +395,15 @@
       host.querySelectorAll(".dwss-french-word-pair").forEach(row => {
         const index = Number(row.dataset.wordIndex);
         const wordInput = row.querySelector(".dwss-french-word-original");
+        const meaningInput = row.querySelector(".dwss-french-word-meaning-input");
         if (!wordInput) return;
         const originalWord = String(wordInput.dataset.originalWord || "");
         const word = String(wordInput.value || "");
-        if (word !== originalWord) preserved.set(index, { originalWord, word });
+        const originalMeaning = String(meaningInput && meaningInput.dataset.originalMeaning || "");
+        const meaning = String(meaningInput && meaningInput.value || "");
+        if (word !== originalWord || meaning !== originalMeaning) {
+          preserved.set(index, { originalWord, word, originalMeaning, meaning });
+        }
       });
     }
     host.dataset.frenchSourcePhrase = phrase;
@@ -411,15 +418,31 @@
       const previous = preserved.get(index);
       const keepPrevious = !!previous &&
         normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
+      const defaultMeaning = getEditableFrenchMeaning(token);
+      const keepMeaningDraft = keepPrevious && previous.meaning !== previous.originalMeaning;
       const wordValue = keepPrevious ? previous.word : token;
+      const meaningValue = keepMeaningDraft ? previous.meaning : defaultMeaning;
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
-        '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
-        'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
-        '<div class="rd">法语：' +
+        '<div class="dwss-french-word-head">' +
+        '<label class="dwss-french-word-label">法语单词</label>' +
+        '<input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
+        'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off">' +
+        '</div>' +
+        '<div class="dwss-french-word-reading">中文谐音：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
+        '<div class="dwss-french-word-meaning-row">' +
+        '<label class="dwss-french-word-meaning-label">中文释义</label>' +
+        '<div class="dwss-french-word-meaning-controls">' +
+        '<input class="dwss-french-word-meaning-input" type="text" maxlength="500" ' +
+        'data-original-meaning="' + esc(defaultMeaning) + '" value="' + esc(meaningValue) + '" ' +
+        'aria-label="法语单词' + (index + 1) + '的中文释义" placeholder="输入或修改这个法语单词的中文释义" autocomplete="off">' +
+        '<button class="dwss-french-word-meaning-save" type="button">保存释义</button>' +
+        '</div>' +
+        '<span class="dwss-french-word-meaning-status" role="status" aria-live="polite"></span>' +
+        '</div>' +
         '</div>';
     }).join("");
-    host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
+    host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">可直接修改法语单词和对应中文释义，点击本词“保存释义”同步词库。</div>');
   }
 
   function normalizeFrenchGlossKey(value) {
@@ -445,6 +468,136 @@
   function findFrenchGloss(word) {
     const exact = meaningByWord.get(normalizeFrenchGlossKey(word));
     return exact && exact.length ? exact : [];
+  }
+
+  function getEditableFrenchMeaning(word) {
+    const key = normalizeFrenchGlossKey(word);
+    if (!key) return "";
+    const shared = window.DWSSSharedLexicon;
+    if (shared && typeof shared.getTerms === "function") {
+      const matches = (shared.getTerms() || []).filter(item =>
+        item && item.source_language === "fr" &&
+        normalizeFrenchGlossKey(item.french_text) === key &&
+        String(item.chinese_text || "").trim()
+      ).sort((a, b) => {
+        if (!!a.__pending !== !!b.__pending) return a.__pending ? -1 : 1;
+        return String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""));
+      });
+      const correction = matches.find(item => String(item.category || "") === "法语单词释义修正");
+      if (correction) return String(correction.chinese_text || "").trim();
+      if (matches.length) return String(matches[0].chinese_text || "").trim();
+    }
+    const api = window.KolweziSwahili;
+    if (api && typeof api.getCustom === "function") {
+      const local = api.getCustom().find(item =>
+        item && normalizeFrenchGlossKey(item.french) === key && String(item.zh || "").trim()
+      );
+      if (local) return String(local.zh || "").trim();
+    }
+    return findFrenchGloss(word).join("；");
+  }
+
+  function ensureFrenchWordGlossEditorStyle() {
+    if (document.getElementById("dwss-french-word-gloss-editor-0148")) return;
+    const style = document.createElement("style");
+    style.id = "dwss-french-word-gloss-editor-0148";
+    style.textContent = [
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-pair{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important;margin:8px 0!important;padding:10px!important;border:1px solid #E7E1D7!important;border-radius:10px!important;background:#FFFEFC!important;box-shadow:none!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-head{display:block!important;min-width:0!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-label{display:block!important;margin:0 0 4px!important;color:#8B642A!important;font-size:12px!important;font-weight:800!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-original{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;min-height:40px!important;margin:0!important;padding:8px 10px!important;border:1.5px solid #D6A34B!important;border-radius:8px!important;outline:none!important;background:#FFF9ED!important;color:#183B60!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important;box-shadow:none!important;text-align:left!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-original:focus{border-color:#A87423!important;background:#FFF6E4!important;box-shadow:0 0 0 3px rgba(214,163,75,.18)!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-reading{display:block!important;margin:2px 0 0!important;color:#27435A!important;font-size:13px!important;line-height:1.5!important;overflow-wrap:anywhere!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-row{display:block!important;min-width:0!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-label{display:block!important;margin:0 0 4px!important;color:#536674!important;font-size:12px!important;font-weight:750!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-controls{display:flex!important;align-items:stretch!important;gap:7px!important;width:100%!important;min-width:0!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-input{display:block!important;flex:1 1 auto!important;width:1%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;min-height:40px!important;margin:0!important;padding:8px 10px!important;border:1px solid #BFCBD3!important;border-radius:8px!important;outline:none!important;background:#FFFFFF!important;color:#182631!important;font-size:14px!important;line-height:1.4!important;box-shadow:none!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-input:focus{border-color:#D6A34B!important;box-shadow:0 0 0 3px rgba(214,163,75,.15)!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-save{flex:0 0 auto!important;min-height:40px!important;padding:8px 12px!important;border:0!important;border-radius:8px!important;background:#173E52!important;color:#FFFFFF!important;font-size:13px!important;font-weight:800!important;white-space:nowrap!important;cursor:pointer!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-save:disabled{opacity:.55!important;cursor:wait!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-status{display:block!important;min-height:0!important;margin:4px 0 0!important;font-size:12px!important;line-height:1.4!important;color:#28704D!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-status[data-kind=\"offline\"]{color:#98611E!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-status[data-kind=\"error\"]{color:#A33A30!important}",
+      "#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-edit-hint{display:block!important;margin:7px 0 10px!important;padding:0 2px!important;color:var(--muted)!important;font-size:12px!important;line-height:1.5!important;text-align:left!important}",
+      "@media(max-width:420px){#resultCard[data-dwss-lang=\"fr\"] .dwss-secondary-details #segmentList .dwss-french-word-meaning-save{padding:8px 9px!important;font-size:12px!important}}"
+    ].join("\n");
+    document.head.appendChild(style);
+  }
+
+  function ensureFrenchWordGlossSaveHandler(host) {
+    if (!host || host.dataset.dwssFrenchGlossSaveBound === "1") return;
+    host.dataset.dwssFrenchGlossSaveBound = "1";
+    host.addEventListener("click", async event => {
+      const target = event.target && event.target.closest
+        ? event.target : (event.target && event.target.parentElement);
+      const button = target && target.closest ? target.closest(".dwss-french-word-meaning-save") : null;
+      if (!button) return;
+      const row = button.closest(".dwss-french-word-pair");
+      if (!row) return;
+      const wordInput = row.querySelector(".dwss-french-word-original");
+      const meaningInput = row.querySelector(".dwss-french-word-meaning-input");
+      const readingNode = row.querySelector(".dwss-french-word-pronunciation");
+      const status = row.querySelector(".dwss-french-word-meaning-status");
+      const french = String(wordInput && wordInput.value || "").trim();
+      const chinese = String(meaningInput && meaningInput.value || "").trim();
+      let reading = String(readingNode && readingNode.textContent || "").trim();
+      if (!french || french.length > 100 || /[\r\n]/.test(french)) {
+        if (status) { status.textContent = "请填写有效的法语单词（最多 100 个字符）。"; status.dataset.kind = "error"; }
+        if (wordInput) wordInput.focus();
+        return;
+      }
+      if (!chinese || chinese.length > 500) {
+        if (status) { status.textContent = "请填写中文释义（最多 500 个字符）。"; status.dataset.kind = "error"; }
+        if (meaningInput) meaningInput.focus();
+        return;
+      }
+      if (/^(?:谐音待补|匹配中…|离线未缓存|未找到读音|〔发音待补〕)$/u.test(reading)) reading = "";
+      if (!reading) {
+        const app = window.KolweziSwahili;
+        if (app && typeof app.frenchReading === "function") reading = String(app.frenchReading(french) || "").trim();
+      }
+      if (/^(?:谐音待补|匹配中…|离线未缓存|未找到读音|〔发音待补〕)$/u.test(reading)) reading = "";
+      const shared = window.DWSSSharedLexicon;
+      if (!shared || typeof shared.submitFrenchGlossCorrection !== "function") {
+        if (status) { status.textContent = "法语共享词库尚未就绪，请刷新后重试。"; status.dataset.kind = "error"; }
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "保存中…";
+      if (status) { status.textContent = "正在保存单词中文释义…"; status.dataset.kind = "info"; }
+      try {
+        const result = await shared.submitFrenchGlossCorrection({
+          chinese_text: chinese,
+          french_text: french,
+          french_pronunciation_cn: reading
+        });
+        const index = row.dataset.wordIndex;
+        const currentRow = Array.from(host.querySelectorAll(".dwss-french-word-pair"))
+          .find(item => item.dataset.wordIndex === index) || row;
+        const currentButton = currentRow.querySelector(".dwss-french-word-meaning-save");
+        const currentMeaning = currentRow.querySelector(".dwss-french-word-meaning-input");
+        const currentStatus = currentRow.querySelector(".dwss-french-word-meaning-status");
+        if (currentMeaning) currentMeaning.dataset.originalMeaning = chinese;
+        if (currentStatus) {
+          currentStatus.textContent = result && result.queued
+            ? "已保存到本机，联网后自动同步所有用户。"
+            : (result && result.existing ? "共享词库已有相同释义，未重复添加。" : "已保存并同步到共享词库。");
+          currentStatus.dataset.kind = result && result.queued ? "offline" : "success";
+        }
+        if (currentButton) {
+          currentButton.disabled = false;
+          currentButton.textContent = result && result.existing ? "已保存" : "保存释义";
+        }
+      } catch (error) {
+        const currentStatus = row.querySelector(".dwss-french-word-meaning-status");
+        if (currentStatus) {
+          currentStatus.textContent = String(error && error.message || "保存失败，请检查网络后重试。");
+          currentStatus.dataset.kind = "error";
+        }
+        button.disabled = false;
+        button.textContent = "保存释义";
+      }
+    });
   }
 
   window.DWSSFrenchMeaningTools = Object.freeze({
@@ -499,7 +652,7 @@
       const word = String(wordValue || "").trim();
       const zh = String(chineseValue || "").trim();
       const reading = String(readingValue || "").trim();
-      if (!word || !zh || !reading) return;
+      if (!word || !zh || (!reading && source !== "法语单词释义修正")) return;
       const key = normalizeChinese(zh) + "|" + word.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
@@ -511,13 +664,24 @@
     const shared = window.DWSSSharedLexicon;
     if (shared && typeof shared.getTerms === "function") {
       const all = (shared.getTerms() || []).filter(item => item && item.source_language === "fr");
-      const pending = all.filter(item => item.__pending);
-      const published = all.filter(item => !item.__pending).sort((a, b) =>
-        String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")));
-      for (const item of pending.concat(published)) {
+      const ordered = all.slice().sort((a, b) => {
+        if (!!a.__pending !== !!b.__pending) return a.__pending ? -1 : 1;
+        return String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""));
+      });
+      const latestGlossCorrections = new Map();
+      for (const item of ordered) {
+        if (String(item.category || "") !== "法语单词释义修正") continue;
+        const key = normalizeFrenchGlossKey(item.french_text);
+        if (key && !latestGlossCorrections.has(key)) latestGlossCorrections.set(key, item);
+      }
+      for (const item of ordered) {
+        const key = normalizeFrenchGlossKey(item.french_text);
+        const correction = latestGlossCorrections.get(key);
+        const isGlossCorrection = String(item.category || "") === "法语单词释义修正";
+        if (correction && (!isGlossCorrection || correction !== item)) continue;
         add(item.french_text, item.chinese_text,
           item.french_pronunciation_cn || item.frenchReadingZh,
-          item.__pending ? "待同步法语修正" : "云端共享修正");
+          isGlossCorrection ? "法语单词释义修正" : (item.__pending ? "待同步法语修正" : "云端共享修正"));
       }
     }
 
@@ -558,8 +722,8 @@
     }
     for (const list of map.values()) {
       list.sort((a, b) => {
-        const ap = a.source && a.source.indexOf("修正") >= 0 ? 0 : 1;
-        const bp = b.source && b.source.indexOf("修正") >= 0 ? 0 : 1;
+        const ap = a.source && a.source.indexOf("法语单词释义修正") >= 0 ? 0 : (a.source && a.source.indexOf("修正") >= 0 ? 1 : 2);
+        const bp = b.source && b.source.indexOf("法语单词释义修正") >= 0 ? 0 : (b.source && b.source.indexOf("修正") >= 0 ? 1 : 2);
         if (ap !== bp) return ap - bp;
         const aw = String(a.word || "");
         const bw = String(b.word || "");
