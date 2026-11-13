@@ -553,6 +553,26 @@ elif render_guard not in app:
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 if app.count(render_guard) != 1:
     fail("The Swahili renderer must normalize stale French button state exactly once.")
+# Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
+# remains available in its own French mode, but is not an acceptable Swahili fallback.
+def replace_app_fragment(source, old, new, label):
+    old_count = source.count(old)
+    new_count = source.count(new)
+    if old_count == 1:
+        return source.replace(old, new, 1)
+    if old_count == 0 and new_count == 1:
+        return source
+    fail("Could not apply Swahili/French separation patch: " + label)
+
+def remove_french_fallback(source):
+    pattern = r"  if\(frenchMatch\)\{[\s\S]*?\n  \}\n"
+    updated, count = re.subn(pattern, "", source, count=1)
+    if count == 1:
+        return updated
+    if "if(frenchMatch){" not in source:
+        return source
+    fail("Could not remove the French fallback segment from the Swahili tokenizer.")
+
 # A canonical shared headword must completely supersede the older built-in spelling/reading.
 # Personal rows remain device-priority; the one shared canonical row is preferred over
 # legacy shared and built-in data for the same Chinese headword.
@@ -599,25 +619,6 @@ app = replace_app_fragment(
     "pass canonical marker into translation dictionary"
 );
 
-# Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
-# remains available in its own French mode, but is not an acceptable Swahili fallback.
-def replace_app_fragment(source, old, new, label):
-    old_count = source.count(old)
-    new_count = source.count(new)
-    if old_count == 1:
-        return source.replace(old, new, 1)
-    if old_count == 0 and new_count == 1:
-        return source
-    fail("Could not apply Swahili/French separation patch: " + label)
-
-def remove_french_fallback(source):
-    pattern = r"  if\(frenchMatch\)\{[\s\S]*?\n  \}\n"
-    updated, count = re.subn(pattern, "", source, count=1)
-    if count == 1:
-        return updated
-    if "if(frenchMatch){" not in source:
-        return source
-    fail("Could not remove the French fallback segment from the Swahili tokenizer.")
 
 app = replace_app_fragment(
     app,
@@ -1040,7 +1041,7 @@ version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallbac
 version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
-version = version.rstrip() + "\\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\\n"
+version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
