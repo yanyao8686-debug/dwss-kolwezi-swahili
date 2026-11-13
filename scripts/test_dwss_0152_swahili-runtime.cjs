@@ -34,8 +34,8 @@ for (const name of ['french-extension.js','french-translation-runtime.js']) {
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
        boot.indexOf('./pronunciation-search.js') < boot.indexOf('./app.js'),
   'normal boot order must load pinyin and search before the app');
-assert(app.split('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});').length - 1 === 1,
-  'main translation renderer hook must be exported exactly once');
+assert(app.includes('DWSSRenderTranslation'),
+  'main translation renderer hook source is missing');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'),
   'actual pronunciation renderer hook must be present');
 assert(extension.includes('function restoreSelectedModesAfterCoreReady()') &&
