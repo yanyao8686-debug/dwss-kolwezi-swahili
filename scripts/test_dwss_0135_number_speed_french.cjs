@@ -252,9 +252,9 @@ assert(extension.includes('dwss-french-word-pair') && extension.includes('dwss-f
        extension.includes('dwss-french-word-pronunciation') &&
        extension.includes('type="text" maxlength="100"') &&
        extension.includes("Math.max(5, Math.min(20, token.length + 2))") &&
-       extension.includes('aria-label="法语单词') &&
-       extension.includes('<div class="rd">法语：') &&
-       !extension.includes('中文谐音：</span>') &&
+       extension.includes('aria-label="法文单词') &&
+       extension.includes('<div class="zh"><span class="dwss-french-word-label">法文：</span><input') &&
+       extension.includes('<div class="rd">中文谐音：') &&
        extension.includes('span class="dwss-french-word-pronunciation"') &&
        !extension.includes('input class="dwss-french-word-edit dwss-french-word-pronunciation"'),
   'French spelling alone must be editable; per-word Chinese homophones remain display-only');
@@ -284,9 +284,13 @@ const frenchRendererEnd = extension.indexOf('function normalizeFrenchGlossKey(va
 const frenchRenderer = extension.slice(frenchRendererStart, frenchRendererEnd);
 assert(frenchRenderer.includes('host.innerHTML = pairs.map((pair, index) =>'),
   'French sentence must render in editable word-by-word segment rows');
-assert(frenchRenderer.includes('<div class="rd">法语：') &&
-       !frenchRenderer.includes('中文谐音：'),
-  'French gloss right column must use the same compact language-label pattern as Swahili');
+const frenchLabelPosition = frenchRenderer.indexOf('法文：');
+const meaningLabelPosition = frenchRenderer.indexOf('中文释义：');
+const homophoneLabelPosition = frenchRenderer.indexOf('中文谐音：');
+assert(frenchLabelPosition >= 0 && meaningLabelPosition > frenchLabelPosition &&
+       homophoneLabelPosition > meaningLabelPosition &&
+       frenchRenderer.includes('<div class="rd">中文谐音：'),
+  'each French gloss row must display 法文, 中文释义, 中文谐音 in that order');
 assert(frenchRenderer.includes('class="zh"><input class="dwss-french-word-edit dwss-french-word-original"') &&
        frenchRenderer.includes('type="text" maxlength="100"') &&
        frenchRenderer.includes('data-original-word=') &&
@@ -309,8 +313,10 @@ assert((editorBlock.match(/id="dwssFrenchPronunciationSave"/g) || []).length ===
 assert(!extension.includes('dwss-french-word-meaning-input') &&
        !extension.includes('dwss-french-word-meaning-save'),
   'per-word Chinese meaning fields or individual save buttons must not be added');
-assert(frenchRenderer.includes('中文释义：') && frenchRenderer.includes('rd-detail'),
-  'each French word must show its current Chinese meaning');
+assert(frenchRenderer.includes('中文释义：') && frenchRenderer.includes('rd-detail') &&
+       frenchRenderer.includes('class="dwss-french-word-label">法文：</span>') &&
+       frenchRenderer.includes('class="dwss-french-word-pronunciation"'),
+  'each French word must show its editable French headword, Chinese meaning and Chinese homophone');
 for (const removedDetail of ['originalMarkup','法语原文：','IPA：','法语中文谐音：']) {
   assert(!frenchRenderer.includes(removedDetail), 'unwanted verbose detail remains in the French word list: ' + removedDetail);
 }
