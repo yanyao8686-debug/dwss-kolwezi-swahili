@@ -553,6 +553,26 @@ elif render_guard not in app:
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 if app.count(render_guard) != 1:
     fail("The Swahili renderer must normalize stale French button state exactly once.")
+# Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
+# remains available in its own French mode, but is not an acceptable Swahili fallback.
+def replace_app_fragment(source, old, new, label):
+    old_count = source.count(old)
+    new_count = source.count(new)
+    if old_count == 1:
+        return source.replace(old, new, 1)
+    if old_count == 0 and new_count == 1:
+        return source
+    fail("Could not apply Swahili/French separation patch: " + label)
+
+def remove_french_fallback(source):
+    pattern = r"  if\(frenchMatch\)\{[\s\S]*?\n  \}\n"
+    updated, count = re.subn(pattern, "", source, count=1)
+    if count == 1:
+        return updated
+    if "if(frenchMatch){" not in source:
+        return source
+    fail("Could not remove the French fallback segment from the Swahili tokenizer.")
+
 # Main-result edits update the actual language headword, not only a pronunciation override row.
 app = replace_app_fragment(
     app,
@@ -632,25 +652,6 @@ if main_correction_at < 0 or main_correction_end_at < 0:
     fail("Cannot locate the main pronunciation-correction handler.")
 app = app[:main_correction_at] + main_correction + app[main_correction_end_at:]
 
-# Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
-# remains available in its own French mode, but is not an acceptable Swahili fallback.
-def replace_app_fragment(source, old, new, label):
-    old_count = source.count(old)
-    new_count = source.count(new)
-    if old_count == 1:
-        return source.replace(old, new, 1)
-    if old_count == 0 and new_count == 1:
-        return source
-    fail("Could not apply Swahili/French separation patch: " + label)
-
-def remove_french_fallback(source):
-    pattern = r"  if\(frenchMatch\)\{[\s\S]*?\n  \}\n"
-    updated, count = re.subn(pattern, "", source, count=1)
-    if count == 1:
-        return updated
-    if "if(frenchMatch){" not in source:
-        return source
-    fail("Could not remove the French fallback segment from the Swahili tokenizer.")
 
 # A canonical shared headword must completely supersede the older built-in spelling/reading.
 # Personal rows remain device-priority; the one shared canonical row is preferred over
