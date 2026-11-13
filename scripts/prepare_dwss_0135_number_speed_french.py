@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.157"
-NEW_VERSION = "0.9.158"
+OLD_VERSION = "0.9.158"
+NEW_VERSION = "0.9.159"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -553,6 +553,51 @@ elif render_guard not in app:
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
 if app.count(render_guard) != 1:
     fail("The Swahili renderer must normalize stale French button state exactly once.")
+# A canonical shared headword must completely supersede the older built-in spelling/reading.
+# Personal rows remain device-priority; the one shared canonical row is preferred over
+# legacy shared and built-in data for the same Chinese headword.
+app = replace_app_fragment(
+    app,
+    "source:'云端共享词库', kind:'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:'shared'",
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "mark canonical shared entries in the local dictionary"
+)
+app = replace_app_fragment(
+    app,
+    """ const rank={personal:0,shared:1,builtin:2,'pronunciation-variant':3};
+ const variants=(item.variants||[])
+  .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??4)-(rank[b.v.origin]??4)||a.index-b.index)
+  .map(x=>x.v);""",
+    """ const canonical=(item.variants||[]).filter(v=>v.origin==='canonical'&&(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
+ if(canonical.length)return canonical.concat(verified);
+ const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};
+ const variants=(item.variants||[])
+  .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??5)-(rank[b.v.origin]??5)||a.index-b.index)
+  .map(x=>x.v);""",
+    "prefer canonical shared Swahili word readings"
+);
+app = replace_app_fragment(
+    app,
+    "for(const origin of ['override','personal','shared','builtin','pronunciation-variant']){",
+    "for(const origin of ['override','personal','canonical','shared','builtin','pronunciation-variant']){",
+    "include canonical shared origin"
+);
+app = replace_app_fragment(
+    app,
+    "const ranks={override:-1,personal:0,shared:1,builtin:2,'pronunciation-variant':3};",
+    "const ranks={override:-1,personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};",
+    "rank canonical shared entries"
+);
+app = replace_app_fragment(
+    app,
+    "id:t.id||t.client_submit_id||''\n })).filter",
+    "id:t.id||t.client_submit_id||'',\n  __canonical:!!t.__canonical\n })).filter",
+    "pass canonical marker into translation dictionary"
+);
 
 # Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
 # remains available in its own French mode, but is not an acceptable Swahili fallback.
@@ -799,11 +844,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.157 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.158 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.157 or 0.9.158.")
+    fail("Live app.js version is not 0.9.158 or 0.9.159.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.157 or 0.9.158.")
+    fail("Live Service Worker version is not 0.9.158 or 0.9.159.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -904,6 +949,11 @@ for forbidden in ('id="dwssFrenchPronunciationEdit"', 'id="dwssFrenchPronunciati
 
 if 'const results = searchFrenchCandidates(query, candidates, engine, 20);' not in extension:
     fail("French pronunciation query is still using the overly strict generic matcher.")
+if '中文释义：' not in extension or 'rd-detail' not in extension or 'preferredFrenchHeadwordByMeaning' not in extension or 'isSupersededFrenchHeadword' not in extension:
+    fail("Edited French words must refresh Chinese meanings and shadow obsolete spellings in reverse lookup.")
+for required in ("shared_dictionary_entries", "dwss-upsert-dictionary-entry", "__canonical", "submitQuickTranslationTerm", "getPronunciationVariants", "managePronunciationVariant"):
+    if required not in shared_lexicon:
+        fail("Canonical offline/shared dictionary runtime is missing: " + required)
 if 'host.innerHTML = pairs.map((pair, index) =>' not in extension or 'class="seg dwss-french-word-pair"' not in extension:
     fail("French original sentence is not rendered as editable Swahili-style word-by-word segment rows.")
 if 'findFrenchGloss(result.zh)' not in extension:
@@ -990,6 +1040,7 @@ version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallbac
 version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
+version = version.rstrip() + "\\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
