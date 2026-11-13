@@ -616,6 +616,23 @@
     }
     translateTimer = window.setTimeout(() => translateCurrentChinese(), delay == null ? 60 : delay);
   }
+  // Shared French corrections can change the chosen translation without changing
+  // the Chinese input or previous French spelling. Clear every short-circuit cache
+  // and invalidate in-flight requests before resolving the current input again.
+  async function refreshAfterSharedCorrection() {
+    if (!isFrenchMode()) return false;
+    window.clearTimeout(translateTimer);
+    window.clearTimeout(combinedEditTimer);
+    activeRequest += 1;
+    pendingChinese = "";
+    lastMachineFrench = "";
+    localPreviewChinese = "";
+    localPreviewCompleteChinese = "";
+    userEditedCombined = false;
+    await translateCurrentChinese();
+    return true;
+  }
+
   async function autoCheckFrenchGrammar(french, requestId) {
     const original = String(french || "").trim();
     if (!original) return original;
@@ -781,6 +798,7 @@
     scheduleTranslation,
     restorePersistentTranslations,
     getReadingForFrenchDraft,
+    refreshAfterSharedCorrection,
     isFrenchMode
   });
 
