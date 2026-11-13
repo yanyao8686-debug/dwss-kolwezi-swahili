@@ -731,6 +731,7 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   // The shared canonical row immediately controls the word meaning, even if an
   // older static form was previously used for the same Chinese input.
   editWin.DWSSSharedLexicon = {
+    ...editWin.DWSSSharedLexicon,
     getTerms: () => [{
       source_language:'fr', chinese_text:'你好', french_text:'Salut',
       french_pronunciation_cn:'萨吕', __canonical:true
