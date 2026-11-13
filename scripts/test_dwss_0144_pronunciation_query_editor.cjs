@@ -102,7 +102,7 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(source.includes('getElementById("pronunciationFrenchResults")'));
   assert(!source.includes('observer.observe(document.body'),
     'query cleanup must not observe the full application DOM');
-  console.log('PASS DWSS 0.9.151: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
+  console.log('PASS DWSS 0.9.152: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

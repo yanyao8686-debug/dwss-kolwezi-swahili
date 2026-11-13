@@ -16,8 +16,8 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const html = readText('index.html');
   const sw = readText('sw.js');
   const version = readText('VERSION.txt');
-  assert(version.includes('Version: 0.9.151'), 'offline parity test must target DWSS 0.9.151');
-  assert(sw.includes("const APP_VERSION = '0.9.151';"), 'offline cache version must match site version');
+  assert(version.includes('Version: 0.9.152'), 'offline parity test must target DWSS 0.9.152');
+  assert(sw.includes("const APP_VERSION = '0.9.152';"), 'offline cache version must match site version');
   assert(sw.includes('async function precacheFrenchShardFamilies(cache)'), 'Service Worker must precache both French shard families');
   assert(sw.includes('activeCache.match(request, { ignoreSearch: true })'), 'cache-busted scripts must resolve to canonical offline cache entries');
 
@@ -65,6 +65,15 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const pronunciationSource = readText('pronunciation-search.js');
   const hanziPinyinSource = readText('hanzi-pinyin.js');
   const frenchExtension = readText('french-extension.js');
+
+  const latePinyinSandbox = { window: {}, document: null };
+  vm.runInNewContext(pronunciationSource, latePinyinSandbox, { filename: 'pronunciation-search-first.js' });
+  vm.runInNewContext(hanziPinyinSource, latePinyinSandbox, { filename: 'hanzi-pinyin-second.js' });
+  const lateHits = latePinyinSandbox.window.DWSSPronunciationSearch.search('给晓',
+    [{zh:'明天',variants:[{reading:'该小'}]}],{limit:5});
+  assert(lateHits.some(hit => hit.zh === '明天' && hit.score === 1),
+    'late pinyin map load must not disable Swahili reverse lookup');
+
   const offlineSandbox = { window: {}, document: null };
   vm.runInNewContext(hanziPinyinSource, offlineSandbox, { filename: 'hanzi-pinyin.js' });
   vm.runInNewContext(pronunciationSource, offlineSandbox, { filename: 'pronunciation-search.js' });
@@ -115,6 +124,29 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(swTranslation && swTranslation.localHits > 0 &&
     swTranslation.segments.some(segment => segment.type === 'local' && segment.reading),
     'Swahili main translation did not produce a local reading while offline');
+
+  const mainInput = swDom.window.document.getElementById('inputText');
+  const mainResult = swDom.window.document.getElementById('resultReading');
+  const resultCard = swDom.window.document.getElementById('resultCard');
+  const staleFrenchButton = swDom.window.document.getElementById('dwssMainFrMode');
+  assert(mainInput && mainResult && resultCard && staleFrenchButton, 'main controls are incomplete');
+  mainInput.value = swHeadword.zh;
+  resultCard.removeAttribute('data-dwss-lang');
+  staleFrenchButton.classList.add('active');
+  assert.equal(typeof swDom.window.DWSSRenderTranslation, 'function', 'main result hook is missing');
+  swDom.window.DWSSRenderTranslation();
+  const expectedReading = swTranslation.segments.find(segment => segment.type === 'local' && segment.reading).reading;
+  assert(!mainResult.hidden && mainResult.value.includes(expectedReading),
+    'actual Swahili result box must show the local homophone despite stale French button styling; got: ' + mainResult.value);
+
+  const queryInput = swDom.window.document.getElementById('pronunciationSearch');
+  const queryResults = swDom.window.document.getElementById('pronunciationResults');
+  assert(queryInput && queryResults, 'pronunciation query controls are missing');
+  queryInput.value = '给晓';
+  assert.equal(typeof swDom.window.DWSSRenderPronunciationLookup, 'function', 'query result renderer hook is missing');
+  await swDom.window.DWSSRenderPronunciationLookup();
+  assert(queryResults.textContent.includes('明天') && queryResults.textContent.includes('该小'),
+    'real Swahili reverse query must render 明天 and 该小; got: ' + queryResults.textContent);
   swDom.window.close();
 
   // Genuine local French glossary -> Chinese-to-French translation and homophone.
@@ -203,7 +235,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const handlers = {};
   const context = {
     URL, Request, Response, Promise, setTimeout, clearTimeout,
-    caches: { open: async () => cache, keys: async () => ['dwss-kolwezi-0.9.151'], delete: async () => true },
+    caches: { open: async () => cache, keys: async () => ['dwss-kolwezi-0.9.152'], delete: async () => true },
     fetch: async () => { networkRequests++; return new Response('cached-french-shard', { status: 200 }); },
     self: {
       registration: { scope }, location: new URL(scope),
@@ -224,22 +256,22 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
     assert(await cache.match(url), 'French shard was not cached at install: ' + asset);
   }
   const cacheBustedScripts = [
-    './supabase.min.js?dwss-release=0.9.151',
-    './shared-lexicon.js?dwss-release=0.9.151',
-    './boot.js?dwss-release=0.9.151',
-    './pronunciation-query-editor.js?dwss-release=0.9.151'
+    './supabase.min.js?dwss-release=0.9.152',
+    './shared-lexicon.js?dwss-release=0.9.152',
+    './boot.js?dwss-release=0.9.152',
+    './pronunciation-query-editor.js?dwss-release=0.9.152'
   ];
   for (const asset of cacheBustedScripts) {
     assert(await cache.match(new URL(asset, scope).href, { ignoreSearch: true }),
       'versioned script cannot resolve to cached offline asset: ' + asset);
   }
-  const request = new Request(new URL('./shared-lexicon.js?dwss-release=0.9.151', scope).href);
+  const request = new Request(new URL('./shared-lexicon.js?dwss-release=0.9.152', scope).href);
   let offlineResponsePromise;
   context.fetch = async () => { throw new Error('offline'); };
   handlers.fetch({ request, respondWith(promise) { offlineResponsePromise = promise; } });
   const offlineResponse = await offlineResponsePromise;
   assert(offlineResponse && offlineResponse.ok, 'versioned shared-lexicon script failed while offline');
-  const frenchShardRequest = new Request(new URL('./french-pronunciation-shards/bang.tsv.gz?dwss-release=0.9.151', scope).href);
+  const frenchShardRequest = new Request(new URL('./french-pronunciation-shards/bang.tsv.gz?dwss-release=0.9.152', scope).href);
   let frenchShardResponsePromise;
   handlers.fetch({ request: frenchShardRequest, respondWith(promise) { frenchShardResponsePromise = promise; } });
   const frenchShardResponse = await frenchShardResponsePromise;
@@ -247,7 +279,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
     'first-use French pronunciation shard failed when requested offline');
   assert(networkRequests === frenchShards.length, 'offline cache lookup unexpectedly went to the network');
 
-  console.log('PASS DWSS 0.9.151 offline parity: Swahili dictionary/search assets, French local translation/gloss, and all ' +
+  console.log('PASS DWSS 0.9.152 offline parity: Swahili dictionary/search assets, French local translation/gloss, and all ' +
     frenchShards.length + ' French spelling/pronunciation shards are installed and available offline (' +
     (shardBytes / 1024 / 1024).toFixed(1) + ' MiB French shards).');
 })().catch(error => { console.error(error); process.exitCode = 1; });

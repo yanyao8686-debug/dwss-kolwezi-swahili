@@ -1,6 +1,6 @@
 (function(root){
   'use strict';
-  const PINYIN=root.DWSS_HANZI_PINYIN||{};
+  function getPinyinMap(){return root.DWSS_HANZI_PINYIN||{};}
   const INITIALS=['zh','ch','sh','b','p','m','f','d','t','n','l','g','k','h','j','q','x','r','z','c','s','y','w'];
   const VOWELS=new Set(['a','e','i','o','u','v','ü']);
   const INITIAL_GROUPS=[['zh','z'],['ch','c'],['sh','s'],['l','n'],['f','h'],['r','l']];
@@ -12,7 +12,7 @@
     const output=[];
     let foundHanzi=false;
     for(const character of Array.from(String(text||'').normalize('NFKC'))){
-      const pinyin=PINYIN[character];
+      const pinyin=getPinyinMap()[character];
       if(pinyin){
         const syllable=String(pinyin).toLowerCase().replace(/[^a-zvü]/g,'');
         if(syllable)output.push(syllable);

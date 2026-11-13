@@ -26,4 +26,4 @@ const scheduler = source.slice(scheduleStart, scheduleEnd);
 assert(scheduler.includes('const modeGeneration = mainModeGeneration;') &&
        scheduler.includes('if (!isCurrentFrenchMode()) return;'),
   'delayed French input rendering must also be protected from stale language switches');
-console.log('PASS DWSS 0.9.151: stale French dictionary/input callbacks cannot repaint the Swahili result or gloss.');
+console.log('PASS DWSS 0.9.152: stale French dictionary/input callbacks cannot repaint the Swahili result or gloss.');

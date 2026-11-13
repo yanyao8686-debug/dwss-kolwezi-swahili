@@ -60,7 +60,7 @@ async function verifyMode(mode) {
 (async () => {
   await verifyMode('sw');
   await verifyMode('fr');
-  console.log('PASS DWSS 0.9.151: stalled Chinese IME composition triggers Swahili and French translation without compositionend.');
+  console.log('PASS DWSS 0.9.152: stalled Chinese IME composition triggers Swahili and French translation without compositionend.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

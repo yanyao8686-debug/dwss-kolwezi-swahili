@@ -1237,6 +1237,11 @@
     };
     window.addEventListener("dwss:shared-terms-updated", refresh);
     window.addEventListener("dwss:personal-term-added", refresh);
+
+    // Match the startup DOM with the translator's intended Swahili default.
+    // This also re-renders a restored input after each page/app boot.
+    setMainMode("sw");
+    setQueryMode("sw");
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind, { once: true });
