@@ -830,7 +830,8 @@
     };
     const isPlaceholderReading = value => {
       const text = String(value || "").trim();
-      return !text || ["谐音待补", "匹配中…", "离线未缓存", "未找到读音", "〔发音待补〕"].includes(text);
+      return !text || ["谐音待补", "匹配中…", "离线未缓存", "未找到读音", "〔发音待补〕"].includes(text) ||
+        /〔[^〕]*(?:待补|待核)[^〕]*〕/u.test(text);
     };
     const currentValues = () => {
       const chinese = String(input && input.value || "").trim();
@@ -923,8 +924,22 @@
           const generated = await machine.getReadingForFrenchDraft(values.french);
           const generatedReading = String(generated && generated.reading || "").trim();
           const missing = Array.isArray(generated && generated.missing) ? generated.missing : [];
-          if (!generatedReading || missing.length || /〔[^〕]*(?:待补|待核)[^〕]*〕/.test(generatedReading)) {
-            setStatus("已识别修改后的法语原文，但有单词暂未找到可靠读音。请在结果框填写正确的中文近似音后，再次保存。", "warning");
+          if (!generatedReading) {
+            output.value = "〔发音待补〕";
+            output.classList.remove("empty");
+            output.removeAttribute("data-dwss-french-draft");
+            output.dispatchEvent(new Event("input", { bubbles: true }));
+            setStatus("已识别修改后的法语原文，但暂时没有找到可用读音。请在结果框填写你确认的整句中文近似音后，再次保存。程序不会猜测发音。", "warning");
+            return;
+          }
+          if (missing.length || /〔[^〕]*(?:待补|待核)[^〕]*〕/u.test(generatedReading)) {
+            const partialReading = /〔[^〕]*(?:待补|待核)[^〕]*〕/u.test(generatedReading)
+              ? generatedReading : generatedReading + " 〔发音待补〕";
+            output.value = partialReading;
+            output.classList.remove("empty");
+            output.removeAttribute("data-dwss-french-draft");
+            output.dispatchEvent(new Event("input", { bubbles: true }));
+            setStatus("已识别修改后的法语原文，并保留已找到的读音。请将结果框中的〔发音待补〕替换为你确认的中文近似音，再次保存。程序不会猜测缺失读音。", "warning");
             return;
           }
           values.reading = generatedReading;
@@ -1296,7 +1311,11 @@
       if (activeMainMode === "fr") {
         renderMainFrench();
         const machine = window.DWSSFrenchMachineTranslationController;
-        if (machine && typeof machine.scheduleTranslation === "function") machine.scheduleTranslation(60);
+        if (machine && typeof machine.refreshAfterSharedCorrection === "function") {
+        machine.refreshAfterSharedCorrection();
+      } else if (machine && typeof machine.scheduleTranslation === "function") {
+        machine.scheduleTranslation(60);
+      }
       }
       if (activeQueryMode === "fr" && $("pronunciationFrenchSearch").value.trim()) renderFrenchQuery().catch(() => {});
     };
