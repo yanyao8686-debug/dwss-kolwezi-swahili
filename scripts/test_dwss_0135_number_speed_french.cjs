@@ -291,11 +291,12 @@ assert(frenchLabelPosition >= 0 && meaningLabelPosition > frenchLabelPosition &&
        homophoneLabelPosition > meaningLabelPosition &&
        frenchRenderer.includes('<div class="rd">中文谐音：'),
   'each French gloss row must display 法文, 中文释义, 中文谐音 in that order');
-assert(frenchRenderer.includes('class="zh"><input class="dwss-french-word-edit dwss-french-word-original"') &&
+assert(frenchRenderer.includes('class="zh"><span class="dwss-french-word-label">法文：</span><input') &&
+       frenchRenderer.includes('class="dwss-french-word-original"') &&
        frenchRenderer.includes('type="text" maxlength="100"') &&
        frenchRenderer.includes('data-original-word=') &&
        frenchRenderer.includes('value='),
-  'French word must remain directly editable in the Swahili-style left column');
+  'French word must remain directly editable after its 法文 label');
 const frenchPairStyleStart = html.indexOf('<style id="dwss-french-word-pairs-0132">');
 const frenchPairStyleEnd = html.indexOf('</style>', frenchPairStyleStart);
 const frenchPairStyle = frenchPairStyleStart >= 0 && frenchPairStyleEnd > frenchPairStyleStart
