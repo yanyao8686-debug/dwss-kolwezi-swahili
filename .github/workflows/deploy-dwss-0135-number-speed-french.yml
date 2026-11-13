@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.161 French gloss row layout
+name: Deploy DWSS 0.9.161 Android installer URL copy UI
 
 on:
   push:
@@ -32,7 +32,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0161-french-gloss-layout
+  group: dwss-pages-deploy-0161-installer-url-copy
   cancel-in-progress: true
 
 jobs:
