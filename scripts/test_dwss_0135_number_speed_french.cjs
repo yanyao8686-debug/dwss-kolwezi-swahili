@@ -170,8 +170,8 @@ assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
        extension.includes('setMainMode(activeMainMode);') &&
        extension.includes('setQueryMode(activeQueryMode);'),
   'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
-assert(html.includes('french-extension.js?dwss-release=0.9.159') &&
-       html.includes('french-translation-runtime.js?dwss-release=0.9.159'),
+assert(html.includes('french-extension.js?dwss-release=0.9.160') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.160'),
   'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
