@@ -629,7 +629,8 @@
     localPreviewChinese = "";
     localPreviewCompleteChinese = "";
     userEditedCombined = false;
-    await translateCurrentChinese();
+    try { await translateCurrentChinese(); }
+    catch (_) { /* Keep the saved shared correction; a later input can retry rendering. */ }
     return true;
   }
 
