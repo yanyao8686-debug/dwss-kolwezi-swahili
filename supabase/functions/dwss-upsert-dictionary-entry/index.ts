@@ -20,7 +20,7 @@ function reply(body: unknown, status: number, origin: string) {
   });
 }
 function normalizeChinese(value: string) {
-  return value.normalize("NFKC").replace(/[\\s，。！？；：、,.!?;:（）()“”"　]+/gu, "").toLowerCase();
+  return value.normalize("NFKC").replace(/[\s，。！？；：、,.!?;:（）()“”"　]+/gu, "").toLowerCase();
 }
 function getDb() {
   if (db) return db;
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
     const notes = String(body?.notes || "").trim() || null;
     const submitId = String(body?.client_submit_id || "");
     if (!["sw", "fr"].includes(source)) return respond({ ok: false, error: "语言类型无效。" }, 400);
-    if (!chinese || chinese.length > 500 || !normalized || normalized.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(chinese)) {
+    if (!chinese || chinese.length > 500 || !normalized || normalized.length > 500 || /[\u0000-\u001f\u007f]/.test(chinese)) {
       return respond({ ok: false, error: "中文词条不能为空，且最多 500 个字符。" }, 400);
     }
     if (category.length > 80 || (notes && notes.length > 1000)) return respond({ ok: false, error: "分类或备注长度超限。" }, 400);
@@ -73,15 +73,15 @@ Deno.serve(async (req: Request) => {
     if (source === "sw") {
       const reading = String(body?.local_pronunciation_cn || "").trim();
       const local = String(body?.local_text || "").trim();
-      if (!reading || reading.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reading)) return respond({ ok: false, error: "科卢韦齐斯语中文谐音不能为空，且最多 500 个字符。" }, 400);
-      if (local.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(local)) return respond({ ok: false, error: "斯语拼写长度不正确。" }, 400);
+      if (!reading || reading.length > 500 || /[\u0000-\u001f\u007f]/.test(reading)) return respond({ ok: false, error: "科卢韦齐斯语中文谐音不能为空，且最多 500 个字符。" }, 400);
+      if (local.length > 500 || /[\u0000-\u001f\u007f]/.test(local)) return respond({ ok: false, error: "斯语拼写长度不正确。" }, 400);
       payload = { client_submit_id: submitId, source_language: "sw", normalized_chinese: normalized, chinese_text: chinese,
         local_text: local || null, local_pronunciation_cn: reading, french_text: null, french_pronunciation_cn: null, category, notes };
     } else {
       const french = String(body?.french_text || "").trim();
       const reading = String(body?.french_pronunciation_cn || "").trim();
-      if (!french || french.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(french)) return respond({ ok: false, error: "法语原文不能为空，且最多 500 个字符。" }, 400);
-      if (!reading || reading.length > 500 || /[\\u0000-\\u001f\\u007f]/.test(reading)) return respond({ ok: false, error: "法语中文谐音不能为空，且最多 500 个字符。" }, 400);
+      if (!french || french.length > 500 || /[\u0000-\u001f\u007f]/.test(french)) return respond({ ok: false, error: "法语原文不能为空，且最多 500 个字符。" }, 400);
+      if (!reading || reading.length > 500 || /[\u0000-\u001f\u007f]/.test(reading)) return respond({ ok: false, error: "法语中文谐音不能为空，且最多 500 个字符。" }, 400);
       payload = { client_submit_id: submitId, source_language: "fr", normalized_chinese: normalized, chinese_text: chinese,
         local_text: null, local_pronunciation_cn: null, french_text: french, french_pronunciation_cn: reading, category, notes };
     }
