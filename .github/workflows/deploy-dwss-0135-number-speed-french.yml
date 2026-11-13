@@ -93,13 +93,13 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_148' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_149' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
           grep -Fxq 'Version: 0.9.149' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_148' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_149' "$LIVE/index.html"
           grep -Fq "version:'0.9.149'" "$LIVE/app.js"
           grep -Fq "const APP_VERSION = '0.9.149';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
@@ -305,4 +305,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.149 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
+          echo "PASS: live DWSS 0.9.149 has compact copy-free Swahili/French pronunciation results, read-only pronunciation query with main-screen shared correction controls, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
