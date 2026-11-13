@@ -113,7 +113,7 @@ assert(html.includes('dwss-release=0.9.150'), 'cache-busted page assets were not
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
 assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.150'),
   'inline pronunciation query editor is not loaded');
-assert.equal((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.150/g) || []).length, 1,
+assert((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.150/g) || []).length === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
