@@ -1255,10 +1255,11 @@
     }
     return preferred;
   }
-  function isSupersededFrenchHeadword(word, preferred) {
+  function isSupersededFrenchHeadword(word, preferred, knownMeanings) {
     const key = normalizeFrenchGlossKey(word);
-    const meanings = findFrenchGloss(word).map(normalizeChinese).filter(Boolean);
-    if (!key || !meanings.length) return false;
+    const meanings = (Array.isArray(knownMeanings) ? knownMeanings : findFrenchGloss(word))
+      .map(normalizeChinese).filter(Boolean);
+    if (!key || !meanings.length || !preferred || typeof preferred.get !== "function") return false;
     const mapped = meanings.filter(meaning => preferred.has(meaning));
     return mapped.length > 0 && mapped.length === meanings.length && mapped.every(meaning => preferred.get(meaning) !== key);
   }
