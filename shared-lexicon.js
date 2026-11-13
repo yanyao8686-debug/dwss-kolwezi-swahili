@@ -363,7 +363,6 @@ async function submitFrenchPronunciationCorrection(entry) {
   // correction gets a fresh ID: reusing an ID that may already have reached the
   // server (but whose response was lost) makes flushQueue treat the old row as the
   // new one after a 23505 duplicate-key response, silently discarding the new reading.
-  const prior = queuedMatches[0] || null;
   const payload = {
     client_submit_id: uid(),
     chinese_text: chinese,
