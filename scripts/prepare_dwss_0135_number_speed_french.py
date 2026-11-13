@@ -1218,12 +1218,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.148" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.148.")
-if "Version: 0.9.148" not in version or "version:'0.9.148'" not in app:
-    fail("Website and app version markers do not agree at 0.9.148.")
-if "const APP_VERSION = '0.9.148';" not in sw:
-    fail("Service Worker cache version is not 0.9.148.")
+if "dwss-release=0.9.149" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.149.")
+if "Version: 0.9.149" not in version or "version:'0.9.149'" not in app:
+    fail("Website and app version markers do not agree at 0.9.149.")
+if "const APP_VERSION = '0.9.149';" not in sw:
+    fail("Service Worker cache version is not 0.9.149.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
