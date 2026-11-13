@@ -624,14 +624,15 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   save.click();
   await new Promise(resolve => editWin.setTimeout(resolve, 0));
   await new Promise(resolve => editWin.setTimeout(resolve, 0));
-  assert.equal(savedCorrections.length, 1,
+  assert(savedCorrections.length === 1,
     'the corrected French result must be submitted exactly once');
-  assert.deepEqual(
-    [savedCorrections[0].chinese_text, savedCorrections[0].french_text, savedCorrections[0].french_pronunciation_cn],
-    ['你好','Salut','萨吕'],
-    'the save payload must store French source and its generated homophone in the correct French-only fields'
-  );
-  assert.equal(resultBox.value, '萨吕',
+  assert(JSON.stringify([
+    savedCorrections[0].chinese_text,
+    savedCorrections[0].french_text,
+    savedCorrections[0].french_pronunciation_cn
+  ]) === JSON.stringify(['你好','Salut','萨吕']),
+    'the save payload must store French source and its generated homophone in the correct French-only fields');
+  assert(resultBox.value === '萨吕',
     'after saving, the main result box must show the generated pronunciation rather than remain unchanged');
   assert(!resultBox.hasAttribute('data-dwss-french-draft'),
     'successful save must clear the pending French-edit marker');
