@@ -358,8 +358,12 @@
       const enrichedReading = enrichedRecord ? getWordChineseReading(enrichedRecord) : "";
       const record = enrichedReading ? enrichedRecord : (lookup.get(key) || fallback.get(key) || null);
       const reading = record ? getWordChineseReading(record) : getFrenchNumberWordReading(token.word);
+      const activeMeanings = activeRows().filter(row => normalizeFrenchGlossKey(row.word) === key)
+        .flatMap(row => Array.isArray(row.meanings) ? row.meanings : [])
+        .filter(Boolean);
+      const meanings = Array.from(new Set(activeMeanings.length ? activeMeanings : findFrenchGloss(token.word))).slice(0, 4);
       return {
-        word: token.display, token: token.word, reading: reading || "谐音待补",
+        word: token.display, token: token.word, reading: reading || "谐音待补", meanings,
         start: token.start, end: token.end
       };
     });
@@ -418,6 +422,7 @@
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd">法语：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
+        '<div class="rd-detail">中文释义：' + esc((pair.meanings || []).join('；') || '释义待补') + '</div>' +
         '</div>';
     }).join("");
     host.insertAdjacentHTML("afterbegin", '<div class="dwss-french-edit-hint">法语单词可直接修改；中文谐音请在上方结果框修改。</div>');
@@ -478,7 +483,9 @@
   window.DWSSFrenchQueryTools = Object.freeze({
     syllableDistance: frenchSyllableDistance,
     nearFirstKeys,
-    search: searchFrenchCandidates
+    search: searchFrenchCandidates,
+    preferredHeadwords: preferredFrenchHeadwordByMeaning,
+    isSupersededHeadword: isSupersededFrenchHeadword
   });
   if (!document || !document.getElementById) return;
 
@@ -552,11 +559,21 @@
         map.get(key).push(prioritizedItem);
       }
     }
+    const preferredMeaningKeys = new Set();
+    for (const item of custom) {
+      for (const meaning of item.meanings || []) {
+        const key = normalizeChinese(meaning);
+        if (key) preferredMeaningKeys.add(key);
+      }
+    }
     for (const row of meaningRows) {
       const meanings = row.meanings || [];
       for (const meaning of meanings) {
         const key = normalizeChinese(meaning);
         if (!key) continue;
+        // User/shared headwords are the canonical translation for this Chinese entry.
+        // Do not let an old static spelling compete with the updated dictionary row.
+        if (preferredMeaningKeys.has(key)) continue;
         if (!map.has(key)) map.set(key, []);
         const list = map.get(key);
         if (!list.some(x => String(x.word).toLowerCase() === String(row.word).toLowerCase())) list.push(row);
@@ -1226,6 +1243,26 @@
     }));
   }
 
+  function preferredFrenchHeadwordByMeaning() {
+    const preferred = new Map();
+    for (const row of activeRows()) {
+      const word = normalizeFrenchGlossKey(row.word);
+      if (!word) continue;
+      for (const meaning of row.meanings || []) {
+        const key = normalizeChinese(meaning);
+        if (key && !preferred.has(key)) preferred.set(key, word);
+      }
+    }
+    return preferred;
+  }
+  function isSupersededFrenchHeadword(word, preferred) {
+    const key = normalizeFrenchGlossKey(word);
+    const meanings = findFrenchGloss(word).map(normalizeChinese).filter(Boolean);
+    if (!key || !meanings.length) return false;
+    const mapped = meanings.filter(meaning => preferred.has(meaning));
+    return mapped.length > 0 && mapped.length === meanings.length && mapped.every(meaning => preferred.get(meaning) !== key);
+  }
+
   function copyText(value, button) {
     const original = button.textContent;
     const copy = async () => {
@@ -1263,7 +1300,9 @@
     if (!first) { host.innerHTML = '<div class="nores">没有识别到有效的中文近似音，请换一种同音字输入。</div>'; return; }
     const matchingFirstKeys = nearFirstKeys(first, engine, firstKeys);
     const shardLines = await Promise.all(matchingFirstKeys.map(loadPronunciationShard));
-    const candidates = rowsForShards(shardLines, 24000);
+    const preferred = preferredFrenchHeadwordByMeaning();
+    const candidates = rowsForShards(shardLines, 24000)
+      .filter(item => !isSupersededFrenchHeadword(item.word, preferred));
     candidates.push(...customQueryCandidates());
     const results = searchFrenchCandidates(query, candidates, engine, 20);
     const sourceMap = new Map();
