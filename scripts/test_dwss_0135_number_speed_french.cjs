@@ -271,9 +271,11 @@ assert(extension.includes('findFrenchGloss(result.zh)'),
 assert(extension.includes('pronunciation-hit-meaning') &&
        extension.includes('该法语词形暂未收录中文释义（法中词典没有对应词条）'),
   'result cards must show either the Chinese meaning or a clear not-in-gloss marker');
-assert(extension.includes('const candidates = rowsForShards(shardLines, 24000);') &&
-       extension.includes('loadPronunciationShard'),
-  'French pronunciation search must use the pinyin-sharded index on demand');
+assert(extension.includes('rowsForShards(shardLines, 24000)') &&
+       extension.includes('loadPronunciationShard') &&
+       extension.includes('const preferred = preferredFrenchHeadwordByMeaning();') &&
+       extension.includes('.filter(item => !isSupersededFrenchHeadword(item.word, preferred))'),
+  'French pronunciation search must load pinyin shards on demand and suppress replaced headwords');
 assert(!extension.includes('const DATA_URL =') && !extension.includes('firstRanges') &&
        !extension.includes('rowsForFirst'),
   'French pronunciation search must not fall back to the old monolithic loader');
