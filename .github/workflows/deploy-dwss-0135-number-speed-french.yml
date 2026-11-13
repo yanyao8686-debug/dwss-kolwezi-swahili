@@ -299,7 +299,7 @@ jobs:
           grep -Fq 'function expandFrenchNumerals(value)' "$LIVE/french-extension.js"
           grep -Fq 'function frenchIntegerToWords(n)' "$LIVE/french-extension.js"
           grep -Fq 'output.placeholder = "输入中文后翻译结果中文谐音会显示在这里";' "$LIVE/french-translation-runtime.js"
-          grep -Fq 'function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)' "$LIVE/french-extension.js"
+          grep -Fq 'function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords)' "$LIVE/french-extension.js"
           grep -Fq 'host.innerHTML = pairs.map((pair, index) =>' "$LIVE/french-extension.js"
           grep -Fq 'host.classList.remove("dwss-french-word-grid")' "$LIVE/french-extension.js"
           grep -Fq 'class="seg dwss-french-word-pair"' "$LIVE/french-extension.js"
