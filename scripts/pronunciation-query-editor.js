@@ -18,7 +18,8 @@
   style.textContent = [
     // Keep all useful reverse-lookup details visible in both languages.
     // Only editing controls are removed; copying a matched reading is read-only.
-    "#pronunciationResults .pronunciation-hit-reading,#pronunciationResults .pronunciation-hit-match,#pronunciationResults .pronunciation-hit-meta,#pronunciationResults .pronunciation-match-chip,#pronunciationFrenchResults .pronunciation-hit-reading,#pronunciationFrenchResults .pronunciation-hit-meta,#pronunciationFrenchResults .pronunciation-match-chip{display:block!important;visibility:visible!important;opacity:1!important}",
+    "#pronunciationResults .pronunciation-hit-reading,#pronunciationResults .pronunciation-hit-match,#pronunciationResults .pronunciation-hit-meta,#pronunciationFrenchResults .pronunciation-hit-reading,#pronunciationFrenchResults .pronunciation-hit-meta{display:block!important;visibility:visible!important;opacity:1!important}",
+    "#pronunciationResults .pronunciation-match-chip,#pronunciationFrenchResults .pronunciation-match-chip{display:inline-flex!important;visibility:visible!important;opacity:1!important}",
     "#pronunciationFrenchResults .pronunciation-hit-meaning{display:block!important;margin:5px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--muted,#738195)!important;font-size:13px!important;font-weight:600!important;line-height:1.55!important}",
     "#pronunciationFrenchResults .pronunciation-hit-meaning strong{color:var(--muted,#738195)!important;font-weight:600!important}",
     "#pronunciationResults .dwss-query-inline-tools,#pronunciationResults .dwss-query-inline-editor,#pronunciationResults .dwss-query-edit-toggle,#pronunciationFrenchResults .dwss-query-inline-tools,#pronunciationFrenchResults .dwss-query-inline-editor,#pronunciationFrenchResults .dwss-query-edit-toggle{display:none!important}",
