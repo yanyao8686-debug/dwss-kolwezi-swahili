@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.158"
-NEW_VERSION = "0.9.159"
+OLD_VERSION = "0.9.159"
+NEW_VERSION = "0.9.160"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -562,7 +562,7 @@ def replace_app_fragment(source, old, new, label):
         return source.replace(old, new, 1)
     if old_count == 0 and new_count == 1:
         return source
-    # Make the production build safe to rerun against the already-published 0.9.159
+    # Make the production build safe to rerun against the already-published 0.9.160
     # app.js. A previous successful Pages deployment is now the source mirror, so
     # its canonical resolver patches are expected to exist in their final form.
     if label == "prefer canonical shared Swahili word readings":
@@ -1029,11 +1029,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.158 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.159 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.158 or 0.9.159.")
+    fail("Live app.js version is not 0.9.159 or 0.9.160.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.158 or 0.9.159.")
+    fail("Live Service Worker version is not 0.9.159 or 0.9.160.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -1213,10 +1213,10 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.148 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.160 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
-    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-13", version, count=1, flags=re.M)
+    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-14", version, count=1, flags=re.M)
     version = version.rstrip() + (
         "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
         "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n0.9.147: Caches all French spelling and pronunciation shards for complete offline dictionary lookup, resolves versioned assets against the canonical offline cache, and fixes repeated-build gloss coverage statistics. Previously unseen machine-translated expressions still require an online connection.\n"
@@ -1228,6 +1228,7 @@ version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary call
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
 version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
 version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
+version = version.rstrip() + "\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1236,11 +1237,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_156"
-new_marker = "DWSS_AUTO_UPDATE_0_9_157"
+old_marker = "DWSS_AUTO_UPDATE_0_9_157"
+new_marker = "DWSS_AUTO_UPDATE_0_9_160"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.156 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.157 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1545,8 +1546,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_157" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.158.")
+if "DWSS_AUTO_UPDATE_0_9_160" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.160.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:

@@ -21,16 +21,16 @@ const pinyin = text('hanzi-pinyin.js');
 const pronunciation = text('pronunciation-search.js');
 const dictionary = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.159'), 'website version must be 0.9.159');
-assert(app.includes("version:'0.9.159'"), 'app version must be 0.9.159');
-assert(sw.includes("const APP_VERSION = '0.9.159';"), 'Service Worker cache must be 0.9.159');
+assert(version.includes('Version: 0.9.160'), 'website version must be 0.9.160');
+assert(app.includes("version:'0.9.160'"), 'app version must be 0.9.160');
+assert(sw.includes("const APP_VERSION = '0.9.160';"), 'Service Worker cache must be 0.9.160');
 assert(!sw.includes('precacheFrenchShardFamilies') && !sw.includes('frenchOfflineShardCount'),
   'optional French shards must not block Service Worker activation');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_157'), 'automatic-update marker must be 0.9.159');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_160'), 'automatic-update marker must be 0.9.160');
 for (const script of ['supabase.min.js','shared-lexicon.js','boot.js',
   'french-extension.js','french-translation-runtime.js','pronunciation-query-editor.js']) {
-  assert(html.includes(script + '?dwss-release=0.9.159'),
-    'deferred runtime script must be cache-pinned to 0.9.159: ' + script);
+  assert(html.includes(script + '?dwss-release=0.9.160'),
+    'deferred runtime script must be cache-pinned to 0.9.160: ' + script);
 }
 assert(extension.includes('dwss:app-ready') &&
        extension.includes('restoreSelectedModesAfterCoreReady'),
@@ -126,6 +126,6 @@ assert(lateHits.some(hit => hit.zh === '明天' && hit.score >= 0.90),
   'late pinyin map must still enable reverse pronunciation search');
 
 win.close();
-console.log('PASS DWSS 0.9.159: actual production load order (French extension first, async Swahili core second) automatically restores the main homophone result and reverse lookup.');
-console.log('PASS DWSS 0.9.159: release-pinned deferred scripts prevent stale mixed runtime assets.');
-console.log('PASS DWSS 0.9.159: late pinyin-map loading remains safe.');
+console.log('PASS DWSS 0.9.160: actual production load order (French extension first, async Swahili core second) automatically restores the main homophone result and reverse lookup.');
+console.log('PASS DWSS 0.9.160: release-pinned deferred scripts prevent stale mixed runtime assets.');
+console.log('PASS DWSS 0.9.160: late pinyin-map loading remains safe.');
