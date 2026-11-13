@@ -26,7 +26,7 @@ assert(app.includes("version:'0.9.156'"), 'app version must be 0.9.156');
 assert(sw.includes("const APP_VERSION = '0.9.156';"), 'Service Worker cache must be 0.9.156');
 assert(!sw.includes('precacheFrenchShardFamilies') && !sw.includes('frenchOfflineShardCount'),
   'optional French shards must not block Service Worker activation');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker must be 0.9.156');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_156'), 'automatic-update marker must be 0.9.156');
 for (const script of ['supabase.min.js','shared-lexicon.js','boot.js',
   'french-extension.js','french-translation-runtime.js','pronunciation-query-editor.js']) {
   assert(html.includes(script + '?dwss-release=0.9.156'),
