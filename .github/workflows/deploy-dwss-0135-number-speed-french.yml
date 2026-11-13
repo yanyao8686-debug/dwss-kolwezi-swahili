@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.155 verified Swahili and French translation runtime
+name: Deploy DWSS 0.9.156 verified Swahili and French translation runtime
 
 on:
   push:
@@ -29,7 +29,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0155-swahili-runtime
+  group: dwss-pages-deploy-0156-swahili-runtime
   cancel-in-progress: true
 
 jobs:
@@ -87,7 +87,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.155
+      - name: Deploy DWSS 0.9.156
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -107,15 +107,15 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_155' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_156' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.155' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_155' "$LIVE/index.html"
-          grep -Fq "version:'0.9.155'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.155';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.156' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_156' "$LIVE/index.html"
+          grep -Fq "version:'0.9.156'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.156';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
           grep -Fq 'background:#FFF9ED!important' "$LIVE/index.html"
@@ -129,14 +129,14 @@ jobs:
           grep -Fq 'setQueryMode(activeQueryMode);' "$LIVE/french-extension.js"
           grep -Fq 'dwss:app-ready' "$LIVE/french-extension.js"
           grep -Fq 'restoreSelectedModesAfterCoreReady' "$LIVE/french-extension.js"
-          grep -Fq 'french-extension.js?dwss-release=0.9.155' "$LIVE/index.html"
-          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.155' "$LIVE/index.html"
+          grep -Fq 'french-extension.js?dwss-release=0.9.156' "$LIVE/index.html"
+          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.156' "$LIVE/index.html"
           gzip -t "$LIVE/dictionary.js.gz"
           node --check "$LIVE/app.js"
           node --check "$LIVE/pronunciation-search.js"
           ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.155' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.156' "$LIVE/index.html"
           grep -Fq 'dwss-pronunciation-query-readonly-0151' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSPronunciationQueryReadOnly' "$LIVE/pronunciation-query-editor.js"
           grep -Fq '#pronunciationResults .pronunciation-hit-reading' "$LIVE/pronunciation-query-editor.js"
@@ -146,7 +146,7 @@ jobs:
           grep -Fq 'dwss-input-ime-fallback-0150' "$LIVE/index.html"
           grep -Fq 'finishComposition' "$LIVE/index.html"
           ! grep -Fq 'observer.observe(document.body' "$LIVE/pronunciation-query-editor.js"
-          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.155' "$LIVE/index.html" | wc -l)" -eq 1
+          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.156' "$LIVE/index.html" | wc -l)" -eq 1
           ! grep -Fq '.pronunciation-maintenance-entry' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'id="openPublicPronunciationEditor"' "$LIVE/index.html"
           grep -Fq '.dwss-query-inline-tools' "$LIVE/pronunciation-query-editor.js"
@@ -261,6 +261,10 @@ jobs:
           grep -Fq '输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语' "$LIVE/french-extension.js"
           grep -Fq 'function formatCombinedResult(_french, reading)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'return String(reading || "").trim();' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'const hasLatin = /\\p{Script=Latin}/u.test(candidate);' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'function getReadingForFrenchDraft(french)' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'machine.getReadingForFrenchDraft(values.french)' "$LIVE/french-extension.js"
+          grep -Fq 'values.outputFrenchDraft ||' "$LIVE/french-extension.js"
           grep -Fq 'glossTools.renderSingleGloss(lastChinese, french);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'enrichedGlossTools.renderSingleGloss(lastChinese, french, enriched.wordReadings);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'expandFrenchNumerals(rawFrench)' "$LIVE/french-translation-runtime.js"
@@ -348,4 +352,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.155 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."
+          echo "PASS: live DWSS 0.9.156 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."
