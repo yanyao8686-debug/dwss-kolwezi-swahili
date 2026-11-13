@@ -93,8 +93,9 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
     assert(!source.includes(forbidden), 'read-only query script must not contain edit capability: ' + forbidden);
   }
   const css = document.getElementById('dwss-pronunciation-query-readonly-0151').textContent;
-  assert(!css.includes('#pronunciationResults .pronunciation-hit-reading,#pronunciationResults .pronunciation-hit-match'));
-  assert(!css.includes('#pronunciationFrenchResults .pronunciation-hit-reading'));
+  assert(css.includes('#pronunciationResults .pronunciation-hit-reading,#pronunciationResults .pronunciation-hit-match'));
+  assert(css.includes('#pronunciationFrenchResults .pronunciation-hit-reading'));
+  assert(css.includes('display:block!important;visibility:visible!important;opacity:1!important'));
   assert(!css.includes('#pronunciationResults .pronunciation-hit-actions'));
   assert(source.includes('MutationObserver'));
   assert(source.includes('getElementById("pronunciationResults")'));
