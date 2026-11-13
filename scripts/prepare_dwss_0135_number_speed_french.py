@@ -594,7 +594,12 @@ if duplicate_translation_export in app:
 
 render_anchor = "function renderTranslation(options={}){"
 if old_render_guard in app:
-    app = app.replace(old_render_guard, render_guard, 1)
+    old_guard_at = app.find(old_render_guard)
+    suffix_at = old_guard_at + len(old_render_guard)
+    # The old guard is also a prefix of render_guard. Do not append the new
+    # suffix a second time when an earlier release already installed it.
+    if not app.startswith(button_state_guard, suffix_at):
+        app = app[:old_guard_at] + render_guard + app[suffix_at:]
 elif render_guard not in app:
     if app.count(render_anchor) != 1:
         fail("Cannot locate the single main translation renderer for the French-mode guard.")
