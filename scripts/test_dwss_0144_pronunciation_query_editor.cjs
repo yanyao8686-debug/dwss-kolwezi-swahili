@@ -61,8 +61,11 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(swArticle && frArticles.length === 2, 'both language result lists must remain available');
   assert.equal(document.querySelectorAll('.dwss-query-edit-toggle,.dwss-query-inline-editor,.dwss-query-inline-tools').length, 0,
     'pronunciation results must not expose inline editing controls');
-  assert.equal(document.querySelectorAll('.pronunciation-hit-actions').length, 0,
-    'legacy result action buttons must be removed');
+  assert.equal(document.querySelectorAll('.pronunciation-hit-actions').length, 1,
+    'read-only copy action must remain available');
+  assert(swArticle.querySelector('.pronunciation-hit-reading'), 'Swahili homophone must remain visible');
+  assert(swArticle.querySelector('.pronunciation-hit-match'), 'Swahili matched reading must remain visible');
+  assert(swArticle.querySelector('.pronunciation-hit-meta'), 'Swahili dictionary source must remain visible');
   assert.equal(document.querySelectorAll('.pronunciation-maintenance-entry').length, 0,
     'the duplicate maintenance entry must not appear in pronunciation lookup');
   assert(swArticle.textContent.includes('明天') && swArticle.textContent.includes('该小'),
@@ -89,15 +92,17 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
     assert(!source.includes(forbidden), 'read-only query script must not contain edit capability: ' + forbidden);
   }
-  const css = document.getElementById('dwss-pronunciation-query-readonly-0150').textContent;
-  assert(css.includes('#pronunciationResults .pronunciation-hit-actions'));
-  assert(css.includes('#pronunciationFrenchResults .pronunciation-hit-actions'));
+  const css = document.getElementById('dwss-pronunciation-query-readonly-0151').textContent;
+  assert(css.includes('#pronunciationResults .pronunciation-hit-reading,#pronunciationResults .pronunciation-hit-match'));
+  assert(css.includes('#pronunciationFrenchResults .pronunciation-hit-reading'));
+  assert(css.includes('display:block!important;visibility:visible!important;opacity:1!important'));
+  assert(!css.includes('#pronunciationResults .pronunciation-hit-actions'));
   assert(source.includes('MutationObserver'));
   assert(source.includes('getElementById("pronunciationResults")'));
   assert(source.includes('getElementById("pronunciationFrenchResults")'));
   assert(!source.includes('observer.observe(document.body'),
     'query cleanup must not observe the full application DOM');
-  console.log('PASS DWSS 0.9.150: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
+  console.log('PASS DWSS 0.9.151: both pronunciation lists are read-only; stale editors are stripped with query-scoped observers only.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

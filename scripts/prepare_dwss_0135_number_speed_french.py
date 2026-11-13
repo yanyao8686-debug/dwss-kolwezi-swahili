@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.150: Android Chinese-IME translation fallback and read-only pronunciation lookup."""
+"""DWSS 0.9.151: Android Chinese-IME translation fallback and read-only pronunciation lookup."""
 from __future__ import annotations
 
 import gzip
@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.149"
-NEW_VERSION = "0.9.150"
+OLD_VERSION = "0.9.150"
+NEW_VERSION = "0.9.151"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -51,7 +51,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.150"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.151"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -311,7 +311,7 @@ glossed_before = pronunciation_word_keys & base_gloss_keys
 glossed_after = pronunciation_word_keys & glossed_keys_after
 missing_after = pronunciation_word_keys - glossed_keys_after
 coverage = {
-    "sourceVersion": "DWSS 0.9.150",
+    "sourceVersion": "DWSS 0.9.151",
     "pronunciationShardRows": pronunciation_form_rows,
     "uniqueNormalizedPronunciationForms": len(pronunciation_word_keys),
     "formsWithChineseGlossBeforeSupplement": len(glossed_before),
@@ -771,7 +771,7 @@ inline_fallback_script = r'''<script id="dwss-input-ime-fallback-0150">
   });
 })();
 </script>'''
-query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.150"></script>'
+query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.151"></script>'
 query_editor_tag = re.compile(
     r'<script\b[^>]*\bsrc=["\'][^"\']*pronunciation-query-editor\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>',
     re.IGNORECASE
@@ -791,11 +791,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.149/0.9.150 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.150/0.9.151 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.149 or 0.9.150.")
+    fail("Live app.js version is not 0.9.150 or 0.9.151.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.149 or 0.9.150.")
+    fail("Live Service Worker version is not 0.9.150 or 0.9.151.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -829,9 +829,14 @@ if not query_editor_source.is_file() or query_editor_source.stat().st_size < 100
     fail("Inline pronunciation query editor source is missing or unexpectedly small.")
 write_asset("pronunciation-query-editor.js", query_editor_source.read_bytes())
 query_editor = (ROOT / "pronunciation-query-editor.js").read_text(encoding="utf-8")
-for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0150", ".pronunciation-maintenance-entry", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults"):
+for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".pronunciation-maintenance-entry", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults",
+                 "#pronunciationResults .pronunciation-hit-reading", "#pronunciationResults .pronunciation-hit-match",
+                 "#pronunciationResults .pronunciation-hit-meta", "#pronunciationFrenchResults .pronunciation-hit-reading",
+                 "#pronunciationFrenchResults .pronunciation-hit-meta", "display:block!important;visibility:visible!important"):
     if required not in query_editor:
         fail("Read-only pronunciation query asset is missing: " + required)
+if ".pronunciation-hit-actions" in query_editor:
+    fail("Read-only pronunciation query must retain the copy action.")
 for forbidden in ("DWSSDictionaryOverrides", "submitFrenchPronunciationCorrection", "修改结果", "保存并同步给所有用户"):
     if forbidden in query_editor:
         fail("Pronunciation query must not expose an editing capability: " + forbidden)
@@ -840,6 +845,9 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "formatCombinedFrenchResult(result.words, result.reading)",
                  "dwssFrenchSpellingBlock",
                  "renderFrenchSingleGloss", "单个法语读法释义：",
+                 "let mainModeGeneration = 0;", "const modeGeneration = ++mainModeGeneration;",
+                 'const isCurrentFrenchMode = () => modeGeneration === mainModeGeneration && activeMainMode === "fr";',
+                 "if (!isCurrentFrenchMode()) return;", "const modeGeneration = mainModeGeneration;",
                  "glossSegments", "window.DWSSRenderTranslation", "function parseNumberAt(text, start)", "function frenchIntegerToWords(n)", "function expandFrenchNumerals(value)", "numberToFrench", "isNumericExpression",
                  "machine.scheduleTranslation(50)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
@@ -951,6 +959,7 @@ if f"Version: {OLD_VERSION}" in version:
 version = version.rstrip() + "\n0.9.148: Each French headword in the single-word gloss list is shown as a compact bordered input; one unified save-and-sync button below the list submits all word edits.\n"
 version = version.rstrip() + "\n0.9.149: Pronunciation lookup is read-only; duplicate result-edit and dictionary-maintenance controls are removed. Swahili and French lookups continue to combine their base dictionaries with saved and pending shared corrections.\n"
 version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallback keeps Swahili and French translation working when compositionend is omitted; the read-only query script loads once and observes only its result lists.\n"
+version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -959,8 +968,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_149"
-new_marker = "DWSS_AUTO_UPDATE_0_9_150"
+old_marker = "DWSS_AUTO_UPDATE_0_9_150"
+new_marker = "DWSS_AUTO_UPDATE_0_9_151"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.146 auto-update marker; found " + str(html.count(old_marker)))
@@ -1268,8 +1277,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_150" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.150.")
+if "DWSS_AUTO_UPDATE_0_9_151" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.151.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1307,12 +1316,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.150" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.150.")
-if "Version: 0.9.150" not in version or "version:'0.9.150'" not in app:
-    fail("Website and app version markers do not agree at 0.9.150.")
-if "const APP_VERSION = '0.9.150';" not in sw:
-    fail("Service Worker cache version is not 0.9.150.")
+if "dwss-release=0.9.151" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.151.")
+if "Version: 0.9.151" not in version or "version:'0.9.151'" not in app:
+    fail("Website and app version markers do not agree at 0.9.151.")
+if "const APP_VERSION = '0.9.151';" not in sw:
+    fail("Service Worker cache version is not 0.9.151.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -1325,7 +1334,7 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
-if 'pronunciation-query-editor.js?dwss-release=0.9.150' not in html:
+if 'pronunciation-query-editor.js?dwss-release=0.9.151' not in html:
     fail("Read-only pronunciation query asset is not loaded by the live HTML.")
 if len(re.findall(r'<script\b[^>]*src=["\'][^"\']*pronunciation-query-editor\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>', html, flags=re.I)) != 1:
     fail("Pronunciation query editor must be included exactly once.")
@@ -1351,5 +1360,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.150 restores Android IME translation fallback for both languages and deduplicates scoped read-only pronunciation lookup.")
+print("PASS: DWSS 0.9.151 prevents stale French renders from overwriting Swahili and restores complete read-only pronunciation results.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
