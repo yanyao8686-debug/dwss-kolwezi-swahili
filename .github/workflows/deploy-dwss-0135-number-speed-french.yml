@@ -7,6 +7,9 @@ on:
       - '.github/workflows/deploy-dwss-0135-number-speed-french.yml'
       - 'scripts/prepare_dwss_0135_number_speed_french.py'
       - 'scripts/test_dwss_0135_number_speed_french.cjs'
+      - 'scripts/test_dwss_canonical_shared_lexicon.cjs'
+      - 'supabase/functions/dwss-upsert-dictionary-entry/index.ts'
+      - 'supabase/migrations/20261113200000_unified_shared_dictionary_entries.sql'
       - 'scripts/french-extension-0135.js'
       - 'scripts/pronunciation-search.js'
       - 'scripts/french-translation-runtime.js'
@@ -52,12 +55,15 @@ jobs:
           python3 scripts/prepare_dwss_0135_number_speed_french.py
           python3 -m py_compile scripts/prepare_dwss_0135_number_speed_french.py
           node --check public/app.js
+          node --check public/shared-lexicon.js
           node --check public/sw.js
           node --check public/french-extension.js
           node --check public/french-translation-runtime.js
           node --check public/pronunciation-query-editor.js
           node --check public/pronunciation-search.js
           node --check scripts/test_dwss_0144_pronunciation_query_editor.cjs
+          node --check scripts/test_dwss_0135_number_speed_french.cjs
+          node --check scripts/test_dwss_canonical_shared_lexicon.cjs
           node --check scripts/test_dwss_0150_input-ime-fallback.cjs
           node --check scripts/test_dwss_0152_swahili-runtime.cjs
           node --check scripts/test_dwss_0153_swahili-startup-race.cjs
@@ -72,6 +78,7 @@ jobs:
           set -euo pipefail
           npm install --no-save --no-package-lock jsdom@26.1.0
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_shared_lexicon.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_offline_parity.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
           node scripts/test_dwss_0150_input-ime-fallback.cjs
