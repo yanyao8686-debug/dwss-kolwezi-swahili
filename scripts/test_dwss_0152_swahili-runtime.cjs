@@ -35,8 +35,8 @@ assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.
   'normal boot order must load pinyin and search before the app');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'),
   'actual pronunciation renderer hook must be present');
-assert(extension.includes('function reconcileAfterCoreReady()') &&
-       extension.includes('window.addEventListener("dwss:app-ready", onCoreReady)'),
+assert(extension.includes('function restoreSelectedModesAfterCoreReady()') &&
+       extension.includes('window.addEventListener("dwss:app-ready", restoreSelectedModesAfterCoreReady, { once: true })'),
   'extension must reconcile both views after asynchronous Swahili core startup');
 
 // Search engine first, pinyin map second: it must not capture a permanently empty map.
