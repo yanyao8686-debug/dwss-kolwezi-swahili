@@ -540,14 +540,16 @@
   function createMeaningIndex(customRows) {
     const map = new Map();
     const custom = Array.isArray(customRows) ? customRows : activeRows();
+    let customOrder = 0;
     for (const item of custom) {
+      const prioritizedItem = Object.assign({}, item, { __dwssPriorityOrder: customOrder++ });
       for (const meaning of item.meanings || []) {
         const key = normalizeChinese(meaning);
         if (!key) continue;
         if (!map.has(key)) map.set(key, []);
-        // activeRows() is already ordered with pending edits first and the
-        // newest published correction first; preserve that priority here.
-        map.get(key).push(item);
+        // activeRows() is newest-first; keep that order even when the older
+        // French word happens to sort shorter or alphabetically earlier.
+        map.get(key).push(prioritizedItem);
       }
     }
     for (const row of meaningRows) {
@@ -565,6 +567,9 @@
         const ap = a.source && a.source.indexOf("修正") >= 0 ? 0 : 1;
         const bp = b.source && b.source.indexOf("修正") >= 0 ? 0 : 1;
         if (ap !== bp) return ap - bp;
+        if (ap === 0 && bp === 0) {
+          return Number(a.__dwssPriorityOrder || 0) - Number(b.__dwssPriorityOrder || 0);
+        }
         const aw = String(a.word || "");
         const bw = String(b.word || "");
         return aw.length - bw.length || aw.localeCompare(bw);
