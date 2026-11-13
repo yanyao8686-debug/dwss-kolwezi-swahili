@@ -21,14 +21,14 @@ const pronunciationSource = text('pronunciation-search.js');
 const hanziPinyinSource = text('hanzi-pinyin.js');
 const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.155'), 'website version must be 0.9.155');
-assert(app.includes("version:'0.9.155'"), 'app version must match');
-assert(sw.includes("const APP_VERSION = '0.9.155';"), 'Service Worker version must match');
+assert(version.includes('Version: 0.9.156'), 'website version must be 0.9.156');
+assert(app.includes("version:'0.9.156'"), 'app version must match');
+assert(sw.includes("const APP_VERSION = '0.9.156';"), 'Service Worker version must match');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker must match');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.155').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.156').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
-  assert(html.split(name + '?dwss-release=0.9.155').length - 1 === 1,
+  assert(html.split(name + '?dwss-release=0.9.156').length - 1 === 1,
     name + ' must be pinned to the current release');
 }
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
@@ -120,5 +120,5 @@ assert(queryResults.textContent.includes('明天') && queryResults.textContent.i
   'app-ready event must automatically restore real Swahili reverse-lookup results');
 
 win.close();
-console.log('PASS DWSS 0.9.155: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
-console.log('PASS DWSS 0.9.155: late pinyin map loading cannot permanently disable reverse lookup.');
+console.log('PASS DWSS 0.9.156: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
+console.log('PASS DWSS 0.9.156: late pinyin map loading cannot permanently disable reverse lookup.');
