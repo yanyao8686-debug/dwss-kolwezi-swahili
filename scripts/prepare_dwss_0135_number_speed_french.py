@@ -845,6 +845,9 @@ for required in ("if (machineRuntime && typeof machineRuntime.translateCurrentCh
                  "formatCombinedFrenchResult(result.words, result.reading)",
                  "dwssFrenchSpellingBlock",
                  "renderFrenchSingleGloss", "单个法语读法释义：",
+                 "let mainModeGeneration = 0;", "const modeGeneration = ++mainModeGeneration;",
+                 'const isCurrentFrenchMode = () => modeGeneration === mainModeGeneration && activeMainMode === "fr";',
+                 "if (!isCurrentFrenchMode()) return;", "const modeGeneration = mainModeGeneration;",
                  "glossSegments", "window.DWSSRenderTranslation", "function parseNumberAt(text, start)", "function frenchIntegerToWords(n)", "function expandFrenchNumerals(value)", "numberToFrench", "isNumericExpression",
                  "machine.scheduleTranslation(50)",
                  "searchFrenchCandidates", "FRENCH_NEAR_INITIAL_GROUPS",
@@ -1275,7 +1278,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_151" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.150.")
+    fail("Automatic-update marker was not advanced to 0.9.151.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
