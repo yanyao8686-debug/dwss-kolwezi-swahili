@@ -133,7 +133,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   mainInput.value = swHeadword.zh;
   resultCard.removeAttribute('data-dwss-lang');
   staleFrenchButton.classList.add('active');
-  assert.equal(typeof swDom.window.DWSSRenderTranslation, 'function', 'main result hook is missing');
+  assert(typeof swDom.window.DWSSRenderTranslation === 'function', 'main result hook is missing');
   swDom.window.DWSSRenderTranslation();
   const expectedReading = swTranslation.segments.find(segment => segment.type === 'local' && segment.reading).reading;
   assert(!mainResult.hidden && mainResult.value.includes(expectedReading),
@@ -143,7 +143,7 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   const queryResults = swDom.window.document.getElementById('pronunciationResults');
   assert(queryInput && queryResults, 'pronunciation query controls are missing');
   queryInput.value = '给晓';
-  assert.equal(typeof swDom.window.DWSSRenderPronunciationLookup, 'function', 'query result renderer hook is missing');
+  assert(typeof swDom.window.DWSSRenderPronunciationLookup === 'function', 'query result renderer hook is missing');
   await swDom.window.DWSSRenderPronunciationLookup();
   assert(queryResults.textContent.includes('明天') && queryResults.textContent.includes('该小'),
     'real Swahili reverse query must render 明天 and 该小; got: ' + queryResults.textContent);
