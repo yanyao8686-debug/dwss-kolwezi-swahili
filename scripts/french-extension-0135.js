@@ -369,7 +369,7 @@
     });
   }
 
-  function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides) {
+  function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords) {
     const label = $("singleReadingGlossLabel") || document.querySelector(".dwss-secondary-title");
     const host = $("segmentList");
     const text = String(raw || "").trim();
@@ -423,7 +423,7 @@
         ? overriddenMeanings : (pair.meanings || []);
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '" data-meanings="' + esc(JSON.stringify(meanings)) + '">' +
         '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
-        'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
+        'data-original-word="' + esc(editOriginalWords && typeof editOriginalWords.get === "function" ? (editOriginalWords.get(index) || token) : token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd">法语：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +
         '<div class="rd-detail">中文释义：' + esc(meanings.join('；') || '释义待补') + '</div>' +
@@ -942,7 +942,8 @@
           const glossTools = window.DWSSFrenchTools;
           if (glossTools && typeof glossTools.renderSingleGloss === "function") {
             const meaningOverrides = new Map(values.rows.map((row, index) => [index, row.meanings]));
-            glossTools.renderSingleGloss(values.chinese, values.french, generated.wordReadings, meaningOverrides);
+            const editOriginalWords = new Map(values.rows.map((row, index) => [index, row.originalWord]));
+            glossTools.renderSingleGloss(values.chinese, values.french, generated.wordReadings, meaningOverrides, editOriginalWords);
           }
           output.dispatchEvent(new Event("dwss:french-result-updated"));
           if (Array.isArray(generated.missing) && generated.missing.length) {
@@ -960,7 +961,8 @@
             const glossTools = window.DWSSFrenchTools;
             if (glossTools && typeof glossTools.renderSingleGloss === "function") {
               const meaningOverrides = new Map(values.rows.map((row, index) => [index, row.meanings]));
-              glossTools.renderSingleGloss(values.chinese, values.french, null, meaningOverrides);
+              const editOriginalWords = new Map(values.rows.map((row, index) => [index, row.originalWord]));
+              glossTools.renderSingleGloss(values.chinese, values.french, null, meaningOverrides, editOriginalWords);
             }
             output.dispatchEvent(new Event("dwss:french-result-updated"));
             message = "法语单词已修改，但读音重新生成失败：" +
