@@ -1307,7 +1307,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_157" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.156.")
+    fail("Automatic-update marker was not advanced to 0.9.157.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
