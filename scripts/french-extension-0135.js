@@ -1238,10 +1238,36 @@
     window.addEventListener("dwss:shared-terms-updated", refresh);
     window.addEventListener("dwss:personal-term-added", refresh);
 
-    // Match the startup DOM with the translator's intended Swahili default.
-    // This also re-renders a restored input after each page/app boot.
-    setMainMode("sw");
-    setQueryMode("sw");
+    // The main Swahili engine is injected asynchronously by boot.js after the
+    // dictionary has been decompressed. This extension is a parser-deferred script
+    // and can run first, so the initial mode switch may happen before the renderers
+    // exist. Reconcile again only when the core explicitly announces readiness.
+    const restoreSelectedModesAfterCoreReady = () => {
+      if (!window.KolweziSwahili ||
+          typeof window.DWSSRenderTranslation !== "function" ||
+          typeof window.DWSSRenderPronunciationLookup !== "function") return;
+
+      // Preserve the user's current language selection. Do not unexpectedly
+      // switch back to Swahili if they selected French during core startup.
+      setMainMode(activeMainMode);
+      setQueryMode(activeQueryMode);
+
+      const query = $("pronunciationSearch");
+      if (activeQueryMode === "sw" && query && query.value.trim()) {
+        window.DWSSRenderPronunciationLookup();
+      }
+    };
+
+    window.addEventListener("dwss:app-ready", restoreSelectedModesAfterCoreReady, { once: true });
+
+    // Initialize the visible controls immediately; the app-ready handshake above
+    // performs the actual re-render after async dictionary/core initialization.
+    setMainMode(activeMainMode);
+    setQueryMode(activeQueryMode);
+
+    // Also support a future boot order where the core is already available before
+    // the extension is evaluated (for example, a browser restored from mixed caches).
+    restoreSelectedModesAfterCoreReady();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind, { once: true });
