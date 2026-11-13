@@ -313,7 +313,7 @@ jobs:
           grep -Fq '<div class="zh"><span class="dwss-french-word-label">法文：</span><input' "$LIVE/french-extension.js"
           grep -Fq '<div class="rd-detail">中文释义：' "$LIVE/french-extension.js"
           grep -Fq '<div class="rd">中文谐音：' "$LIVE/french-extension.js"
-          grep -Fq '<div class="rd">法语：' "$LIVE/french-extension.js"
+          ! grep -Fq '<div class="rd">法语：' "$LIVE/french-extension.js"
           ! grep -Fq '中文谐音：</span>' "$LIVE/french-extension.js"
           grep -Fq 'function tokenizeFrenchPhrase(value)' "$LIVE/french-extension.js"
           grep -Fq 'function buildFrenchWordReadingLookup(sourceRows)' "$LIVE/french-extension.js"
