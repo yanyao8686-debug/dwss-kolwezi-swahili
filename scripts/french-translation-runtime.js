@@ -55,6 +55,7 @@
   let lastMachineFrench = "";
   let pendingChinese = "";
   let composing = false;
+  let compositionFallbackTimer = null;
   let combinedEditTimer = null;
   let userEditedCombined = false;
   let writingCombinedOutput = false;
@@ -663,9 +664,39 @@
     const input = $("inputText");
     const spelling = $("dwssFrenchSpelling");
     if (!input || !spelling) return;
-    input.addEventListener("compositionstart", () => { composing = true; });
-    input.addEventListener("compositionend", () => { composing = false; scheduleTranslation(50); });
-    input.addEventListener("input", () => { if (!composing) scheduleTranslation(60); });
+    const scheduleCompositionFallback = () => {
+      window.clearTimeout(compositionFallbackTimer);
+      compositionFallbackTimer = window.setTimeout(() => {
+        // Some Android keyboards/WebViews omit compositionend. Do not leave the
+        // French result blank forever after a composing input pauses.
+        composing = false;
+        scheduleTranslation(0);
+      }, 1100);
+    };
+    input.addEventListener("compositionstart", () => {
+      composing = true;
+      window.clearTimeout(translateTimer);
+      window.clearTimeout(compositionFallbackTimer);
+    });
+    input.addEventListener("compositionend", () => {
+      composing = false;
+      window.clearTimeout(compositionFallbackTimer);
+      scheduleTranslation(60);
+    });
+    input.addEventListener("input", event => {
+      if (composing || (event && event.isComposing)) {
+        composing = true;
+        scheduleCompositionFallback();
+        return;
+      }
+      window.clearTimeout(compositionFallbackTimer);
+      scheduleTranslation(60);
+    });
+    input.addEventListener("change", () => {
+      composing = false;
+      window.clearTimeout(compositionFallbackTimer);
+      scheduleTranslation(0);
+    });
     const frenchMode = $("dwssMainFrMode");
     if (frenchMode) frenchMode.addEventListener("click", () => scheduleTranslation(60));
     const swMode = $("dwssMainSwMode");
