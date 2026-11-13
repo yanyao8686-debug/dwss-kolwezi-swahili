@@ -383,7 +383,8 @@
     const result = await buildPhraseReading(phrase);
     return {
       reading: String(result && result.reading || "").trim(),
-      missing: Array.isArray(result && result.missing) ? result.missing.slice() : []
+      missing: Array.isArray(result && result.missing) ? result.missing.slice() : [],
+      wordReadings: result && result.wordReadings instanceof Map ? result.wordReadings : new Map()
     };
   }
 

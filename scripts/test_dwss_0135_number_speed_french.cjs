@@ -21,7 +21,7 @@ assert(runtime.includes('async function refreshAfterSharedCorrection()'),
 assert(extension.includes('machine.refreshAfterSharedCorrection()'),
   'shared-term updates must invoke the forced French refresh');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.157 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.158 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -110,15 +110,15 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.157'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.157'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.157';"), 'Service Worker cache version mismatch');
+assert(version.includes('Version: 0.9.158'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.158'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.158';"), 'Service Worker cache version mismatch');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_157'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.157'), 'cache-busted page assets were not advanced');
+assert(html.includes('dwss-release=0.9.158'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.157'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.158'),
   'inline pronunciation query editor is not loaded');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.157').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.158').length - 1 === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
@@ -170,8 +170,8 @@ assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
        extension.includes('setMainMode(activeMainMode);') &&
        extension.includes('setQueryMode(activeQueryMode);'),
   'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
-assert(html.includes('french-extension.js?dwss-release=0.9.157') &&
-       html.includes('french-translation-runtime.js?dwss-release=0.9.157'),
+assert(html.includes('french-extension.js?dwss-release=0.9.158') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.158'),
   'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
@@ -233,6 +233,10 @@ assert(extension.includes('api.submitFrenchPronunciationCorrection({') &&
   'French pronunciation correction must save the edited French source and its matching generated homophone to the dedicated French fields');
 assert(extension.includes('renderSingleGloss: renderFrenchSingleGloss'),
   'French single-word glossary renderer must be exposed for regression testing');
+assert(extension.includes('scheduleEditedFrenchPhraseRefresh') &&
+       extension.includes('generated.wordReadings') &&
+       extension.includes('refreshingEditedPhrase'),
+  'editing a French headword must recalculate the full-sentence homophone and every word pronunciation before save');
 assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
   'single-word gloss renderer must accept the original French sentence separately');
 assert(extension.includes('function getWordChineseReading(record)') &&
@@ -692,6 +696,45 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
   await machineController.refreshAfterSharedCorrection();
   assert(resultBox.value === activeCorrectedReading,
     'a shared correction must immediately repaint the current result even when the Chinese input is unchanged');
+
+  // Editing a word in the French sentence glossary must refresh the main
+  // sentence homophone and the per-word pronunciation, then save that exact pair.
+  const liveReadings = new Map([["bonjour", "邦茹"], ["salut", "萨吕"]]);
+  editWin.DWSSFrenchTools = Object.freeze({
+    ...editWin.DWSSFrenchTools,
+    getPhraseWordPairs: async phrase => (String(phrase).match(/[A-Za-z]+/g) || [])
+      .map(token => ({ token, reading: liveReadings.get(token.toLowerCase()) || "" }))
+      .filter(item => item.reading)
+  });
+  const spellingBox = editWin.document.getElementById('dwssFrenchSpelling');
+  const glossHost = editWin.document.getElementById('segmentList');
+  spellingBox.value = 'Bonjour';
+  resultBox.value = '邦茹';
+  editWin.DWSSFrenchTools.renderSingleGloss('你好', 'Bonjour');
+  const wordEditor = glossHost.querySelector('.dwss-french-word-original');
+  assert(wordEditor && wordEditor.value === 'Bonjour',
+    'the French sentence glossary must expose its current word as an editable source');
+  wordEditor.value = 'Salut';
+  wordEditor.dispatchEvent(new editWin.Event('input', { bubbles: true }));
+  await new Promise(resolve => editWin.setTimeout(resolve, 420));
+  assert(spellingBox.value === 'Salut',
+    'editing a French gloss word must update the active French sentence');
+  assert(resultBox.value === '萨吕',
+    'editing a French gloss word must recalculate the main sentence homophone rather than keep the previous reading');
+  assert(glossHost.dataset.frenchSourcePhrase === 'Salut' &&
+         glossHost.querySelector('.dwss-french-word-pronunciation')?.textContent === '萨吕',
+    'editing a French gloss word must refresh the word-level pronunciation gloss');
+  const editedWordSave = editWin.document.getElementById('dwssFrenchPronunciationSave');
+  assert(editedWordSave && !editedWordSave.disabled,
+    'the refreshed French phrase and matching pronunciation must be available to save');
+  editedWordSave.click();
+  await new Promise(resolve => editWin.setTimeout(resolve, 0));
+  await new Promise(resolve => editWin.setTimeout(resolve, 0));
+  assert(savedCorrections.length === 3 &&
+         savedCorrections[2].french_text === 'Salut' &&
+         savedCorrections[2].french_pronunciation_cn === '萨吕',
+    'saving a changed French glossary word must submit its new phrase with the newly generated pronunciation');
+
   editDom.window.close();
-  console.log('PASS DWSS 0.9.157: French translation, direct result edits, newest-correction priority, language isolation and shared corrections validated.');
+  console.log('PASS DWSS 0.9.158: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

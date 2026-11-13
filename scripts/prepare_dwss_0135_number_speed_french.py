@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.156"
-NEW_VERSION = "0.9.157"
+OLD_VERSION = "0.9.157"
+NEW_VERSION = "0.9.158"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -799,11 +799,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.156 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.157 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.156 or 0.9.157.")
+    fail("Live app.js version is not 0.9.157 or 0.9.158.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.156 or 0.9.157.")
+    fail("Live Service Worker version is not 0.9.157 or 0.9.158.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -989,6 +989,7 @@ version = version.rstrip() + "\n0.9.149: Pronunciation lookup is read-only; dupl
 version = version.rstrip() + "\n0.9.150: Android Chinese-IME composition fallback keeps Swahili and French translation working when compositionend is omitted; the read-only query script loads once and observes only its result lists.\n"
 version = version.rstrip() + "\n0.9.151: Prevents delayed French dictionary callbacks from changing the active Swahili result and gloss; restores full Swahili/French pronunciation-query details while keeping edit controls removed.\n0.9.152: Normalizes startup to the Swahili main and lookup modes, prevents stale French button styling from suppressing Swahili output, and validates real main-result plus reverse-lookup rendering. The pronunciation engine now resolves the Hanzi pinyin map at query time to tolerate WebView script-load races.\n0.9.153: Reconciles both Swahili views after the asynchronously loaded dictionary/core becomes ready, preserves the selected language and pending input, and pins every deferred runtime script to one release to prevent mixed cached versions.\n0.9.154: Keeps French pronunciation shards available for on-demand caching instead of making all 792 shards a prerequisite for Service Worker installation; weak-network failures in optional French assets can no longer block Swahili core updates.\n"
 version = version.rstrip() + "\n0.9.157: Forces the French result to refresh from newly saved shared corrections even when the Chinese input is unchanged; missing French homophones are shown as editable placeholders rather than silently blocking save.\n"
+version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence gloss now regenerates the complete Chinese homophone and per-word pronunciations before saving, preventing stale phrase/readout pairs from being shared.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1307,7 +1308,7 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
 if "DWSS_AUTO_UPDATE_0_9_157" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.157.")
+    fail("Automatic-update marker was not advanced to 0.9.158.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
@@ -1396,5 +1397,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.157 pins deferred runtime scripts to one release and prevents optional French shards from blocking core updates.")
+print("PASS: DWSS 0.9.158 pins deferred runtime scripts to one release and refreshes edited French sentence pronunciations and word glosses.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
