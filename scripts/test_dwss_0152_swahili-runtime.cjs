@@ -20,9 +20,9 @@ const pronunciationSource = text('pronunciation-search.js');
 const hanziPinyinSource = text('hanzi-pinyin.js');
 const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.152'), 'website version must be 0.9.152');
-assert(app.includes("version:'0.9.152'"), 'app version must match');
-assert(sw.includes("const APP_VERSION = '0.9.152';"), 'Service Worker version must match');
+assert(version.includes('Version: 0.9.153'), 'website version must be 0.9.153');
+assert(app.includes("version:'0.9.153'"), 'app version must match');
+assert(sw.includes("const APP_VERSION = '0.9.153';"), 'Service Worker version must match');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_152'), 'automatic-update marker must match');
 assert((html.match(/pronunciation-query-editor\.js\?dwss-release=0\.9\.152/g) || []).length === 1,
   'query cleanup script must load exactly once');
@@ -31,8 +31,9 @@ assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.
   'normal boot order must include pinyin map and search engine before app.js');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'),
   'actual pronunciation renderer hook must be present');
-assert(extension.includes('setMainMode("sw");') && extension.includes('setQueryMode("sw");'),
-  'startup must normalize both modes to Swahili');
+assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
+       extension.includes('dwss:app-ready'),
+  'startup must reconcile both views after the asynchronous Swahili core is ready');
 
 // Search engine first, pinyin map second: this must never capture a permanently empty map.
 const late = { window: {} };
@@ -103,5 +104,5 @@ assert(queryResults.textContent.includes('明天') && queryResults.textContent.i
   'actual pronunciation lookup result list must show 明天 / 该小');
 
 win.close();
-console.log('PASS DWSS 0.9.152: real dictionary -> Swahili result box -> reverse lookup result card.');
-console.log('PASS DWSS 0.9.152: late pinyin data cannot permanently disable reverse lookup.');
+console.log('PASS DWSS 0.9.153: real dictionary -> Swahili result box -> reverse lookup result card.');
+console.log('PASS DWSS 0.9.153: late pinyin data cannot permanently disable reverse lookup.');
