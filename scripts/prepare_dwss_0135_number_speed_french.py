@@ -486,7 +486,7 @@ for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.j
 # one weak-network failure must never prevent the new Swahili core from activating.
 helper_start = sw.find("async function precacheFrenchShardFamilies(cache) {")
 if helper_start >= 0:
-    helper_end = sw.find("\\nself.addEventListener('install', (event) => {", helper_start)
+    helper_end = sw.find("\nself.addEventListener('install', (event) => {", helper_start)
     if helper_end < 0:
         fail("Could not isolate the blocking French shard precache helper.")
     sw = sw[:helper_start] + sw[helper_end + 1:]
@@ -502,19 +502,19 @@ if "frenchOfflineShardCount" in sw:
             break
     if not removed_call:
         fail("Could not remove the blocking French shard downloads from the install event.")
-    sw = "\\n".join(lines) + "\\n"
+    sw = "\n".join(lines) + "\n"
 if "activeCache.match(request, { ignoreSearch: true })" not in sw:
     old_cache_lookup = "const cached = await caches.match(request);"
     if sw.count(old_cache_lookup) != 1:
         fail("Cannot locate Service Worker cache lookup for versioned static assets.")
     sw = sw.replace(old_cache_lookup,
-        "const activeCache = await caches.open(CACHE_NAME);\\n    const cached = await activeCache.match(request, { ignoreSearch: true });", 1)
+        "const activeCache = await caches.open(CACHE_NAME);\n    const cached = await activeCache.match(request, { ignoreSearch: true });", 1)
 if "const canonicalUrl = new URL(request.url);" not in sw:
     old_cache_write = "cache.put(request, fresh.clone()).catch(() => {});"
     if sw.count(old_cache_write) != 1:
         fail("Cannot locate Service Worker cache write for canonical asset keys.")
     sw = sw.replace(old_cache_write,
-        "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
+        "const canonicalUrl = new URL(request.url); canonicalUrl.search = ''; canonicalUrl.hash = '';\n        cache.put(canonicalUrl.href, fresh.clone()).catch(() => {});", 1)
 if "precacheFrenchShardFamilies" in sw or "frenchOfflineShardCount" in sw:
     fail("Optional French shard downloads are still blocking Service Worker installation.")
 if "activeCache.match(request, { ignoreSearch: true })" not in sw:
