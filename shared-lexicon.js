@@ -129,6 +129,15 @@ async function queueCanonicalEntry(entry, personalEntryId) {
   const normalized = normalizeCanonicalChinese(chinese);
   if (!chinese || !normalized) throw new Error("中文词条不能为空。");
   const payload = Object.assign({}, entry, { source_language: source, chinese_text: chinese, client_submit_id: uid(), __canonical: true });
+  // Keep both language schemas explicit and mutually exclusive in the local queue,
+  // matching the canonical database contract and preventing stale cross-language data.
+  if (source === "fr") {
+    payload.local_text = null;
+    payload.local_pronunciation_cn = null;
+  } else {
+    payload.french_text = null;
+    payload.french_pronunciation_cn = null;
+  }
   if (personalEntryId) payload.__personal_entry_id = personalEntryId;
   const key = canonicalTermKey(payload);
   const wasKnown = canonicalTerms.some(item => canonicalTermKey(item) === key) || terms.some(item => canonicalTermKey(item) === key);
