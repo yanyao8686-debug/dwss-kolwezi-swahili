@@ -24,7 +24,7 @@ const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf
 assert(version.includes('Version: 0.9.155'), 'website version must be 0.9.155');
 assert(app.includes("version:'0.9.155'"), 'app version must match');
 assert(sw.includes("const APP_VERSION = '0.9.155';"), 'Service Worker version must match');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_154'), 'automatic-update marker must match');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker must match');
 assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.155').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
@@ -34,7 +34,7 @@ for (const name of ['french-extension.js','french-translation-runtime.js']) {
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
        boot.indexOf('./pronunciation-search.js') < boot.indexOf('./app.js'),
   'normal boot order must load pinyin and search before the app');
-assert((app.match(/window\\.DWSSRenderTranslation = \\(\\) => renderTranslation\\(\\{recordHistory:false\\}\\);/g) || []).length === 1,
+assert((app.match(/window\.DWSSRenderTranslation = \(\) => renderTranslation\(\{recordHistory:false\}\);/g) || []).length === 1,
   'main translation renderer hook must be exported exactly once');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'),
   'actual pronunciation renderer hook must be present');
