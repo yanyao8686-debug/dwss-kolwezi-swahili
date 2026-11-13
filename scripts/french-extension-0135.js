@@ -1185,28 +1185,6 @@
   }
 
   function restoreSelectedModesAfterCoreReady() {
-    // boot.js loads the compressed Swahili dictionary and app.js asynchronously.
-    // The deferred French extension can bind before the Swahili renderer exists.
-    // Re-apply the selected modes after app.js has defined the real renderers.
-    if (!window.KolweziSwahili ||
-        typeof window.DWSSRenderTranslation !== "function" ||
-        typeof window.DWSSRenderPronunciationLookup !== "function") return false;
-
-    setMainMode(activeMainMode);
-    setQueryMode(activeQueryMode);
-
-    const input = $("inputText");
-    if (activeMainMode === "sw" && input && String(input.value || "").trim()) {
-      window.DWSSRenderTranslation();
-    }
-    const query = $("pronunciationSearch");
-    if (activeQueryMode === "sw" && query && String(query.value || "").trim()) {
-      window.DWSSRenderPronunciationLookup();
-    }
-    return true;
-  }
-
-  function restoreSelectedModesAfterCoreReady() {
     // boot.js asynchronously decompresses the Swahili dictionary and injects
     // app.js after parser-deferred scripts have already executed. The extension
     // must reconcile both views only after the real core renderers are available.
