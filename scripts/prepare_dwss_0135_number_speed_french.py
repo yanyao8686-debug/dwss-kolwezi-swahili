@@ -562,6 +562,11 @@ def replace_app_fragment(source, old, new, label):
         return source.replace(old, new, 1)
     if old_count == 0 and new_count == 1:
         return source
+    if label == "prefer personal then canonical Swahili entries over old overrides and built-ins":
+        print("DEBUG canonical Swahili resolver context:")
+        for needle in ("publicOverride", "pronunciation-variant", "function localOrigin", "origin:'override'"):
+            pos = source.find(needle)
+            print("DEBUG needle", needle, "pos", pos, "context", repr(source[max(0, pos-700):pos+1300] if pos >= 0 else "not found"))
     fail("Could not apply Swahili/French separation patch: " + label)
 
 def remove_french_fallback(source):
