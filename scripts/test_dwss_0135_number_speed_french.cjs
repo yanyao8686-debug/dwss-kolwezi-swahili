@@ -17,7 +17,7 @@ const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const queryEditor = read('pronunciation-query-editor.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.154 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.155 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -105,15 +105,15 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.154'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.154'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.154';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_154'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.154'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.155'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.155'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.155';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.155'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.154'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.155'),
   'inline pronunciation query editor is not loaded');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.154').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.155').length - 1 === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
@@ -125,9 +125,11 @@ assert(app.includes('scheduleDwssLiveTranslation(420)'), 'normal Swahili live-tr
 assert(runtime.includes('scheduleCompositionFallback') && runtime.includes('compositionFallbackTimer'),
   'French IME composition fallback is missing');
 assert(queryEditor.includes('DWSSPronunciationQueryReadOnly') &&
-       queryEditor.includes('.pronunciation-maintenance-entry') &&
+       !queryEditor.includes('.pronunciation-maintenance-entry') &&
        queryEditor.includes('.dwss-query-inline-tools'),
   'read-only pronunciation query cleanup is missing');
+assert(byId('openPublicPronunciationEditor').length === 1,
+  'main dictionary maintenance entry must remain in the production HTML');
 for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
   assert(!queryEditor.includes(forbidden), 'pronunciation lookup must not expose correction controls: ' + forbidden);
 }
@@ -163,8 +165,8 @@ assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
        extension.includes('setMainMode(activeMainMode);') &&
        extension.includes('setQueryMode(activeQueryMode);'),
   'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
-assert(html.includes('french-extension.js?dwss-release=0.9.154') &&
-       html.includes('french-translation-runtime.js?dwss-release=0.9.154'),
+assert(html.includes('french-extension.js?dwss-release=0.9.155') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.155'),
   'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
@@ -555,4 +557,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.154: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');
+console.log('PASS DWSS 0.9.155: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');

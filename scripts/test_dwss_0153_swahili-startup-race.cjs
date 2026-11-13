@@ -13,6 +13,7 @@ const text = name => read(name).toString('utf8');
 const html = text('index.html');
 const app = text('app.js');
 const extension = text('french-extension.js');
+const queryEditor = text('pronunciation-query-editor.js');
 const sw = text('sw.js');
 const version = text('VERSION.txt');
 const boot = text('boot.js');
@@ -20,16 +21,16 @@ const pinyin = text('hanzi-pinyin.js');
 const pronunciation = text('pronunciation-search.js');
 const dictionary = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.154'), 'website version must be 0.9.154');
-assert(app.includes("version:'0.9.154'"), 'app version must be 0.9.154');
-assert(sw.includes("const APP_VERSION = '0.9.154';"), 'Service Worker cache must be 0.9.154');
+assert(version.includes('Version: 0.9.155'), 'website version must be 0.9.155');
+assert(app.includes("version:'0.9.155'"), 'app version must be 0.9.155');
+assert(sw.includes("const APP_VERSION = '0.9.155';"), 'Service Worker cache must be 0.9.155');
 assert(!sw.includes('precacheFrenchShardFamilies') && !sw.includes('frenchOfflineShardCount'),
   'optional French shards must not block Service Worker activation');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_154'), 'automatic-update marker must be 0.9.154');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker must be 0.9.155');
 for (const script of ['supabase.min.js','shared-lexicon.js','boot.js',
   'french-extension.js','french-translation-runtime.js','pronunciation-query-editor.js']) {
-  assert(html.includes(script + '?dwss-release=0.9.154'),
-    'deferred runtime script must be cache-pinned to 0.9.154: ' + script);
+  assert(html.includes(script + '?dwss-release=0.9.155'),
+    'deferred runtime script must be cache-pinned to 0.9.155: ' + script);
 }
 assert(extension.includes('dwss:app-ready') &&
        extension.includes('restoreSelectedModesAfterCoreReady'),
@@ -71,9 +72,16 @@ queryInput.value = '给晓';
 // The deferred extension binds first and makes the initial UI selection, but it
 // must not assume the dictionary/app is ready at this point.
 win.eval(extension);
+win.eval(queryEditor); // production deferred query cleanup must not delete required main-app controls
+assert(win.document.getElementById('openPublicPronunciationEditor'),
+  'read-only pronunciation cleanup must preserve the main-page dictionary maintenance button');
+assert.equal((extension.match(/function restoreSelectedModesAfterCoreReady\(\)/g) || []).length, 1,
+  'there must be exactly one Swahili startup reconciliation function');
 if (win.document.readyState === 'loading') {
   win.document.dispatchEvent(new win.Event('DOMContentLoaded', {bubbles:true}));
 }
+assert(win.document.getElementById('openPublicPronunciationEditor'),
+  'read-only query cleanup must preserve the main dictionary-maintenance button after DOMContentLoaded');
 assert(!win.KolweziSwahili && typeof win.DWSSRenderTranslation !== 'function',
   'test must exercise the real pre-core startup window');
 assert(swMain.classList.contains('active') && !frMain.classList.contains('active'),
@@ -118,6 +126,6 @@ assert(lateHits.some(hit => hit.zh === '明天' && hit.score >= 0.90),
   'late pinyin map must still enable reverse pronunciation search');
 
 win.close();
-console.log('PASS DWSS 0.9.154: actual production load order (French extension first, async Swahili core second) automatically restores the main homophone result and reverse lookup.');
-console.log('PASS DWSS 0.9.154: release-pinned deferred scripts prevent stale mixed runtime assets.');
-console.log('PASS DWSS 0.9.154: late pinyin-map loading remains safe.');
+console.log('PASS DWSS 0.9.155: actual production load order (French extension first, async Swahili core second) automatically restores the main homophone result and reverse lookup.');
+console.log('PASS DWSS 0.9.155: release-pinned deferred scripts prevent stale mixed runtime assets.');
+console.log('PASS DWSS 0.9.155: late pinyin-map loading remains safe.');

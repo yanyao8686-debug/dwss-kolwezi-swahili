@@ -23,7 +23,6 @@
     "#pronunciationFrenchResults .pronunciation-hit-meaning{display:block!important;margin:5px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--muted,#738195)!important;font-size:13px!important;font-weight:600!important;line-height:1.55!important}",
     "#pronunciationFrenchResults .pronunciation-hit-meaning strong{color:var(--muted,#738195)!important;font-weight:600!important}",
     "#pronunciationResults .dwss-query-inline-tools,#pronunciationResults .dwss-query-inline-editor,#pronunciationResults .dwss-query-edit-toggle,#pronunciationFrenchResults .dwss-query-inline-tools,#pronunciationFrenchResults .dwss-query-inline-editor,#pronunciationFrenchResults .dwss-query-edit-toggle{display:none!important}",
-    "#pronunciation .pronunciation-maintenance-entry{display:none!important}"
   ].join("\n");
 
   function stripEditingControls(root) {
@@ -38,9 +37,6 @@
     if (document.head && !document.getElementById(STYLE_ID)) {
       document.head.appendChild(style);
     }
-    const maintenance = document.querySelector("#pronunciation .pronunciation-maintenance-entry");
-    if (maintenance) maintenance.remove();
-
     const roots = [
       document.getElementById("pronunciationResults"),
       document.getElementById("pronunciationFrenchResults")

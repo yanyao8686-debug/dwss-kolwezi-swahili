@@ -13,6 +13,7 @@ const text = name => read(name).toString('utf8');
 const html = text('index.html');
 const app = text('app.js');
 const extension = text('french-extension.js');
+const queryEditor = text('pronunciation-query-editor.js');
 const sw = text('sw.js');
 const version = text('VERSION.txt');
 const boot = text('boot.js');
@@ -20,19 +21,21 @@ const pronunciationSource = text('pronunciation-search.js');
 const hanziPinyinSource = text('hanzi-pinyin.js');
 const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.154'), 'website version must be 0.9.154');
-assert(app.includes("version:'0.9.154'"), 'app version must match');
-assert(sw.includes("const APP_VERSION = '0.9.154';"), 'Service Worker version must match');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_154'), 'automatic-update marker must match');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.154').length - 1 === 1,
+assert(version.includes('Version: 0.9.155'), 'website version must be 0.9.155');
+assert(app.includes("version:'0.9.155'"), 'app version must match');
+assert(sw.includes("const APP_VERSION = '0.9.155';"), 'Service Worker version must match');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_155'), 'automatic-update marker must match');
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.155').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
-  assert(html.split(name + '?dwss-release=0.9.154').length - 1 === 1,
+  assert(html.split(name + '?dwss-release=0.9.155').length - 1 === 1,
     name + ' must be pinned to the current release');
 }
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
        boot.indexOf('./pronunciation-search.js') < boot.indexOf('./app.js'),
   'normal boot order must load pinyin and search before the app');
+assert((app.match(/window\.DWSSRenderTranslation = \(\) => renderTranslation\(\{recordHistory:false\}\);/g) || []).length === 1,
+  'main translation renderer hook must be exported exactly once');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'),
   'actual pronunciation renderer hook must be present');
 assert(extension.includes('function restoreSelectedModesAfterCoreReady()') &&
@@ -85,9 +88,16 @@ frenchQueryButton.classList.add('active');
 // This must execute before app.js. bind() initially cannot render because the app
 // API does not exist yet; it must wait for the app-ready signal and then recover.
 win.eval(extension);
+win.eval(queryEditor); // production deferred query cleanup must not delete required main-app controls
+assert(win.document.getElementById('openPublicPronunciationEditor'),
+  'read-only pronunciation cleanup must preserve the main-page dictionary maintenance button');
+assert.equal((extension.match(/function restoreSelectedModesAfterCoreReady\(\)/g) || []).length, 1,
+  'there must be exactly one Swahili startup reconciliation function');
 if (win.document.readyState === 'loading') {
   win.document.dispatchEvent(new win.Event('DOMContentLoaded', {bubbles:true}));
 }
+assert(win.document.getElementById('openPublicPronunciationEditor'),
+  'read-only query cleanup must preserve the main dictionary-maintenance button after DOMContentLoaded');
 assert.equal(typeof win.DWSSRenderTranslation, 'undefined',
   'renderer must not exist before the asynchronous core starts');
 
@@ -110,5 +120,5 @@ assert(queryResults.textContent.includes('明天') && queryResults.textContent.i
   'app-ready event must automatically restore real Swahili reverse-lookup results');
 
 win.close();
-console.log('PASS DWSS 0.9.154: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
-console.log('PASS DWSS 0.9.154: late pinyin map loading cannot permanently disable reverse lookup.');
+console.log('PASS DWSS 0.9.155: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
+console.log('PASS DWSS 0.9.155: late pinyin map loading cannot permanently disable reverse lookup.');
