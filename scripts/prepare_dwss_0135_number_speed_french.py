@@ -848,12 +848,16 @@ pronunciation_search = (ROOT / "pronunciation-search.js").read_text(encoding="ut
 for required in ("function getPinyinMap()", "getPinyinMap()[character]", "DWSSPronunciationSearch"):
     if required not in pronunciation_search:
         fail("Swahili pronunciation engine is missing its late-pinyin safety contract: " + required)
-for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".pronunciation-maintenance-entry", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults",
+for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults",
                  "#pronunciationResults .pronunciation-hit-reading", "#pronunciationResults .pronunciation-hit-match",
                  "#pronunciationResults .pronunciation-hit-meta", "#pronunciationFrenchResults .pronunciation-hit-reading",
                  "#pronunciationFrenchResults .pronunciation-hit-meta", "display:block!important;visibility:visible!important"):
     if required not in query_editor:
         fail("Read-only pronunciation query asset is missing: " + required)
+if ".pronunciation-maintenance-entry" in query_editor or "maintenance.remove()" in query_editor:
+    fail("Read-only pronunciation query must preserve the main dictionary-maintenance entry.")
+if 'id="openPublicPronunciationEditor"' not in html:
+    fail("Main dictionary-maintenance entry required by the Swahili core is missing from the page.")
 if ".pronunciation-hit-actions" in query_editor:
     fail("Read-only pronunciation query must retain the copy action.")
 for forbidden in ("DWSSDictionaryOverrides", "submitFrenchPronunciationCorrection", "修改结果", "保存并同步给所有用户"):
