@@ -734,28 +734,55 @@ app = replace_app_fragment(
     "origin:c.__canonical?'canonical':'shared'\n  });",
     "mark shared canonical rows"
 )
-app = replace_app_fragment(
-    app,
-    """ const verified=(item&&Array.isArray(item.variants)?item.variants:[])
-  .filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
- if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim()){
-  const base=(item.variants||[]).find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
-  return [{reading:String(item.publicOverride.local_pronunciation_cn).trim(),latin:base?base.latin||'':'',source:'公共词库修订',kind:'公共修订',origin:'override'},...verified];
- }
- const rank={personal:0,shared:1,builtin:2,'pronunciation-variant':3};""",
-    """ const verified=(item&&Array.isArray(item.variants)?item.variants:[])
-  .filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
- const personal=(item&&Array.isArray(item.variants)?item.variants:[]).filter(v=>v.origin==='personal'&&(v.reading||v.latin));
- const canonical=(item&&Array.isArray(item.variants)?item.variants:[]).filter(v=>v.origin==='canonical'&&(v.reading||v.latin));
+# The actual production app assembles pronunciation rows using these functions.
+# Replace the whole functions so preference is explicit and independent of minified line layout.
+preferred_start = app.find("function preferredLocalVariants(item){")
+preferred_end = app.find("\nfunction pronunciationLookupVariants(item){", preferred_start)
+if preferred_start < 0 or preferred_end < 0:
+    fail("Cannot locate the production preferred Swahili pronunciation resolver.")
+preferred_function = r"""function preferredLocalVariants(item){
+ const variants=(item&&Array.isArray(item.variants)?item.variants:[]);
+ const usable=v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||'');
+ const verified=variants.filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
+ const personal=variants.filter(v=>v.origin==='personal'&&usable(v));
+ const canonical=variants.filter(v=>v.origin==='canonical'&&usable(v));
  if(personal.length)return personal.concat(canonical,verified);
  if(canonical.length)return canonical.concat(verified);
  if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim()){
-  const base=(item.variants||[]).find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
+  const base=variants.find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||''));
   return [{reading:String(item.publicOverride.local_pronunciation_cn).trim(),latin:base?base.latin||'':'',source:'公共词库修订',kind:'公共修订',origin:'override'},...verified];
  }
- const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};""",
-    "prefer personal then canonical Swahili entries over old overrides and built-ins"
-)
+ const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};
+ const ordered=variants.filter(v=>usable(v)&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
+  .map((v,index)=>({v,index}))
+  .sort((a,b)=>(rank[a.v.origin]??5)-(rank[b.v.origin]??5)||a.index-b.index)
+  .map(x=>x.v);
+ const seen=new Set();
+ return ordered.filter(v=>{
+  const key=v.reading?'r:'+norm(v.reading):'l:'+norm(v.latin||'');
+  if(seen.has(key))return false;seen.add(key);return true;
+ });
+}"""
+app = app[:preferred_start] + preferred_function + app[preferred_end:]
+origin_start = app.find("function localOrigin(item){")
+origin_end = app.find("\nfunction normalizedInputSpan(", origin_start)
+if origin_start < 0 or origin_end < 0:
+    fail("Cannot locate the production Swahili pronunciation-origin resolver.")
+origin_function = r"""function localOrigin(item){
+ const variants=(item&&Array.isArray(item.variants)?item.variants:[]);
+ const usable=v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\s*法\s*[)）]/.test(v.reading||'');
+ for(const origin of ['personal','canonical']){
+  if(variants.some(v=>v.origin===origin&&usable(v)))return origin;
+ }
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
+ for(const origin of ['shared','builtin','pronunciation-variant']){
+  if(variants.some(v=>v.origin===origin&&usable(v)&&
+    (origin!=='pronunciation-variant'||['confirmed','common'].includes(v.variantStatus))))return origin;
+ }
+ return null;
+}"""
+app = app[:origin_start] + origin_function + app[origin_end:]
+
 app = replace_app_fragment(
     app,
     """function localOrigin(item){
