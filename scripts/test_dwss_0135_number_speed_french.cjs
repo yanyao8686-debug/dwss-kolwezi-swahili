@@ -21,7 +21,7 @@ assert(runtime.includes('async function refreshAfterSharedCorrection()'),
 assert(extension.includes('machine.refreshAfterSharedCorrection()'),
   'shared-term updates must invoke the forced French refresh');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.159 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.160 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -110,15 +110,15 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.159'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.159'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.159';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_157'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.159'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.160'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.160'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.160';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_160'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.160'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.159'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.160'),
   'inline pronunciation query editor is not loaded');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.159').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.160').length - 1 === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
