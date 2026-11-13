@@ -618,6 +618,30 @@ app = replace_app_fragment(
     "id:t.id||t.client_submit_id||'',\n  __canonical:!!t.__canonical\n })).filter",
     "pass canonical marker into translation dictionary"
 );
+app = replace_app_fragment(
+    app,
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "source:c.__canonical?'云端共享首选词条':'云端共享词库', kind:c.__canonical?'云端首选':'云端共享', note:c.note||'', sharedId:c.id||c.client_submit_id||'', origin:c.__canonical?'canonical':'shared'",
+    "preserve canonical source marker"
+);
+app = replace_app_fragment(
+    app,
+    "source:c.source||'云端共享',kind:'云端共享',note:c.note||'',origin:'shared'",
+    "source:c.source||'云端共享',kind:c.__canonical?'云端首选':'云端共享',note:c.note||'',origin:c.__canonical?'canonical':'shared'",
+    "mark French canonical pronunciation headwords"
+);
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2},rows=(item.variants||[]).map((v,i)=>{",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3},rows=(item.variants||[]).map((v,i)=>{",
+    "rank canonical French headword"
+);
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2};\n for(const entry of keys){",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
+    "rank canonical French reverse-lookup results"
+);
 
 
 app = replace_app_fragment(
