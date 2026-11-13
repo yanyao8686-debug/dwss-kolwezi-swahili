@@ -81,6 +81,8 @@ if (win.document.readyState === 'loading') {
   win.document.dispatchEvent(new win.Event('DOMContentLoaded', {bubbles:true}));
 }
 assert(!win.KolweziSwahili && typeof win.DWSSRenderTranslation !== 'function',
+assert(win.document.getElementById('openPublicPronunciationEditor'),
+  'read-only query cleanup must preserve the main dictionary-maintenance button after DOMContentLoaded');
   'test must exercise the real pre-core startup window');
 assert(swMain.classList.contains('active') && !frMain.classList.contains('active'),
   'main mode must initially display Swahili');
