@@ -636,6 +636,72 @@ app = replace_app_fragment(
     "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
     "rank canonical French reverse-lookup results"
 );
+# Canonical shared entries are the preferred dictionary headword for both languages.
+app = replace_app_fragment(
+    app,
+    "  id:t.id||t.client_submit_id||''\n })).filter",
+    "  id:t.id||t.client_submit_id||'',\n  __canonical:!!t.__canonical\n })).filter",
+    "carry canonical marker from shared cache into translation dictionary"
+)
+app = replace_app_fragment(
+    app,
+    "origin:'shared'\n  });",
+    "origin:c.__canonical?'canonical':'shared'\n  });",
+    "mark shared canonical rows"
+)
+app = replace_app_fragment(
+    app,
+    """ const verified=(item&&Array.isArray(item.variants)?item.variants:[])
+  .filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim()){
+  const base=(item.variants||[]).find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
+  return [{reading:String(item.publicOverride.local_pronunciation_cn).trim(),latin:base?base.latin||'':'',source:'公共词库修订',kind:'公共修订',origin:'override'},...verified];
+ }
+ const rank={personal:0,shared:1,builtin:2,'pronunciation-variant':3};""",
+    """ const verified=(item&&Array.isArray(item.variants)?item.variants:[])
+  .filter(v=>v.origin==='pronunciation-variant'&&['confirmed','common'].includes(v.variantStatus)&&String(v.reading||'').trim());
+ const personal=(item&&Array.isArray(item.variants)?item.variants:[]).filter(v=>v.origin==='personal'&&(v.reading||v.latin));
+ const canonical=(item&&Array.isArray(item.variants)?item.variants:[]).filter(v=>v.origin==='canonical'&&(v.reading||v.latin));
+ if(personal.length)return personal.concat(canonical,verified);
+ if(canonical.length)return canonical.concat(verified);
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim()){
+  const base=(item.variants||[]).find(v=>String(v.latin||'').trim()&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
+  return [{reading:String(item.publicOverride.local_pronunciation_cn).trim(),latin:base?base.latin||'':'',source:'公共词库修订',kind:'公共修订',origin:'override'},...verified];
+ }
+ const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};""",
+    "prefer personal then canonical Swahili entries over old overrides and built-ins"
+)
+app = replace_app_fragment(
+    app,
+    """function localOrigin(item){
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
+ for(const origin of ['override','personal','shared','builtin','pronunciation-variant']){""",
+    """function localOrigin(item){
+ for(const origin of ['personal','canonical']){
+  if((item.variants||[]).some(v=>v.origin===origin&&(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')))return origin;
+ }
+ if(item&&item.publicOverride&&String(item.publicOverride.local_pronunciation_cn||'').trim())return 'override';
+ for(const origin of ['shared','builtin','pronunciation-variant']){""",
+    "canonical Swahili headword beats previous override"
+)
+app = replace_app_fragment(
+    app,
+    "const ranks={override:-1,personal:0,shared:1,builtin:2,'pronunciation-variant':3};",
+    "const ranks={personal:-2,canonical:-1,override:0,shared:1,builtin:2,'pronunciation-variant':3};",
+    "rank canonical Swahili lookup"
+)
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2},rows=(item.variants||[]).map((v,i)=>{",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3},rows=(item.variants||[]).map((v,i)=>{",
+    "rank canonical French pronunciation"
+)
+app = replace_app_fragment(
+    app,
+    "const rank={personal:0,shared:1,builtin:2};\n for(const entry of keys){",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
+    "rank canonical French reverse pronunciation lookup"
+);
 
 
 app = replace_app_fragment(
