@@ -577,12 +577,17 @@ if "async function precacheFrenchShardFamilies(cache)" not in sw or "activeCache
 
 # In French mode, stop the Swahili renderer from overwriting the French result
 # and French single-word gloss after each input event. Preserve local history on blur.
-render_guard = "const activeResultCard=document.getElementById('resultCard');if(activeResultCard&&activeResultCard.dataset.dwssLang==='fr'){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}"
+old_render_guard = "const activeResultCard=document.getElementById('resultCard');if(activeResultCard&&activeResultCard.dataset.dwssLang==='fr'){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}"
+render_guard = "const activeResultCard=document.getElementById('resultCard');if(activeResultCard&&activeResultCard.dataset.dwssLang==='fr'){if(options.recordHistory===true){const currentDraft=document.getElementById('inputText');if(currentDraft)saveRecent(currentDraft.value);}return;}const activeFrenchButton=document.getElementById('dwssMainFrMode');const activeSwahiliButton=document.getElementById('dwssMainSwMode');if(activeFrenchButton){activeFrenchButton.classList.remove('active');activeFrenchButton.setAttribute('aria-pressed','false');}if(activeSwahiliButton){activeSwahiliButton.classList.add('active');activeSwahiliButton.setAttribute('aria-pressed','true');}"
 render_anchor = "function renderTranslation(options={}){"
-if render_guard not in app:
+if old_render_guard in app:
+    app = app.replace(old_render_guard, render_guard, 1)
+elif render_guard not in app:
     if app.count(render_anchor) != 1:
         fail("Cannot locate the single main translation renderer for the French-mode guard.")
     app = app.replace(render_anchor, render_anchor + "\n " + render_guard, 1)
+if app.count(render_guard) != 1:
+    fail("The Swahili renderer must normalize stale French button state exactly once.")
 
 # Keep the Swahili tokenizer strictly Swahili-only. French pronunciation lookup
 # remains available in its own French mode, but is not an acceptable Swahili fallback.
