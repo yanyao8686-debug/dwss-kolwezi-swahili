@@ -6,6 +6,12 @@ const root = path.resolve(process.env.DWSS_PUBLIC_DIR || 'public');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 function assert(ok, message) { if (!ok) throw new Error(message); }
 
+const upsertEdgeSource = fs.readFileSync(path.resolve('supabase/functions/dwss-upsert-dictionary-entry/index.ts'), 'utf8');
+for (const origin of ['https://yanyao8686-debug.github.io', 'https://localhost', 'http://localhost', 'capacitor://localhost']) {
+  assert(upsertEdgeSource.includes('"' + origin + '"'),
+    'canonical dictionary upsert must allow the app origin for cross-device sync: ' + origin);
+}
+
 const source = read('shared-lexicon.js');
 for (const token of [
   'shared_dictionary_entries',
