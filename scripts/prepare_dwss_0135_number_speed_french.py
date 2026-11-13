@@ -777,6 +777,13 @@ query_editor_tag = re.compile(
     re.IGNORECASE
 )
 html, removed_query_editor_tags = query_editor_tag.subn("", html)
+# The live 0.9.150 page already contains this fallback. Remove every older copy
+# before inserting the canonical 0.9.151 script, so repeated builds stay idempotent.
+ime_fallback_tag = re.compile(
+    r'<script\b(?=[^>]*\bid=["\']dwss-input-ime-fallback-0150["\'])[^>]*>[\s\S]*?</script>',
+    re.IGNORECASE
+)
+html, removed_ime_fallback_tags = ime_fallback_tag.subn("", html)
 if "</body>" not in html:
     fail("Cannot locate </body> to load the pronunciation query editor.")
 html = html.replace("</body>", query_editor_script + "\n" + inline_fallback_script + "\n</body>", 1)
