@@ -470,6 +470,7 @@
   }
   window.DWSSFrenchTools = Object.freeze({
     ipaToChinese, normalizeChinese, translateChinese, translateOfflineChinese, prepareOfflineChinese,
+    buildMeaningIndex: createMeaningIndex,
     getWordChineseReading, tokenizeFrenchPhrase, buildFrenchWordReadingLookup,
     buildFrenchWordPairs, getPhraseWordPairs, numberToFrench, isNumericExpression, expandFrenchNumerals,
     renderSingleGloss: renderFrenchSingleGloss, replaceFrenchPhraseWords
@@ -544,7 +545,9 @@
         const key = normalizeChinese(meaning);
         if (!key) continue;
         if (!map.has(key)) map.set(key, []);
-        map.get(key).unshift(item);
+        // activeRows() is already ordered with pending edits first and the
+        // newest published correction first; preserve that priority here.
+        map.get(key).push(item);
       }
     }
     for (const row of meaningRows) {
