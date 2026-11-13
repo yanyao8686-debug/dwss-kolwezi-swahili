@@ -332,6 +332,70 @@ async function submitPersonalTerm(entry) {
     personalSyncing.delete(entry.id);
   }
 }
+async function submitFrenchGlossCorrection(entry) {
+  const chinese = String(entry && entry.chinese_text || "").trim();
+  const french = String(entry && entry.french_text || "").trim();
+  const reading = String(entry && entry.french_pronunciation_cn || "").trim();
+  if (!chinese || chinese.length > 500) throw new Error("中文释义不能为空，且最多 500 个字符。");
+  if (!french || french.length > 100 || /[\r\n]/.test(french)) throw new Error("法语单词不能为空，且最多 100 个字符。");
+  if (reading.length > 500) throw new Error("法语中文谐音最多 500 个字符。");
+
+  const sameSource = item =>
+    item && item.source_language === "fr" &&
+    normalizeSharedText(item.french_text) === normalizeSharedText(french) &&
+    normalizeSharedText(item.chinese_text) === normalizeSharedText(chinese);
+  const same = item => sameSource(item) &&
+    normalizeSharedText(item.french_pronunciation_cn) === normalizeSharedText(reading);
+  const cloudMatch = terms.find(same);
+  const queuedMatches = queue.filter(sameSource);
+  if (cloudMatch) {
+    if (queuedMatches.length) {
+      const ids = new Set(queuedMatches.map(item => item.client_submit_id));
+      queue = queue.filter(item => !ids.has(item.client_submit_id));
+      save(QUEUE_KEY, queue);
+      render(); count(); notifyApp();
+    }
+    return { synced: true, existing: true };
+  }
+
+  const prior = queuedMatches[0] || null;
+  const payload = {
+    client_submit_id: String(prior && prior.client_submit_id || uid()),
+    chinese_text: chinese,
+    local_text: null,
+    local_pronunciation_cn: null,
+    french_text: french,
+    french_pronunciation_cn: reading || null,
+    source_language: "fr",
+    category: "法语单词释义修正",
+    notes: "用户修改单个法语单词的中文释义"
+  };
+  const duplicateIds = new Set(queuedMatches.map(item => item.client_submit_id));
+  queue = queue.filter(item => !duplicateIds.has(item.client_submit_id));
+  queue.unshift(payload);
+  save(QUEUE_KEY, queue);
+  const persisted = readArray(QUEUE_KEY);
+  if (!persisted.some(item => item && item.client_submit_id === payload.client_submit_id &&
+      item.french_text === french && item.chinese_text === chinese)) {
+    queue = persisted;
+    throw new Error("设备没有成功写入本机待同步记录，请检查浏览器存储空间后重试。");
+  }
+  render(); count(); notifyApp();
+
+  if (!navigator.onLine) {
+    setStatus("法语单词释义已保存到本机；联网后自动同步所有用户。", "offline");
+    return { synced: false, queued: true, replaced: !!prior };
+  }
+  try {
+    const client = await getClient();
+    await flushQueue(client);
+    const stillQueued = queue.some(q => q.client_submit_id === payload.client_submit_id);
+    return { synced: !stillQueued, queued: stillQueued, replaced: !!prior };
+  } catch (error) {
+    setStatus("法语单词释义已保存在本机；云端暂时未连接，联网后自动补传。", "offline");
+    return { synced: false, queued: true, replaced: !!prior, error: error && error.message || String(error) };
+  }
+}
 async function submitFrenchPronunciationCorrection(entry) {
   const chinese = String(entry && entry.chinese_text || "").trim();
   const french = String(entry && entry.french_text || "").trim();
@@ -371,8 +435,8 @@ async function submitFrenchPronunciationCorrection(entry) {
     french_text: french,
     french_pronunciation_cn: reading,
     source_language: "fr",
-    category: "法语发音修正",
-    notes: "用户修改法语中文谐音"
+    category: String(entry && entry.category || "法语发音修正").trim().slice(0, 80) || "法语发音修正",
+    notes: String(entry && entry.notes || "用户修改法语中文谐音").trim().slice(0, 500) || "用户修改法语中文谐音"
   };
   const duplicateIds = new Set(queuedMatches.map(item => item.client_submit_id));
   queue = queue.filter(item => !duplicateIds.has(item.client_submit_id));
@@ -489,6 +553,7 @@ window.DWSSSharedLexicon = Object.freeze({
   refresh: connectCloud,
   submitPersonalTerm,
   submitFrenchPronunciationCorrection,
+  submitFrenchGlossCorrection,
   get count() { return terms.length + queue.length; }
 });
 function start() {
