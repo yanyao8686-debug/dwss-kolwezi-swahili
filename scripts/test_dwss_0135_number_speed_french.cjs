@@ -237,7 +237,7 @@ assert(extension.includes('scheduleEditedFrenchPhraseRefresh') &&
        extension.includes('generated.wordReadings') &&
        extension.includes('refreshingEditedPhrase'),
   'editing a French headword must recalculate the full-sentence homophone and every word pronunciation before save');
-assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)'),
+assert(extension.includes('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords)'),
   'single-word gloss renderer must accept the original French sentence separately');
 assert(extension.includes('function getWordChineseReading(record)') &&
        extension.includes('getWordChineseReading(record)'),
@@ -277,7 +277,7 @@ assert(extension.includes('const candidates = rowsForShards(shardLines, 24000);'
 assert(!extension.includes('const DATA_URL =') && !extension.includes('firstRanges') &&
        !extension.includes('rowsForFirst'),
   'French pronunciation search must not fall back to the old monolithic loader');
-const frenchRendererStart = extension.indexOf('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings)');
+const frenchRendererStart = extension.indexOf('function renderFrenchSingleGloss(raw, frenchOriginal, enrichedWordReadings, meaningOverrides, editOriginalWords)');
 const frenchRendererEnd = extension.indexOf('function normalizeFrenchGlossKey(value)', frenchRendererStart);
 const frenchRenderer = extension.slice(frenchRendererStart, frenchRendererEnd);
 assert(frenchRenderer.includes('host.innerHTML = pairs.map((pair, index) =>'),
