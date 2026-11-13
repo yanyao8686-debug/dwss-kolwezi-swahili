@@ -556,7 +556,7 @@ sw = sw.replace(
     "await cache.addAll(PRECACHE_URLS);\n    const frenchOfflineShardCount = await precacheFrenchShardFamilies(cache);\n    if (frenchOfflineShardCount < 700) throw new Error('French offline shard cache is incomplete: ' + frenchOfflineShardCount);",
     1
 )
-if "cache.match(request, { ignoreSearch: true })" not in sw:
+if "activeCache.match(request, { ignoreSearch: true })" not in sw:
     old_cache_lookup = "const cached = await caches.match(request);"
     if sw.count(old_cache_lookup) != 1:
         fail("Cannot locate Service Worker cache lookup for versioned static assets.")
