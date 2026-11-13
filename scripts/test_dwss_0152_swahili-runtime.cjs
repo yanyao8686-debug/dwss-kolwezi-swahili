@@ -24,10 +24,10 @@ assert(version.includes('Version: 0.9.153'), 'website version must be 0.9.153');
 assert(app.includes("version:'0.9.153'"), 'app version must match');
 assert(sw.includes("const APP_VERSION = '0.9.153';"), 'Service Worker version must match');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_153'), 'automatic-update marker must match');
-assert((html.match(/pronunciation-query-editor\\.js\\?dwss-release=0\\.9\\.153/g) || []).length === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.153').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
-  assert((html.match(new RegExp(name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\?dwss-release=0\\\\.9\\\\.153','g')) || []).length === 1,
+  assert(html.split(name + '?dwss-release=0.9.153').length - 1 === 1,
     name + ' must be pinned to the current release');
 }
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
