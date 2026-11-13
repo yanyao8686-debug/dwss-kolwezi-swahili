@@ -104,7 +104,7 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   assert(source.includes('getElementById("pronunciationFrenchResults")'));
   assert(!source.includes('observer.observe(document.body'),
     'query cleanup must not observe the full application DOM');
-  console.log('PASS DWSS 0.9.158: pronunciation result editors are removed while the main dictionary-maintenance button remains intact.');
+  console.log('PASS DWSS 0.9.159: pronunciation result editors are removed while the main dictionary-maintenance button remains intact.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
