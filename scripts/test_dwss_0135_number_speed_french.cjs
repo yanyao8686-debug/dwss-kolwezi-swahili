@@ -17,7 +17,7 @@ const extension = read('french-extension.js');
 const shared = read('shared-lexicon.js');
 const queryEditor = read('pronunciation-query-editor.js');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.148 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.149 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -105,18 +105,21 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.148'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.148'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.148';"), 'Service Worker cache version mismatch');
+assert(version.includes('Version: 0.9.149'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.149'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.149';"), 'Service Worker cache version mismatch');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_148'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.148'), 'cache-busted page assets were not advanced');
+assert(html.includes('dwss-release=0.9.149'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.148'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.149'),
   'inline pronunciation query editor is not loaded');
-assert(queryEditor.includes('DWSSDictionaryOverrides') &&
-       queryEditor.includes('submitFrenchPronunciationCorrection') &&
-       queryEditor.includes('保存并同步给所有用户'),
-  'shared inline correction actions are missing');
+assert(queryEditor.includes('DWSSPronunciationQueryReadOnly') &&
+       queryEditor.includes('.pronunciation-maintenance-entry') &&
+       queryEditor.includes('.dwss-query-inline-tools'),
+  'read-only pronunciation query cleanup is missing');
+for (const forbidden of ['DWSSDictionaryOverrides','submitFrenchPronunciationCorrection','修改结果','保存并同步给所有用户']) {
+  assert(!queryEditor.includes(forbidden), 'pronunciation lookup must not expose correction controls: ' + forbidden);
+}
 assert(queryEditor.includes('#pronunciationResults .pronunciation-hit-actions') &&
        queryEditor.includes('#pronunciationFrenchResults .pronunciation-hit-actions'),
   'legacy copy buttons are not hidden in both query modes');
@@ -363,6 +366,11 @@ assert(extension.includes('输入听到却不懂意思的法语中文谐音时�
   'French pronunciation query instruction text is missing');
 assert(extension.includes('const results = searchFrenchCandidates(query, candidates, engine, 20);'),
   'French pronunciation input must use the tolerant French matcher, not the strict generic search');
+assert(extension.includes('function customQueryCandidates()') &&
+       extension.includes('return activeRows().map(item => ({') &&
+       extension.includes('candidates.push(...customQueryCandidates())') &&
+       extension.includes('item.source_language === "fr"'),
+  'French pronunciation lookup must merge base-index rows with saved local and shared corrections');
 
 const firstBuckets = frenchQueryTools.nearFirstKeys('bang', pronunciationEngine, ['bang','pang','mang','mao']);
 assert(firstBuckets.includes('bang') && firstBuckets.includes('pang'),
@@ -525,4 +533,4 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
          queue[0].french_pronunciation_cn === '邦茹' && queue[0].local_pronunciation_cn === null,
     'Offline French pronunciation must be queued in French-only fields');
 })().catch(error => { console.error(error); process.exitCode = 1; });
-console.log('PASS DWSS 0.9.148: French translation, language isolation, French correction queue and pronunciation query editor assets validated.');
+console.log('PASS DWSS 0.9.149: French translation, language isolation, shared corrections and read-only pronunciation lookup validated.');
