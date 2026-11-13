@@ -261,7 +261,7 @@ jobs:
           grep -Fq '输入听到却不懂意思的法语中文谐音时，即便是同音不同字的中文，系统也会自动查询近似的读音来匹配对应发音的法语' "$LIVE/french-extension.js"
           grep -Fq 'function formatCombinedResult(_french, reading)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'return String(reading || "").trim();' "$LIVE/french-translation-runtime.js"
-          grep -Fq 'const hasLatin = /\\p{Script=Latin}/u.test(candidate);' "$LIVE/french-translation-runtime.js"
+          grep -Fq 'const hasLatin = /\p{Script=Latin}/u.test(candidate);' "$LIVE/french-translation-runtime.js"
           grep -Fq 'function getReadingForFrenchDraft(french)' "$LIVE/french-translation-runtime.js"
           grep -Fq 'machine.getReadingForFrenchDraft(values.french)' "$LIVE/french-extension.js"
           grep -Fq 'values.outputFrenchDraft ||' "$LIVE/french-extension.js"
