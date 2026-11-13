@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.147 fast offline-aware French translation
+name: Deploy DWSS 0.9.148 fast offline-aware French translation
 
 on:
   push:
@@ -24,7 +24,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0140-editable-french-gloss
+  group: dwss-pages-deploy-0148-french-word-boxes
   cancel-in-progress: true
 
 jobs:
@@ -73,7 +73,7 @@ jobs:
         with:
           path: public
 
-      - name: Deploy DWSS 0.9.147
+      - name: Deploy DWSS 0.9.148
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euxo pipefail
           BASE='https://yanyao8686-debug.github.io/dwss-kolwezi-swahili'
-          LIVE="$RUNNER_TEMP/dwss-live-0140"
+          LIVE="$RUNNER_TEMP/dwss-live-0148"
           mkdir -p "$LIVE"
           for file in VERSION.txt app.js sw.js shared-lexicon.js french-extension.js french-translation-runtime.js cover.webp DWSS-Android-Installer.apk french-gloss-coverage.json french-CFDICT-ATTRIBUTION.txt pronunciation-query-editor.js french-wiktionary-coverage.json french-WIKTIONARY-ATTRIBUTION.txt french-pronunciation-index.json french-word-index.json; do
             curl -fsSL --retry 8 --retry-delay 3 --max-time 120 "$BASE/$file?verify=$GITHUB_SHA" -o "$LIVE/$file"
@@ -93,18 +93,23 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_147' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_148' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.147' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_147' "$LIVE/index.html"
-          grep -Fq "version:'0.9.147'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.147';" "$LIVE/sw.js"
+          grep -Fxq 'Version: 0.9.148' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_148' "$LIVE/index.html"
+          grep -Fq "version:'0.9.148'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.148';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
+          grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
+          grep -Fq 'background:#FFF9ED!important' "$LIVE/index.html"
+          grep -Fq 'size="' "$LIVE/french-extension.js"
+          grep -Fq 'id="dwssFrenchPronunciationSave"' "$LIVE/french-extension.js"
+          ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.147' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.148' "$LIVE/index.html"
           grep -Fq 'style.id = "dwss-pronunciation-query-editor-0144"' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSDictionaryOverrides' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'submitFrenchPronunciationCorrection' "$LIVE/pronunciation-query-editor.js"
@@ -291,4 +296,4 @@ jobs:
           echo "Live Android APK SHA-256: $APK_SHA"
           test "$COVER_SHA" = 'b6bce40baebb9b645e1d4ccac588e6c18291a0dca50fd8aa3aaca73fcb707a1a'
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
-          echo "PASS: live DWSS 0.9.147 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."
+          echo "PASS: live DWSS 0.9.148 has compact copy-free Swahili/French pronunciation results, inline language-isolated shared correction, and an audited French glossary with conservative CFDICT supplements; protected assets are verified."

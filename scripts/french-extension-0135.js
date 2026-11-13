@@ -413,7 +413,7 @@
         normalizeFrenchGlossKey(previous.originalWord) === normalizeFrenchGlossKey(token);
       const wordValue = keepPrevious ? previous.word : token;
       return '<div class="seg dwss-french-word-pair" data-word-index="' + index + '">' +
-        '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" ' +
+        '<div class="zh"><input class="dwss-french-word-edit dwss-french-word-original" type="text" maxlength="100" size="' + Math.max(5, Math.min(20, token.length + 2)) + '" ' +
         'data-original-word="' + esc(token) + '" value="' + esc(wordValue) + '" aria-label="法语单词' + (index + 1) + '" autocomplete="off"></div>' +
         '<div class="rd">法语：' +
         '<span class="dwss-french-word-pronunciation" aria-label="法语单词' + (index + 1) + '的中文谐音">' + esc(reading) + '</span></div>' +

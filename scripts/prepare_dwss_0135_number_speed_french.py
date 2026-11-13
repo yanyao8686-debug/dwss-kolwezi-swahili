@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DWSS 0.9.147: editable French word-by-word gloss with isolated language data."""
+"""DWSS 0.9.148: compact visible French word input boxes with one unified save action."""
 from __future__ import annotations
 
 import gzip
@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.146"
-NEW_VERSION = "0.9.147"
+OLD_VERSION = "0.9.147"
+NEW_VERSION = "0.9.148"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -51,7 +51,7 @@ def fetch_bytes(url: str, limit: int = 120 * 1024 * 1024) -> bytes:
     last = None
     for attempt in range(5):
         try:
-            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.147"})
+            req = Request(url, headers={"User-Agent": "DWSS-Release-Mirror/0.9.148"})
             with urlopen(req, timeout=120) as response:
                 data = response.read(limit + 1)
             if not data or len(data) > limit:
@@ -311,7 +311,7 @@ glossed_before = pronunciation_word_keys & base_gloss_keys
 glossed_after = pronunciation_word_keys & glossed_keys_after
 missing_after = pronunciation_word_keys - glossed_keys_after
 coverage = {
-    "sourceVersion": "DWSS 0.9.147",
+    "sourceVersion": "DWSS 0.9.148",
     "pronunciationShardRows": pronunciation_form_rows,
     "uniqueNormalizedPronunciationForms": len(pronunciation_word_keys),
     "formsWithChineseGlossBeforeSupplement": len(glossed_before),
@@ -417,7 +417,7 @@ else:
             try:
                 request = Request(
                     "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
-                    headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.147"}
+                    headers={"User-Agent": "DWSS-French-Wiktionary-Importer/0.9.148"}
                 )
                 with urlopen(request, timeout=240) as response, wiktionary_tmp.open("wb") as output:
                     total = 0
@@ -693,8 +693,8 @@ if removed_sw_save_hint not in (0, 1):
 # moves this label into .dwss-secondary-details, so JS can switch it by language.
 old_gloss_title = '<div class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
 new_gloss_title = '<div id="singleReadingGlossLabel" class="resultlabel" style="margin-top:14px">单个斯语读法释义：</div>'
-query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.147"></script>'
-if "pronunciation-query-editor.js?dwss-release=0.9.147" not in html:
+query_editor_script = '<script defer src="./pronunciation-query-editor.js?dwss-release=0.9.148"></script>'
+if "pronunciation-query-editor.js?dwss-release=0.9.148" not in html:
     if "</body>" not in html:
         fail("Cannot locate </body> to load the pronunciation query editor.")
     html = html.replace("</body>", query_editor_script + "\n</body>", 1)
@@ -705,11 +705,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.146/0.9.147 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.147/0.9.148 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.146 or 0.9.147.")
+    fail("Live app.js version is not 0.9.147 or 0.9.148.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.146 or 0.9.147.")
+    fail("Live Service Worker version is not 0.9.147 or 0.9.148.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -851,7 +851,7 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.137 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.148 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-13", version, count=1, flags=re.M)
@@ -859,6 +859,7 @@ if f"Version: {OLD_VERSION}" in version:
         "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
         "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n0.9.147: Caches all French spelling and pronunciation shards for complete offline dictionary lookup, resolves versioned assets against the canonical offline cache, and fixes repeated-build gloss coverage statistics. Previously unseen machine-translated expressions still require an online connection.\n"
     )
+version = version.rstrip() + "\n0.9.148: Each French headword in the single-word gloss list is shown as a compact bordered input; one unified save-and-sync button below the list submits all word edits.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -867,8 +868,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_146"
-new_marker = "DWSS_AUTO_UPDATE_0_9_147"
+old_marker = "DWSS_AUTO_UPDATE_0_9_147"
+new_marker = "DWSS_AUTO_UPDATE_0_9_148"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.146 auto-update marker; found " + str(html.count(old_marker)))
@@ -1050,30 +1051,31 @@ if french_word_reading_style_id not in html:
     html = html.replace("</head>", french_word_reading_style + "\n</head>", 1)
 
 french_word_pairs_style = """<style id="dwss-french-word-pairs-0132">
-/* Keep the editable French word visually identical to the plain Swahili word label. */
+/* Compact visible boxes make every editable French word easy to spot. */
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-edit{
-  display:inline-block!important;width:100%!important;min-width:0!important;max-width:100%!important;
-  box-sizing:border-box!important;margin:0!important;padding:1px 0!important;
-  border:0!important;border-bottom:1px dashed transparent!important;border-radius:0!important;
-  outline:none!important;background:transparent!important;color:inherit!important;
-  font:inherit!important;font-weight:inherit!important;line-height:inherit!important;
+  display:inline-block!important;width:auto!important;min-width:4.5em!important;max-width:100%!important;
+  box-sizing:border-box!important;margin:0!important;padding:5px 8px!important;
+  border:1px solid #D5BE96!important;border-radius:7px!important;
+  outline:none!important;background:#FFF9ED!important;color:#183B60!important;
+  font:inherit!important;font-weight:750!important;line-height:1.35!important;
   box-shadow:none!important;text-align:left!important;
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original{
-  color:inherit!important;font-weight:inherit!important;
-  border:0!important;border-radius:0!important;background:transparent!important;
-  padding:0!important;min-height:0!important;box-shadow:none!important;
+  display:inline-block!important;width:auto!important;min-width:4.5em!important;max-width:100%!important;
+  box-sizing:border-box!important;color:#183B60!important;font-weight:800!important;
+  border:1px solid #D5BE96!important;border-radius:7px!important;background:#FFF9ED!important;
+  padding:5px 8px!important;min-height:34px!important;box-shadow:none!important;
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-pronunciation{
   display:inline!important;width:auto!important;max-width:100%!important;
   vertical-align:middle!important;color:inherit!important;font-weight:inherit!important;
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-edit:focus{
-  border-bottom-color:#D6A34B!important;background:transparent!important;outline:none!important;
+  border-color:#A87423!important;background:#FFFFFF!important;outline:none!important;
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-word-original:focus{
-  border:0!important;border-bottom:1px dashed #D6A34B!important;border-radius:0!important;
-  background:transparent!important;box-shadow:none!important;outline:none!important;
+  border:1px solid #A87423!important;border-radius:7px!important;
+  background:#FFFFFF!important;box-shadow:0 0 0 2px rgba(214,163,75,.16)!important;outline:none!important;
 }
 #resultCard[data-dwss-lang="fr"] .dwss-secondary-details #segmentList .dwss-french-edit-hint{
   display:block!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;
@@ -1175,8 +1177,8 @@ if 'glossHost.insertAdjacentElement("afterend", wrap);' not in extension:
     fail("French save-and-sync button is not positioned below the word list.")
 if 'output.insertAdjacentElement("afterend", wrap);' in extension:
     fail("French save-and-sync button is still positioned below the main result.")
-if "DWSS_AUTO_UPDATE_0_9_147" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.147.")
+if "DWSS_AUTO_UPDATE_0_9_148" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.148.")
 if 'id="singleReadingGlossLabel"' not in html:
     fail("Language-aware single-word gloss title is missing.")
 if french_gloss_visible_style_id not in html:
@@ -1191,10 +1193,10 @@ if 'id="dwss-dual-language-gloss-0126"' not in html:
     fail("Dual-language gloss wrapper visibility styles are missing.")
 if ".dwss-french-word-edit" not in html or ".dwss-french-word-original" not in html or ".dwss-french-word-pronunciation" not in html:
     fail("French word-by-word inputs must use the editable Swahili-style segment-row appearance.")
-if "border:1px solid #D5BE96" in french_word_pairs_style or "background:#FFF9ED" in french_word_pairs_style:
-    fail("French headword input must visually match the plain Swahili word label, not a boxed field.")
-if "border-bottom:1px dashed transparent" not in french_word_pairs_style or "font:inherit" not in french_word_pairs_style:
-    fail("French headword must remain editable while inheriting the Swahili label typography.")
+if "border:1px solid #D5BE96" not in french_word_pairs_style or "background:#FFF9ED" not in french_word_pairs_style:
+    fail("French headword must have a compact visible input border and a light background.")
+if "width:auto!important" not in french_word_pairs_style or "padding:5px 8px!important" not in french_word_pairs_style or "font:inherit" not in french_word_pairs_style:
+    fail("French headword input is missing its compact editable dimensions and readable typography.")
 if render_hook not in app:
     fail("Swahili result refresh hook was not injected into app.js.")
 if render_guard not in app:
@@ -1212,12 +1214,12 @@ for selector in (
 ):
     if selector not in html:
         fail("French UI selector missing: " + selector)
-if "dwss-release=0.9.147" not in html:
-    fail("HTML asset cache-busting URLs were not advanced to 0.9.147.")
-if "Version: 0.9.147" not in version or "version:'0.9.147'" not in app:
-    fail("Website and app version markers do not agree at 0.9.147.")
-if "const APP_VERSION = '0.9.147';" not in sw:
-    fail("Service Worker cache version is not 0.9.147.")
+if "dwss-release=0.9.148" not in html:
+    fail("HTML asset cache-busting URLs were not advanced to 0.9.148.")
+if "Version: 0.9.148" not in version or "version:'0.9.148'" not in app:
+    fail("Website and app version markers do not agree at 0.9.148.")
+if "const APP_VERSION = '0.9.148';" not in sw:
+    fail("Service Worker cache version is not 0.9.148.")
 tokenize_start = app.find("function tokenize(raw){")
 tokenize_end = app.find("function joinParts(parts){", tokenize_start)
 if tokenize_start < 0 or tokenize_end <= tokenize_start:
@@ -1230,7 +1232,7 @@ if new_accuracy_note not in html:
 for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
-if 'pronunciation-query-editor.js?dwss-release=0.9.147' not in html:
+if 'pronunciation-query-editor.js?dwss-release=0.9.148' not in html:
     fail("Inline pronunciation query editor is not loaded by the live HTML.")
 if not (ROOT / "french-gloss-coverage.json").is_file():
     fail("French glossary coverage audit report is missing.")
@@ -1252,5 +1254,5 @@ for name, expected in protected.items():
 
 (ROOT / ".nojekyll").write_text("", encoding="utf-8")
 print(f"PASS: preserved all French data assets and copied {len(pron_keys)} pronunciation shards plus {len(word_keys)} spelling shards.")
-print("PASS: DWSS 0.9.147 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
+print("PASS: DWSS 0.9.148 removes pronunciation-query copy actions and adds inline Swahili/French corrections with language-specific shared saving.")
 print("PASS: French glossary gaps are audited; only checksum-verified exact single-word CFDICT source matches are added.")
