@@ -158,7 +158,6 @@ function gunzipText(name) { return zlib.gunzipSync(read(name)).toString('utf8');
   assert(frenchPronunciationHits.some(hit => hit.zh === 'bonjour' && hit.score === 1),
     'actual French pronunciation shard cannot be searched offline by its Chinese homophone');
 
-mophone search engine is unavailable');
 
   for (const asset of ['app.js','boot.js','shared-lexicon.js','dictionary-overrides.js','hanzi-pinyin.js',
     'pronunciation-search.js','dwss-pronunciation-controls.js','french-extension.js',
