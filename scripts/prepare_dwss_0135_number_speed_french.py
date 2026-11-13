@@ -783,12 +783,6 @@ origin_function = r"""function localOrigin(item){
 }"""
 app = app[:origin_start] + origin_function + app[origin_end:]
 
-
-
-
-;
-
-
 app = replace_app_fragment(
     app,
     """  const localMatch=lookupLocalAt(input,i);
