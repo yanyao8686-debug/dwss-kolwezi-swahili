@@ -826,22 +826,30 @@
     };
     const currentValues = () => {
       const chinese = String(input && input.value || "").trim();
-      const baseFrench = String(spelling && spelling.value || "").trim();
       const readingFromResult = String(output.value || "").trim();
+      const codec = window.DWSSFrenchCombinedResult;
+      const parsed = codec && typeof codec.parse === "function"
+        ? codec.parse(readingFromResult) : { french: "", reading: readingFromResult };
+      const outputFrenchDraft = !!(parsed && parsed.french && !String(parsed.reading || "").trim());
+      const baseFrench = String(
+        parsed && parsed.french || (spelling && spelling.value) || ""
+      ).trim();
       const rows = readWordRows();
       const tools = window.DWSSFrenchTools;
       const tokens = tools && typeof tools.tokenizeFrenchPhrase === "function"
         ? tools.tokenizeFrenchPhrase(baseFrench) : [];
-      const sameSource = !!baseFrench && !!glossHost &&
+      const sameSource = !outputFrenchDraft && !!baseFrench && !!glossHost &&
         String(glossHost.dataset.frenchSourcePhrase || "") === baseFrench &&
         tokens.length > 0 && tokens.length === rows.length;
       const rowsEdited = sameSource && rows.some(row => row.word !== row.originalWord);
       let french = baseFrench;
-      const reading = readingFromResult;
+      const reading = outputFrenchDraft
+        ? ""
+        : String(parsed && parsed.reading || readingFromResult).trim();
       if (rowsEdited && tools && typeof tools.replaceFrenchPhraseWords === "function") {
         french = tools.replaceFrenchPhraseWords(baseFrench, rows.map(row => row.word));
       }
-      return { chinese, french, reading, baseFrench, rows, rowsEdited };
+      return { chinese, french, reading, baseFrench, rows, rowsEdited, outputFrenchDraft };
     };
     const setStatus = (message, kind) => {
       status.textContent = message || "";
@@ -852,7 +860,7 @@
       const values = currentValues();
       const placeholder = isPlaceholderReading(values.reading);
       const valid = isFrenchMode() && !!values.chinese && !!values.french &&
-        !!values.reading && !placeholder;
+        (values.outputFrenchDraft || (!!values.reading && !placeholder));
       const signature = JSON.stringify([values.chinese, values.french, values.reading]);
       if (!saving && lastDraftSignature && signature !== lastDraftSignature) setStatus("");
       lastDraftSignature = signature;
@@ -881,7 +889,8 @@
         values = currentValues();
       }
 
-      if (!values.reading || values.reading.length > 500 || isPlaceholderReading(values.reading)) {
+      if (!values.outputFrenchDraft &&
+          (!values.reading || values.reading.length > 500 || isPlaceholderReading(values.reading))) {
         setStatus("请填写有效的法语中文谐音，最多 500 个字符。", "error");
         return;
       }
@@ -896,6 +905,26 @@
       saveButton.textContent = "正在保存…";
       setStatus("正在保存本机修改并加入共享同步队列…");
       try {
+        if (values.outputFrenchDraft) {
+          const machine = window.DWSSFrenchMachineTranslationController;
+          if (!machine || typeof machine.getReadingForFrenchDraft !== "function") {
+            throw new Error("法语读音生成模块尚未就绪，请刷新后重试。");
+          }
+          spelling.value = values.french;
+          setStatus("正在根据修改后的法语原文生成中文近似音…");
+          const generated = await machine.getReadingForFrenchDraft(values.french);
+          const generatedReading = String(generated && generated.reading || "").trim();
+          const missing = Array.isArray(generated && generated.missing) ? generated.missing : [];
+          if (!generatedReading || missing.length || /〔[^〕]*(?:待补|待核)[^〕]*〕/.test(generatedReading)) {
+            setStatus("已识别修改后的法语原文，但有单词暂未找到可靠读音。请在结果框填写正确的中文近似音后，再次保存。", "warning");
+            return;
+          }
+          values.reading = generatedReading;
+        }
+        if (!values.reading || values.reading.length > 500 || isPlaceholderReading(values.reading)) {
+          setStatus("请填写有效的法语中文谐音，最多 500 个字符。", "error");
+          return;
+        }
         const result = await api.submitFrenchPronunciationCorrection({
           chinese_text: values.chinese,
           french_text: values.french,
@@ -903,12 +932,13 @@
         });
         const current = currentValues();
         const sameContext = current.chinese === values.chinese && current.french === values.french;
-        if (sameContext && values.rowsEdited) {
+        if (sameContext && (values.rowsEdited || values.outputFrenchDraft)) {
           // Commit the successful row edits as the new baseline so the same
           // phrase can be corrected again without requiring a re-translation.
           spelling.value = values.french;
           output.value = values.reading;
           output.classList.toggle("empty", !values.reading);
+          output.removeAttribute("data-dwss-french-draft");
           if (glossHost) glossHost.dataset.frenchSourcePhrase = values.french;
           readWordRows().forEach(row => {
             row.wordInput.dataset.originalWord = row.word;
@@ -916,6 +946,7 @@
           if (tools && typeof tools.renderSingleGloss === "function") {
             tools.renderSingleGloss(values.chinese, values.french);
           }
+          output.dispatchEvent(new Event("dwss:french-result-updated"));
         }
         if (sameContext) {
           if (result && result.synced) {
@@ -939,6 +970,7 @@
     if (glossHost) glossHost.addEventListener("input", refresh);
     output.addEventListener("input", refresh);
     output.addEventListener("dwss:french-result-updated", refresh);
+    output.addEventListener("dwss:french-draft-pending", refresh);
     window.addEventListener("dwss:shared-terms-updated", refresh);
     const swMode = $("dwssMainSwMode"), frMode = $("dwssMainFrMode");
     if (swMode) swMode.addEventListener("click", () => window.setTimeout(refresh, 0));
