@@ -1,0 +1,1 @@
+Final trigger for reader 1.2.4 with zh/cmn voice selector and consistent APK verification paths.
