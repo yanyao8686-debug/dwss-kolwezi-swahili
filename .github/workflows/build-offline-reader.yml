@@ -108,8 +108,7 @@ jobs:
           PY
 
           mkdir -p "$PROJECT/app/src/main/res/drawable-nodpi" "$PROJECT/app/src/main/res/drawable" "$PROJECT/app/src/main/res/values-v31"
-          cat offline-reader-assets/reader_cover.part00.b64 offline-reader-assets/reader_cover.part01.b64 offline-reader-assets/reader_cover.part02.b64 offline-reader-assets/reader_cover.part03.b64 offline-reader-assets/reader_cover.part04.b64 > /tmp/reader-cover.b64
-          base64 --decode /tmp/reader-cover.b64 > "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
+          base64 --decode offline-reader-assets/reader_cover_192_q30.jpg.b64 > "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
           python -m pip install --user pillow
           python - "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg" <<'PY'
           from pathlib import Path
@@ -118,11 +117,11 @@ jobs:
           image_path = Path(sys.argv[1])
           with Image.open(image_path) as image:
               assert image.format == "JPEG", f"unexpected image format: {image.format}"
-              assert image.size == (384, 384), f"unexpected image dimensions: {image.size}"
+              assert image.size == (192, 192), f"unexpected image dimensions: {image.size}"
               image.verify()
           data = image_path.read_bytes()
-          assert len(data) == 31935, f"cover byte size mismatch: {len(data)}"
-          print(f"PASS | valid 384x384 JPEG cover | {len(data)} bytes | SHA256 {hashlib.sha256(data).hexdigest()}")
+          assert len(data) == 6194, f"cover byte size mismatch: {len(data)}"
+          print(f"PASS | valid 192x192 JPEG cover | {len(data)} bytes | SHA256 {hashlib.sha256(data).hexdigest()}")
           PY
           python - "$MAIN" "$PROJECT/app/src/main/AndroidManifest.xml" "$PROJECT/app/src/main/res/values-v31/styles.xml" "$PROJECT/app/src/main/res/drawable/launch_screen.xml" <<'PY'
           from pathlib import Path
@@ -216,10 +215,10 @@ jobs:
               name = matches[0]
               data = archive.read(name)
           with Image.open(io.BytesIO(data)) as image:
-              assert image.format == "JPEG" and image.size == (384,384), (image.format,image.size)
+              assert image.format == "JPEG" and image.size == (192,192), (image.format,image.size)
               image.verify()
-          assert len(data) == 31935, len(data)
-          print(f"PASS | APK embeds decodable 384x384 cover: {name} | {len(data)} bytes")
+          assert len(data) == 6194, len(data)
+          print(f"PASS | APK embeds decodable 192x192 cover: {name} | {len(data)} bytes")
           PY
 
       - name: Upload APK artifact
