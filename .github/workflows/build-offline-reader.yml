@@ -191,7 +191,7 @@ jobs:
           grep -q "versionName='1.2.2'" /tmp/apk-badging.txt
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
           cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.2.apk"
-          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.1.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.2.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
