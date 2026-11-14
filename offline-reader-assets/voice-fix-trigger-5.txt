@@ -1,0 +1,1 @@
+Final 1.2.4 build trigger after correcting regression-check source paths.
