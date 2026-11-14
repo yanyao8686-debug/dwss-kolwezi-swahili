@@ -6,6 +6,7 @@ on:
       - temp/offline-reader-1-1-0-apk-build
     paths:
       - 'offline-reader-src/**'
+      - 'offline-reader-assets/**'
       - '.github/workflows/build-offline-reader.yml'
 
 permissions:
@@ -91,8 +92,8 @@ jobs:
           source = source.replace(needle, guard + needle, 1)
           main_path.write_text(source, encoding="utf-8")
           gradle = gradle_path.read_text(encoding="utf-8")
-          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 4', gradle, count=1)
-          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.1"', gradle, count=1)
+          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 5', gradle, count=1)
+          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.2"', gradle, count=1)
           if code_count != 1 or name_count != 1:
               raise SystemExit("Could not update app version metadata")
           gradle_path.write_text(gradle, encoding="utf-8")
@@ -103,7 +104,71 @@ jobs:
           assert 'mime.startsWith("text/")' not in check
           assert '"txt", "text", "md", "log" -> readTxt' not in check
           print("PASS | PDF/TXT-only picker; HTML and broad text MIME rejected")
-          print("PASS | app version 1.2.1")
+          print("PASS | app version 1.2.2")
+          PY
+
+          mkdir -p "$PROJECT/app/src/main/res/drawable-nodpi" "$PROJECT/app/src/main/res/drawable" "$PROJECT/app/src/main/res/values-v31"
+          base64 --decode offline-reader-assets/reader_cover.jpg.b64 > "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
+          test -s "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
+          python - "$MAIN" "$PROJECT/app/src/main/AndroidManifest.xml" "$PROJECT/app/src/main/res/values-v31/styles.xml" "$PROJECT/app/src/main/res/drawable/launch_screen.xml" <<'PY'
+          from pathlib import Path
+          import sys
+          main_path, manifest_path, splash_style_path, legacy_splash_path = map(Path, sys.argv[1:5])
+          source = main_path.read_text(encoding="utf-8")
+          if "import android.widget.ImageView" not in source:
+              source = source.replace("import android.widget.LinearLayout", "import android.widget.ImageView\nimport android.widget.LinearLayout", 1)
+          old_header = '''        val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+                  val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  brand.addView(text("离线听读", 22f, ink, true))
+                  brand.addView(text("PDF · TXT  本地阅读与人声朗读", 11f, muted, false).apply { setPadding(0, dp(2), 0, 0) })
+                  top.addView(brand, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+          '''
+          new_header = '''        val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+                  val brand = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+                  val cover = ImageView(this).apply {
+                      setImageResource(R.drawable.reader_cover)
+                      scaleType = ImageView.ScaleType.CENTER_CROP
+                      contentDescription = "离线听读封面"
+                      background = rounded(0xFF081B3A.toInt(), 10)
+                      clipToOutline = true
+                  }
+                  brand.addView(cover, LinearLayout.LayoutParams(dp(54), dp(54)).apply { rightMargin = dp(10) })
+                  val brandText = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  brandText.addView(text("离线听读", 22f, ink, true))
+                  brandText.addView(text("PDF · TXT  本地阅读与人声朗读", 11f, muted, false).apply { setPadding(0, dp(2), 0, 0) })
+                  brand.addView(brandText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                  top.addView(brand, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+          '''
+          if old_header not in source:
+              raise SystemExit("Could not locate the app header for cover integration")
+          source = source.replace(old_header, new_header, 1)
+          main_path.write_text(source, encoding="utf-8")
+
+          manifest = manifest_path.read_text(encoding="utf-8")
+          if 'android:icon="@drawable/ic_app"' not in manifest or 'android:roundIcon="@drawable/ic_app"' not in manifest:
+              raise SystemExit("Could not locate the launcher icon declarations")
+          manifest = manifest.replace('android:icon="@drawable/ic_app"', 'android:icon="@drawable/reader_cover"', 1)
+          manifest = manifest.replace('android:roundIcon="@drawable/ic_app"', 'android:roundIcon="@drawable/reader_cover"', 1)
+          manifest_path.write_text(manifest, encoding="utf-8")
+
+          splash_style_path.write_text('''<resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:windowSplashScreenBackground">#081B3A</item>
+                  <item name="android:windowSplashScreenAnimatedIcon">@drawable/reader_cover</item>
+                  <item name="android:windowSplashScreenIconBackgroundColor">#081B3A</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#081B3A</item>
+                  <item name="android:navigationBarColor">#081B3A</item>
+              </style>
+          </resources>''', encoding="utf-8")
+          legacy_splash_path.write_text('''<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="#081B3A" />
+              <item>
+                  <bitmap android:src="@drawable/reader_cover" android:gravity="center" />
+              </item>
+          </layer-list>''', encoding="utf-8")
+          print("PASS | selected cover embedded as launcher icon and in-app brand mark")
+          print("PASS | Android 12+ splash screen and pre-Android 12 launch background")
           PY
 
       - name: Compile and verify APK
@@ -120,15 +185,15 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
           grep -q "package: name='com.reader.offlinereader'" /tmp/apk-badging.txt
-          grep -q "versionName='1.2.1'" /tmp/apk-badging.txt
+          grep -q "versionName='1.2.2'" /tmp/apk-badging.txt
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
-          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.1.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.2.apk"
           sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.1.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: offline-reader-1.2.1-apk
+          name: offline-reader-1.2.2-apk
           path: apk-output/
           if-no-files-found: error
           retention-days: 7
