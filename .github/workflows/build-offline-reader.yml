@@ -92,8 +92,8 @@ jobs:
           source = source.replace(needle, guard + needle, 1)
           main_path.write_text(source, encoding="utf-8")
           gradle = gradle_path.read_text(encoding="utf-8")
-          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 6', gradle, count=1)
-          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.3"', gradle, count=1)
+          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 7', gradle, count=1)
+          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.4"', gradle, count=1)
           if code_count != 1 or name_count != 1:
               raise SystemExit("Could not update app version metadata")
           gradle_path.write_text(gradle, encoding="utf-8")
@@ -104,7 +104,64 @@ jobs:
           assert 'mime.startsWith("text/")' not in check
           assert '"txt", "text", "md", "log" -> readTxt' not in check
           print("PASS | PDF/TXT-only picker; HTML and broad text MIME rejected")
-          print("PASS | app version 1.2.3")
+          print("PASS | app version 1.2.4")
+          python - "$MAIN" "$PROJECT/app/src/main/java/com/guide/offline/PlaybackService.kt" <<'PY'
+          from pathlib import Path
+          import sys
+          main_path, service_path = map(Path, sys.argv[1:3])
+          main = main_path.read_text(encoding="utf-8")
+          old_filter = '.filter { it.locale.language.equals("zh", true) && !it.isNetworkConnectionRequired }'
+          new_filter = '.filter { isSupportedChineseVoice(it) && !it.isNetworkConnectionRequired }'
+          if old_filter not in main:
+              raise SystemExit("MainActivity Chinese offline voice filter not found")
+          main = main.replace(old_filter, new_filter, 1)
+          helper = '''    private fun isSupportedChineseVoice(voice: Voice): Boolean {
+                  return voice.locale.language.lowercase(Locale.ROOT) in setOf("zh", "cmn")
+              }
+
+          '''
+          marker = '    private fun isLikelyFemale(voice: Voice): Boolean {'
+          if marker not in main:
+              raise SystemExit("MainActivity voice helper insertion point not found")
+          main = main.replace(marker, helper + marker, 1)
+          old_message = '先点选声音，再按“试听”比较；满意后按“设为默认”。只列出无需联网的音色。'
+          new_message = '当前检测到 \${voices.size} 种可离线中文声音。点选后可试听，满意后按“设为默认”；“下载更多声音”可进入手机语音设置。'
+          if old_message not in main:
+              raise SystemExit("Voice picker help text not found")
+          main = main.replace(old_message, new_message, 1)
+          old_negative = '.setNegativeButton("取消", null)'
+          new_negative = '.setNegativeButton("下载更多声音", null)'
+          if old_negative not in main:
+              raise SystemExit("Voice picker button block not found")
+          main = main.replace(old_negative, new_negative, 1)
+          preview_marker = '''                    dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                          val picked = voices[selectedIndex]'''
+          preview_replacement = '''                    dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+                          dialog.dismiss()
+                          openTtsSettings()
+                      }
+                      dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                          val picked = voices[selectedIndex]'''
+          if preview_marker not in main:
+              raise SystemExit("Voice picker button callback insertion point not found")
+          main = main.replace(preview_marker, preview_replacement, 1)
+          main_path.write_text(main, encoding="utf-8")
+          service = service_path.read_text(encoding="utf-8")
+          old_service_filter = 'it.locale.language.equals("zh", true) && !it.isNetworkConnectionRequired'
+          new_service_filter = 'it.locale.language.lowercase(Locale.ROOT) in setOf("zh", "cmn") && !it.isNetworkConnectionRequired'
+          if service.count(old_service_filter) != 1:
+              raise SystemExit("PlaybackService offline Chinese voice filter not found exactly once")
+          service = service.replace(old_service_filter, new_service_filter, 1)
+          service_path.write_text(service, encoding="utf-8")
+          assert 'isSupportedChineseVoice(it)' in main
+          assert 'setOf("zh", "cmn")' in main
+          assert '下载更多声音' in main
+          assert 'setOf("zh", "cmn")' in service
+          assert 'locale.language.equals("zh", true)' not in main
+          assert 'locale.language.equals("zh", true)' not in service
+          print("PASS | TTS voice discovery supports zh and cmn Mandarin locale codes")
+          print("PASS | offline voice picker offers preview, default selection and system voice settings")
+          print("PASS | background service accepts the selected zh/cmn offline voice")
           PY
 
           mkdir -p "$PROJECT/app/src/main/res/drawable-nodpi" "$PROJECT/app/src/main/res/drawable" "$PROJECT/app/src/main/res/values-v31"
@@ -201,9 +258,18 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
           grep -q "package: name='com.reader.offlinereader'" /tmp/apk-badging.txt
-          grep -q "versionName='1.2.3'" /tmp/apk-badging.txt
+          grep -q "versionName='1.2.4'" /tmp/apk-badging.txt
+          python - "$PROJECT/app/src/main/java/com/guide/offline/MainActivity.kt" "$PROJECT/app/src/main/java/com/guide/offline/PlaybackService.kt" <<'PY'
+          from pathlib import Path
+          import sys
+          main, service = map(lambda p: Path(p).read_text(encoding="utf-8"), sys.argv[1:3])
+          assert 'setOf("zh", "cmn")' in main and 'setOf("zh", "cmn")' in service
+          assert '下载更多声音' in main
+          assert 'locale.language.equals("zh", true)' not in main + service
+          print("PASS | package source voice-selection regression checks")
+          PY
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
-          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.4.apk"
           sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
           python - "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" <<'PY'
           import sys, zipfile, io
@@ -224,7 +290,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: offline-reader-1.2.3-apk
+          name: offline-reader-1.2.4-apk
           path: apk-output/
           if-no-files-found: error
           retention-days: 7
