@@ -105,6 +105,8 @@ jobs:
           assert '"txt", "text", "md", "log" -> readTxt' not in check
           print("PASS | PDF/TXT-only picker; HTML and broad text MIME rejected")
           print("PASS | app version 1.2.4")
+          PY
+
           python - "$MAIN" "$PROJECT/app/src/main/java/com/guide/offline/PlaybackService.kt" <<'PY'
           from pathlib import Path
           import sys
