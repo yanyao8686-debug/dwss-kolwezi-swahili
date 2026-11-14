@@ -162,11 +162,14 @@ jobs:
               </style>
           </resources>''', encoding="utf-8")
           legacy_splash_path.write_text('''<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:drawable="#081B3A" />
+              <item android:drawable="@color/reader_splash_background" />
               <item>
                   <bitmap android:src="@drawable/reader_cover" android:gravity="center" />
               </item>
           </layer-list>''', encoding="utf-8")
+          (legacy_splash_path.parent.parent / "values" / "colors.xml").write_text('''<resources>
+              <color name="reader_splash_background">#081B3A</color>
+          </resources>''', encoding="utf-8")
           print("PASS | selected cover embedded as launcher icon and in-app brand mark")
           print("PASS | Android 12+ splash screen and pre-Android 12 launch background")
           PY
