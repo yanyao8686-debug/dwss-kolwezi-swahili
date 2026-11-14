@@ -131,23 +131,19 @@ jobs:
           if old_message not in main:
               raise SystemExit("Voice picker help text not found")
           main = main.replace(old_message, new_message, 1)
-          old_negative = '''.setNeutralButton("设为默认", null)
-                  .setNegativeButton("取消", null)'''
-          new_negative = '''.setNeutralButton("设为默认", null)
-                  .setNegativeButton("下载更多声音", null)'''
-          if old_negative not in main:
+          import re
+          button_pattern = r'(\.setNeutralButton\("设为默认", null\)\s*\n\s*)\.setNegativeButton\("取消", null\)'
+          main, button_count = re.subn(button_pattern, r'\1.setNegativeButton("下载更多声音", null)', main, count=1)
+          if button_count != 1:
               raise SystemExit("Voice picker button block not found")
-          main = main.replace(old_negative, new_negative, 1)
-          preview_marker = '''                    dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                          val picked = voices[selectedIndex]'''
-          preview_replacement = '''                    dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+          preview_marker = 'dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {'
+          preview_replacement = '''dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
                           dialog.dismiss()
                           openTtsSettings()
                       }
-                      dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                          val picked = voices[selectedIndex]'''
-          if preview_marker not in main:
-              raise SystemExit("Voice picker button callback insertion point not found")
+                      dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {'''
+          if main.count(preview_marker) != 1:
+              raise SystemExit("Voice picker button callback insertion point not found exactly once")
           main = main.replace(preview_marker, preview_replacement, 1)
           main_path.write_text(main, encoding="utf-8")
           service = service_path.read_text(encoding="utf-8")
