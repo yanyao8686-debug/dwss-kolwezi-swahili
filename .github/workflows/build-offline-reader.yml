@@ -272,7 +272,7 @@ jobs:
           PY
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
           cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.4.apk"
-          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.4.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
           python - "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" <<'PY'
           import sys, zipfile, io
           from PIL import Image
