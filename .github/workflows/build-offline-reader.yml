@@ -129,8 +129,10 @@ jobs:
           if old_message not in main:
               raise SystemExit("Voice picker help text not found")
           main = main.replace(old_message, new_message, 1)
-          old_negative = '.setNegativeButton("取消", null)'
-          new_negative = '.setNegativeButton("下载更多声音", null)'
+          old_negative = '''.setNeutralButton("设为默认", null)
+                  .setNegativeButton("取消", null)'''
+          new_negative = '''.setNeutralButton("设为默认", null)
+                  .setNegativeButton("下载更多声音", null)'''
           if old_negative not in main:
               raise SystemExit("Voice picker button block not found")
           main = main.replace(old_negative, new_negative, 1)
@@ -155,7 +157,9 @@ jobs:
           service_path.write_text(service, encoding="utf-8")
           assert 'isSupportedChineseVoice(it)' in main
           assert 'setOf("zh", "cmn")' in main
-          assert '下载更多声音' in main
+          voice_dialog_start = main.index('选择离线中文声音')
+          voice_dialog_end = main.index('dialog.show()', voice_dialog_start)
+          assert '下载更多声音' in main[voice_dialog_start:voice_dialog_end]
           assert 'setOf("zh", "cmn")' in service
           assert 'locale.language.equals("zh", true)' not in main
           assert 'locale.language.equals("zh", true)' not in service
