@@ -92,8 +92,8 @@ jobs:
           source = source.replace(needle, guard + needle, 1)
           main_path.write_text(source, encoding="utf-8")
           gradle = gradle_path.read_text(encoding="utf-8")
-          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 5', gradle, count=1)
-          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.2"', gradle, count=1)
+          gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 6', gradle, count=1)
+          gradle, name_count = re.subn(r'versionName\s*=\s*"[^"]+"', 'versionName = "1.2.3"', gradle, count=1)
           if code_count != 1 or name_count != 1:
               raise SystemExit("Could not update app version metadata")
           gradle_path.write_text(gradle, encoding="utf-8")
@@ -104,12 +104,26 @@ jobs:
           assert 'mime.startsWith("text/")' not in check
           assert '"txt", "text", "md", "log" -> readTxt' not in check
           print("PASS | PDF/TXT-only picker; HTML and broad text MIME rejected")
-          print("PASS | app version 1.2.2")
+          print("PASS | app version 1.2.3")
           PY
 
           mkdir -p "$PROJECT/app/src/main/res/drawable-nodpi" "$PROJECT/app/src/main/res/drawable" "$PROJECT/app/src/main/res/values-v31"
-          base64 --decode offline-reader-assets/reader_cover.jpg.b64 > "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
-          test -s "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
+          cat offline-reader-assets/reader_cover.part00.b64 offline-reader-assets/reader_cover.part01.b64 offline-reader-assets/reader_cover.part02.b64 offline-reader-assets/reader_cover.part03.b64 offline-reader-assets/reader_cover.part04.b64 > /tmp/reader-cover.b64
+          base64 --decode /tmp/reader-cover.b64 > "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg"
+          python -m pip install --user pillow
+          python - "$PROJECT/app/src/main/res/drawable-nodpi/reader_cover.jpg" <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import hashlib, sys
+          image_path = Path(sys.argv[1])
+          with Image.open(image_path) as image:
+              assert image.format == "JPEG", f"unexpected image format: {image.format}"
+              assert image.size == (384, 384), f"unexpected image dimensions: {image.size}"
+              image.verify()
+          data = image_path.read_bytes()
+          assert len(data) == 31935, f"cover byte size mismatch: {len(data)}"
+          print(f"PASS | valid 384x384 JPEG cover | {len(data)} bytes | SHA256 {hashlib.sha256(data).hexdigest()}")
+          PY
           python - "$MAIN" "$PROJECT/app/src/main/AndroidManifest.xml" "$PROJECT/app/src/main/res/values-v31/styles.xml" "$PROJECT/app/src/main/res/drawable/launch_screen.xml" <<'PY'
           from pathlib import Path
           import sys
@@ -188,15 +202,30 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
           grep -q "package: name='com.reader.offlinereader'" /tmp/apk-badging.txt
-          grep -q "versionName='1.2.2'" /tmp/apk-badging.txt
+          grep -q "versionName='1.2.3'" /tmp/apk-badging.txt
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
-          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.2.apk"
-          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.2.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+          python - "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.3.apk" <<'PY'
+          import sys, zipfile, io
+          from PIL import Image
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk) as archive:
+              matches = [n for n in archive.namelist() if n.endswith("reader_cover.jpg")]
+              assert matches, "embedded cover image missing from APK"
+              name = matches[0]
+              data = archive.read(name)
+          with Image.open(io.BytesIO(data)) as image:
+              assert image.format == "JPEG" and image.size == (384,384), (image.format,image.size)
+              image.verify()
+          assert len(data) == 31935, len(data)
+          print(f"PASS | APK embeds decodable 384x384 cover: {name} | {len(data)} bytes")
+          PY
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: offline-reader-1.2.2-apk
+          name: offline-reader-1.2.3-apk
           path: apk-output/
           if-no-files-found: error
           retention-days: 7
