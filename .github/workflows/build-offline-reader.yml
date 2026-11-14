@@ -53,6 +53,74 @@ jobs:
           echo "5e4a49e648bf6859509fcdd8dabed9ea3a3ce87e4d47126b8bc6381b9f70dd6f  /tmp/offline-reader-src.tar.gz" | sha256sum --check
           tar -xzf /tmp/offline-reader-src.tar.gz -C build-source
           PROJECT="build-source/人生指南安卓离线朗读器"
+          MAIN="$PROJECT/app/src/main/java/com/guide/offline/MainActivity.kt"
+          grep -q '^import android.view.View
+          test -f "$PROJECT/app/src/main/AndroidManifest.xml"
+          test -f "$PROJECT/app/src/main/assets/book.json"
+          python "$PROJECT/tools/static_check.py"
+
+      - name: Compile installable debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="build-source/人生指南安卓离线朗读器"
+          cd "$PROJECT"
+          gradle --no-daemon --stacktrace :app:assembleDebug
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
+          AAPT="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
+          grep -q "package: name='com.guide.offline' versionName='1.1.0'" /tmp/apk-badging.txt
+          mkdir -p "$GITHUB_WORKSPACE/apk-output"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.1.0.apk"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-reader-1.2.0-apk
+          path: apk-output/
+          if-no-files-found: error
+          retention-days: 7
+ "$MAIN" || sed -i '/^import android.view.Gravity$/a import android.view.View' "$MAIN"
+          grep -q '^import android.graphics.Color
+          test -f "$PROJECT/app/src/main/AndroidManifest.xml"
+          test -f "$PROJECT/app/src/main/assets/book.json"
+          python "$PROJECT/tools/static_check.py"
+
+      - name: Compile installable debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="build-source/人生指南安卓离线朗读器"
+          cd "$PROJECT"
+          gradle --no-daemon --stacktrace :app:assembleDebug
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
+          AAPT="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
+          grep -q "package: name='com.reader.offlinereader' versionName='1.2.0'" /tmp/apk-badging.txt
+          mkdir -p "$GITHUB_WORKSPACE/apk-output"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-reader-1.2.0-apk
+          path: apk-output/
+          if-no-files-found: error
+          retention-days: 7
+ "$MAIN" || sed -i '/^import android.graphics.Typeface$/a import android.graphics.Color' "$MAIN"
+          cat > "$PROJECT/app/src/main/assets/book.json" <<'BOOK'
+          {"title":"尚未导入文件","sourceType":"empty","pages":[{"pdfPage":1,"title":"开始阅读","text":"欢迎使用离线听读。\n\n点击右上角「导入文件」，从手机本地选择 PDF 或 TXT 文档。\n\n导入后即可在这里显示原文、选择手机已下载的离线中文声音并开始朗读。"}],"chapters":[{"label":"开始阅读","start":0}]}
+          BOOK
+          sed -i 's/len(book.get("pages", \[\])) == 392 and len(book.get("chapters", \[\])) == 36/len(book.get("pages", [])) == 1 and len(book.get("chapters", [])) == 1/' "$PROJECT/tools/static_check.py"
+          sed -i 's/Embedded original book remains intact/Generic reader starts with a local-import prompt/' "$PROJECT/tools/static_check.py"
           test -f "$PROJECT/settings.gradle.kts"
           test -f "$PROJECT/app/src/main/AndroidManifest.xml"
           test -f "$PROJECT/app/src/main/assets/book.json"
