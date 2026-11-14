@@ -47,12 +47,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(find offline-reader-src -maxdepth 1 -name 'part-*.b64' | wc -l)" -eq 6
+          cat offline-reader-src/part-00.b64 offline-reader-src/part-01-*.b64 offline-reader-src/part-02.b64 offline-reader-src/part-03.b64 offline-reader-src/part-04.b64 offline-reader-src/part-05.b64 > /tmp/offline-reader-src.b64
           mkdir -p build-source
-          cat offline-reader-src/part-*.b64 | base64 --decode | tar -xz -C build-source
+          base64 --decode /tmp/offline-reader-src.b64 > /tmp/offline-reader-src.tar.gz
+          echo "5e4a49e648bf6859509fcdd8dabed9ea3a3ce87e4d47126b8bc6381b9f70dd6f  /tmp/offline-reader-src.tar.gz" | sha256sum --check
+          tar -xzf /tmp/offline-reader-src.tar.gz -C build-source
           PROJECT="build-source/人生指南安卓离线朗读器"
           test -f "$PROJECT/settings.gradle.kts"
-          test -f "$PROJECT/app/src/main/java/com/guide/offline/MainActivity.kt"
           test -f "$PROJECT/app/src/main/AndroidManifest.xml"
           test -f "$PROJECT/app/src/main/assets/book.json"
           python "$PROJECT/tools/static_check.py"
