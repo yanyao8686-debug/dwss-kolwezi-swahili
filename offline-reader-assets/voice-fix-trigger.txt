@@ -1,0 +1,1 @@
+Offline reader 1.2.4 build trigger. The source patch supports both zh and cmn Chinese TTS locales.
