@@ -72,7 +72,8 @@ jobs:
           AAPT="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
-          grep -q "package: name='com.reader.offlinereader' versionName='1.2.0'" /tmp/apk-badging.txt
+          grep -q "package: name='com.reader.offlinereader'" /tmp/apk-badging.txt
+          grep -q "versionName='1.2.0'" /tmp/apk-badging.txt
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
           cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk"
           sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
