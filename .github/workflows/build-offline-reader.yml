@@ -70,30 +70,25 @@ jobs:
           if old_picker not in source:
               raise SystemExit("Expected document-picker filter was not found")
           source = source.replace(old_picker, new_picker, 1)
-          old_import = '''                val newBook = when (extension) {
-                      "pdf" -> readPdf(uri, fileName)
-                      "txt", "text", "md", "log" -> readTxt(uri, fileName)
-                      else -> {
-                          val mime = contentResolver.getType(uri).orEmpty()
-                          if (mime == "application/pdf") readPdf(uri, fileName)
-                          else if (mime.startsWith("text/")) readTxt(uri, fileName)
-                          else throw IllegalArgumentException("目前支持 PDF 和 TXT 文本文件")
-                      }
-                  }'''
-          new_import = '''                val mime = contentResolver.getType(uri).orEmpty()
-                      .substringBefore(';').lowercase(Locale.ROOT)
+          source = source.replace('"txt", "text", "md", "log" -> readTxt(uri, fileName)', '"txt" -> readTxt(uri, fileName)', 1)
+          source, mime_match = re.subn(r'mime\.startsWith\("text/"\)', 'mime == "text/plain"', source, count=1)
+          if mime_match != 1:
+              raise SystemExit("Broad text MIME fallback was not found")
+          source = source.replace(
+              'val mime = contentResolver.getType(uri).orEmpty()',
+              'val mime = contentResolver.getType(uri).orEmpty().substringBefore(\";\").lowercase(Locale.ROOT)',
+              1
+          )
+          needle = "val newBook = when (extension) {"
+          guard = '''val selectedMime = contentResolver.getType(uri).orEmpty().substringBefore(";").lowercase(Locale.ROOT)
                   if (extension in setOf("html", "htm", "xhtml") ||
-                      mime == "text/html" || mime == "application/xhtml+xml") {
+                      selectedMime == "text/html" || selectedMime == "application/xhtml+xml") {
                       throw IllegalArgumentException("检测到这是 HTML 网页文件，不是 PDF/TXT 文档。请导入原始 PDF 或 TXT 文件。")
                   }
-                  val newBook = when {
-                      extension == "pdf" || mime == "application/pdf" -> readPdf(uri, fileName)
-                      extension == "txt" || mime == "text/plain" -> readTxt(uri, fileName)
-                      else -> throw IllegalArgumentException("仅支持 PDF 和 TXT 文件")
-                  }'''
-          if old_import not in source:
-              raise SystemExit("Expected import-dispatch block was not found")
-          source = source.replace(old_import, new_import, 1)
+                  '''
+          if source.count(needle) != 1:
+              raise SystemExit("File import dispatch point was not found exactly once")
+          source = source.replace(needle, guard + needle, 1)
           main_path.write_text(source, encoding="utf-8")
           gradle = gradle_path.read_text(encoding="utf-8")
           gradle, code_count = re.subn(r'versionCode\s*=\s*\d+', 'versionCode = 4', gradle, count=1)
@@ -104,9 +99,10 @@ jobs:
           check = main_path.read_text(encoding="utf-8")
           assert 'type = "application/pdf"' in check
           assert 'arrayOf("application/pdf", "text/plain")' in check
-          assert 'mime == "text/html"' in check
+          assert 'selectedMime == "text/html"' in check
           assert 'mime.startsWith("text/")' not in check
-          print("PASS | PDF/TXT-only picker and explicit HTML rejection")
+          assert '"txt", "text", "md", "log" -> readTxt' not in check
+          print("PASS | PDF/TXT-only picker; HTML and broad text MIME rejected")
           print("PASS | app version 1.2.1")
           PY
 
@@ -127,7 +123,7 @@ jobs:
           grep -q "versionName='1.2.1'" /tmp/apk-badging.txt
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
           cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.1.apk"
-          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.1.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
