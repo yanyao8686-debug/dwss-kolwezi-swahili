@@ -1,0 +1,84 @@
+name: Build Independent Offline Reader APK
+
+on:
+  push:
+    branches:
+      - temp/offline-reader-1-1-0-apk-build
+    paths:
+      - 'offline-reader-src/**'
+      - '.github/workflows/build-offline-reader.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out standalone reader source
+        uses: actions/checkout@v4
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Configure Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="/usr/local/lib/android/sdk"
+          test -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Reassemble standalone reader source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find offline-reader-src -maxdepth 1 -name 'part-*.b64' | wc -l)" -eq 6
+          mkdir -p build-source
+          cat offline-reader-src/part-*.b64 | base64 --decode | tar -xz -C build-source
+          PROJECT="build-source/人生指南安卓离线朗读器"
+          test -f "$PROJECT/settings.gradle.kts"
+          test -f "$PROJECT/app/src/main/java/com/guide/offline/MainActivity.kt"
+          test -f "$PROJECT/app/src/main/AndroidManifest.xml"
+          test -f "$PROJECT/app/src/main/assets/book.json"
+          python "$PROJECT/tools/static_check.py"
+
+      - name: Compile installable debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="build-source/人生指南安卓离线朗读器"
+          cd "$PROJECT"
+          gradle --no-daemon --stacktrace :app:assembleDebug
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
+          AAPT="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/apk-badging.txt
+          grep -q "package: name='com.reader.offlinereader' versionName='1.2.0'" /tmp/apk-badging.txt
+          mkdir -p "$GITHUB_WORKSPACE/apk-output"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk"
+          sha256sum "$GITHUB_WORKSPACE/apk-output/离线听读_通用PDF-TXT朗读器_1.2.0.apk" | tee "$GITHUB_WORKSPACE/apk-output/SHA256.txt"
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-reader-1.2.0-apk
+          path: apk-output/
+          if-no-files-found: error
+          retention-days: 7
