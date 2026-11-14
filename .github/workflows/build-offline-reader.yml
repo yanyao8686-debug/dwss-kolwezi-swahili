@@ -125,7 +125,7 @@ jobs:
               raise SystemExit("MainActivity voice helper insertion point not found")
           main = main.replace(marker, helper + marker, 1)
           old_message = '先点选声音，再按“试听”比较；满意后按“设为默认”。只列出无需联网的音色。'
-          new_message = '当前检测到 \${voices.size} 种可离线中文声音。点选后可试听，满意后按“设为默认”；“下载更多声音”可进入手机语音设置。'
+          new_message = '当前检测到 ${voices.size} 种可离线中文声音。点选后可试听，满意后按“设为默认”；“下载更多声音”可进入手机语音设置。'
           if old_message not in main:
               raise SystemExit("Voice picker help text not found")
           main = main.replace(old_message, new_message, 1)
