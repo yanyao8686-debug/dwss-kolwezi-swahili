@@ -1275,7 +1275,7 @@ old_marker = "DWSS_AUTO_UPDATE_0_9_161"
 new_marker = "DWSS_AUTO_UPDATE_0_9_162"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.160 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.161 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1660,8 +1660,8 @@ if html.count('id="dwss-apk-site-url"') != 1 or \
 if 'value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"' not in html:
     fail("Android installer URL does not match the official DWSS website.")
 
-if "DWSS_AUTO_UPDATE_0_9_161" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.160.")
+if "DWSS_AUTO_UPDATE_0_9_162" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.162.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
