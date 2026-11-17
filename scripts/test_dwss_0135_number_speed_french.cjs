@@ -190,8 +190,9 @@ assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French s
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'), 'real Swahili pronunciation renderer hook is exposed');
 assert(app.includes('engine.includeTranslationOverrides') &&
        app.includes('publicPronunciationOverrides') &&
-       app.includes('result.matchedReading].filter(Boolean)'),
-  'Swahili pronunciation UI must merge public translation-level corrections and display the matched new reading');
+       app.includes('result.matchedReading].filter(Boolean)') &&
+       app.includes("result.source==='公共翻译修正'?'用户后续修正'"),
+  'Swahili pronunciation UI must merge public translation-level corrections, display their matched reading and identify them as later user corrections');
 assert(extension.includes('candidates.push(...customQueryCandidates())') &&
        extension.includes('function activeRows()') &&
        extension.includes('item.source_language === "fr"'),
