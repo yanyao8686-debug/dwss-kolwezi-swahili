@@ -79,7 +79,7 @@
     }));
     const rows=overrides&&typeof overrides.values==='function'
       ?Array.from(overrides.values()):(Array.isArray(overrides)?overrides:[]);
-    const normalizeMeaning=value=>String(value||'').normalize('NFKC').replace(/\\s+/g,'').toLowerCase();
+    const normalizeMeaning=value=>String(value||'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
     const byMeaning=new Map();
     for(const item of output){
       const key=normalizeMeaning(item&&item.zh);
@@ -97,8 +97,8 @@
         output.push(item);
         byMeaning.set(key,item);
       }
-      const readingKey=reading.normalize('NFKC').replace(/\\s+/g,'');
-      if(item.variants.some(variant=>String(variant&&variant.reading||'').normalize('NFKC').replace(/\\s+/g,'')===readingKey))continue;
+      const readingKey=reading.normalize('NFKC').replace(/\s+/g,'');
+      if(item.variants.some(variant=>String(variant&&variant.reading||'').normalize('NFKC').replace(/\s+/g,'')===readingKey))continue;
       item.variants.push({
         reading,latin:'',source:'公共翻译修正',kind:'用户新增短语修正'
       });
