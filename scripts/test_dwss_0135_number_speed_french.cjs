@@ -458,10 +458,21 @@ assert(extension.includes('输入听到却不懂意思的法语中文谐音时�
 assert(extension.includes('const results = searchFrenchCandidates(query, candidates, engine, 20);'),
   'French pronunciation input must use the tolerant French matcher, not the strict generic search');
 assert(extension.includes('function customQueryCandidates()') &&
-       extension.includes('return activeRows().map(item => ({') &&
+       extension.includes('function buildFrenchQueryCandidates(rows)') &&
+       extension.includes('return buildFrenchQueryCandidates(activeRows());') &&
        extension.includes('candidates.push(...customQueryCandidates())') &&
        extension.includes('item.source_language === "fr"'),
-  'French pronunciation lookup must merge base-index rows with saved local and shared corrections');
+  'French pronunciation lookup must merge base-index rows with every saved local and shared correction');
+
+const newFrenchCandidates = frenchQueryTools.buildCandidates([
+  {word:'Chef', reading:'邦茹', ipa:'bɔ̃.ʒuʁ', source:'用户新增法语词条'}
+]);
+const newFrenchMatches = frenchQueryTools.search('帮儒', newFrenchCandidates, pronunciationEngine, 20);
+assert(newFrenchMatches.some(item => item.zh === 'Chef' && item.matchedReading === '邦茹' && item.score === 1),
+  'a later-added French entry must enter reverse search and match a same-sound different-character query');
+const nearNewFrenchMatches = frenchQueryTools.search('旁茹', newFrenchCandidates, pronunciationEngine, 20);
+assert(nearNewFrenchMatches.some(item => item.zh === 'Chef' && item.score >= 0.84 && item.score < 1),
+  'a later-added French entry must also match a close-sound Chinese query');
 
 const firstBuckets = frenchQueryTools.nearFirstKeys('bang', pronunciationEngine, ['bang','pang','mang','mao']);
 assert(firstBuckets.includes('bang') && firstBuckets.includes('pang'),
