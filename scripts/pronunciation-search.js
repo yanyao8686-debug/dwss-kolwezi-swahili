@@ -70,6 +70,41 @@
     }
     return {distance:total/query.length,worst};
   }
+  // Merge phrase-level public translation corrections into reverse pronunciation
+  // search. These are not necessarily dictionary headwords, so they must be searchable
+  // as independent entries for same-/near-sound Chinese input (e.g. 看满大 -> 砍蛮打).
+  function includeTranslationOverrides(entries,overrides){
+    const output=(Array.isArray(entries)?entries:[]).map(item=>Object.assign({},item,{
+      variants:Array.isArray(item&&item.variants)?item.variants.slice():[]
+    }));
+    const rows=overrides&&typeof overrides.values==='function'
+      ?Array.from(overrides.values()):(Array.isArray(overrides)?overrides:[]);
+    const normalizeMeaning=value=>String(value||'').normalize('NFKC').replace(/\\s+/g,'').toLowerCase();
+    const byMeaning=new Map();
+    for(const item of output){
+      const key=normalizeMeaning(item&&item.zh);
+      if(key&&!byMeaning.has(key))byMeaning.set(key,item);
+    }
+    for(const row of rows){
+      if(!row||row.source_kind!=='translation')continue;
+      const zh=String(row.chinese_text||'').trim();
+      const reading=String(row.local_pronunciation_cn||'').trim();
+      const key=normalizeMeaning(zh);
+      if(!key||!reading)continue;
+      let item=byMeaning.get(key);
+      if(!item){
+        item={zh,category:'新增斯语修正',variants:[]};
+        output.push(item);
+        byMeaning.set(key,item);
+      }
+      const readingKey=reading.normalize('NFKC').replace(/\\s+/g,'');
+      if(item.variants.some(variant=>String(variant&&variant.reading||'').normalize('NFKC').replace(/\\s+/g,'')===readingKey))continue;
+      item.variants.push({
+        reading,latin:'',source:'公共翻译修正',kind:'用户新增短语修正'
+      });
+    }
+    return output;
+  }
   function search(query,entries,options){
     const q=toSyllables(query,true);
     if(!q.length||q.length>30)return [];
@@ -111,5 +146,5 @@
     results.sort((a,b)=>b.score-a.score||a.zh.localeCompare(b.zh,'zh-CN'));
     return results.slice(0,maxResults);
   }
-  root.DWSSPronunciationSearch={search,toSyllables,syllableDistance,fullSequenceMatch};
+  root.DWSSPronunciationSearch={search,toSyllables,syllableDistance,fullSequenceMatch,includeTranslationOverrides};
 })(typeof window!=='undefined'?window:globalThis);
