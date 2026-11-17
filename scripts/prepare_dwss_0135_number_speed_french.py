@@ -488,7 +488,7 @@ new_lookup_readings = "  const readings=[...(item?pronunciationLookupVariants(it
 if app.count(old_lookup_readings) != 1:
     fail("Could not locate the unique reverse-pronunciation result reading renderer.")
 app = app.replace(old_lookup_readings, new_lookup_readings, 1)
-if !("DWSSPronunciationSearch.includeTranslationOverrides" in app) and !("engine.includeTranslationOverrides" in app):
+if "engine.includeTranslationOverrides" not in app:
     fail("Reverse-pronunciation UI is not using the translation-correction index merger.")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
