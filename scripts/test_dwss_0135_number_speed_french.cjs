@@ -21,7 +21,7 @@ assert(runtime.includes('async function refreshAfterSharedCorrection()'),
 assert(extension.includes('machine.refreshAfterSharedCorrection()'),
   'shared-term updates must invoke the forced French refresh');
 const styleMatch = html.match(/<style id="dwss-ui-hidden-state-fix-0121">([\s\S]*?)<\/style>/);
-assert(styleMatch, '0.9.161 visibility fix stylesheet missing');
+assert(styleMatch, '0.9.162 visibility fix stylesheet missing');
 assert((html.match(/id="dwss-ui-hidden-state-fix-0121"/g) || []).length === 1,
   'visibility stylesheet duplicated');
 const css = styleMatch[1];
@@ -134,15 +134,15 @@ assert(!swInstruction.hasAttribute('hidden'), 'Swahili instruction should be vis
 assert(byId('dwssFrenchQueryPanel')[0].hasAttribute('hidden') && !frInstruction.hasAttribute('hidden'),
   'French instruction should be hidden together with the French query panel');
 
-assert(version.includes('Version: 0.9.161'), 'VERSION.txt mismatch');
-assert(app.includes("version:'0.9.161'"), 'app metadata mismatch');
-assert(sw.includes("const APP_VERSION = '0.9.161';"), 'Service Worker cache version mismatch');
-assert(html.includes('DWSS_AUTO_UPDATE_0_9_161'), 'automatic-update marker mismatch');
-assert(html.includes('dwss-release=0.9.161'), 'cache-busted page assets were not advanced');
+assert(version.includes('Version: 0.9.162'), 'VERSION.txt mismatch');
+assert(app.includes("version:'0.9.162'"), 'app metadata mismatch');
+assert(sw.includes("const APP_VERSION = '0.9.162';"), 'Service Worker cache version mismatch');
+assert(html.includes('DWSS_AUTO_UPDATE_0_9_162'), 'automatic-update marker mismatch');
+assert(html.includes('dwss-release=0.9.162'), 'cache-busted page assets were not advanced');
 assert(html.includes('french-translation-runtime.js'), 'French translation runtime missing');
-assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.161'),
+assert(html.includes('pronunciation-query-editor.js?dwss-release=0.9.162'),
   'inline pronunciation query editor is not loaded');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.161').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.162').length - 1 === 1,
   'read-only pronunciation query script must be referenced exactly once');
 const imeFallbackMatch = html.match(/<script id="dwss-input-ime-fallback-0150">([\s\S]*?)<\/script>/);
 assert(imeFallbackMatch, 'Android Chinese-IME fallback script is missing');
@@ -188,14 +188,23 @@ assert(glossCoverage.pinnedCFDICTCommit === 'ebf1d269182d84e4068d1ce383eaf272c7a
 
 assert(app.includes("french:String(t.french_text||'').trim()"), 'shared French sync ingestion changed');
 assert(app.includes('window.DWSSRenderPronunciationLookup = () => renderPronunciationLookup();'), 'real Swahili pronunciation renderer hook is exposed');
+assert(app.includes('engine.includeTranslationOverrides') &&
+       app.includes('publicPronunciationOverrides') &&
+       app.includes('result.matchedReading].filter(Boolean)') &&
+       app.includes("result.source==='公共翻译修正'?'用户后续修正'"),
+  'Swahili pronunciation UI must merge public translation-level corrections, display their matched reading and identify them as later user corrections');
+assert(extension.includes('candidates.push(...customQueryCandidates())') &&
+       extension.includes('function activeRows()') &&
+       extension.includes('item.source_language === "fr"'),
+  'French pronunciation search must continue merging new shared and personal French entries into its homophone index');
 assert(app.includes("activeResultCard.dataset.dwssLang==='fr'"), 'stale French button styling cannot suppress Swahili translation');
 assert(extension.includes('restoreSelectedModesAfterCoreReady') &&
        extension.includes('dwss:app-ready') &&
        extension.includes('setMainMode(activeMainMode);') &&
        extension.includes('setQueryMode(activeQueryMode);'),
   'main and pronunciation panels must reconcile after asynchronous core startup while preserving the selected language');
-assert(html.includes('french-extension.js?dwss-release=0.9.161') &&
-       html.includes('french-translation-runtime.js?dwss-release=0.9.161'),
+assert(html.includes('french-extension.js?dwss-release=0.9.162') &&
+       html.includes('french-translation-runtime.js?dwss-release=0.9.162'),
   'parser-deferred French runtime scripts must be pinned to the current release');
 assert(app.includes('window.DWSSRenderTranslation = () => renderTranslation({recordHistory:false});'),
   'switching back to Swahili must re-render the same Chinese input without adding duplicate history');
@@ -387,14 +396,29 @@ const pronunciationSandbox = {
     DWSS_HANZI_PINYIN: {
       '邦':'bang','帮':'bang','旁':'pang','茫':'mang',
       '茹':'ru','如':'ru','儒':'ru','乳':'ru',
-      '猫':'mao','鱼':'yu'
+      '猫':'mao','鱼':'yu','看':'kan','砍':'kan','满':'man','蛮':'man','大':'da','打':'da'
     }
   }
 };
 vm.runInNewContext(pronunciationSearchSource, pronunciationSandbox);
 const pronunciationEngine = pronunciationSandbox.window.DWSSPronunciationSearch;
-assert(pronunciationEngine && typeof pronunciationEngine.syllableDistance === 'function',
-  'shared pinyin pronunciation engine must be available for French lookup');
+assert(pronunciationEngine && typeof pronunciationEngine.syllableDistance === 'function' &&
+       typeof pronunciationEngine.includeTranslationOverrides === 'function',
+  'shared pinyin pronunciation engine must be available for Swahili and French lookup, including later translation corrections');
+
+// Regression: a phrase-level correction can exist only in the public override table,
+// without a matching built-in dictionary headword. It must still be reverse-searchable.
+const phraseOverrideRows = new Map([['指挥官', {
+  source_kind:'translation', chinese_text:'指挥官', local_pronunciation_cn:'砍蛮打'
+}]]);
+const phraseOverrideEntries = pronunciationEngine.includeTranslationOverrides([], phraseOverrideRows);
+const phraseOverrideMatches = pronunciationEngine.search('看满大', phraseOverrideEntries, {limit:20});
+assert(phraseOverrideMatches.some(item =>
+  item.zh === '指挥官' && item.matchedReading === '砍蛮打' && item.score === 1
+), 'new phrase corrections must match later same-sound different-character queries even without a dictionary headword');
+assert(!pronunciationEngine.includeTranslationOverrides([], [{
+  source_kind:'dictionary', chinese_text:'不应加入', local_pronunciation_cn:'砍蛮打'
+}]).length, 'dictionary-only override rows must not be mistaken for phrase-level translation corrections');
 
 const extensionSandbox = { window: {}, document: null };
 vm.runInNewContext(extension, extensionSandbox);
@@ -435,10 +459,21 @@ assert(extension.includes('输入听到却不懂意思的法语中文谐音时�
 assert(extension.includes('const results = searchFrenchCandidates(query, candidates, engine, 20);'),
   'French pronunciation input must use the tolerant French matcher, not the strict generic search');
 assert(extension.includes('function customQueryCandidates()') &&
-       extension.includes('return activeRows().map(item => ({') &&
+       extension.includes('function buildFrenchQueryCandidates(rows)') &&
+       extension.includes('return buildFrenchQueryCandidates(activeRows());') &&
        extension.includes('candidates.push(...customQueryCandidates())') &&
        extension.includes('item.source_language === "fr"'),
-  'French pronunciation lookup must merge base-index rows with saved local and shared corrections');
+  'French pronunciation lookup must merge base-index rows with every saved local and shared correction');
+
+const newFrenchCandidates = frenchQueryTools.buildCandidates([
+  {word:'Chef', reading:'邦茹', ipa:'bɔ̃.ʒuʁ', source:'用户新增法语词条'}
+]);
+const newFrenchMatches = frenchQueryTools.search('帮儒', newFrenchCandidates, pronunciationEngine, 20);
+assert(newFrenchMatches.some(item => item.zh === 'Chef' && item.matchedReading === '邦茹' && item.score === 1),
+  'a later-added French entry must enter reverse search and match a same-sound different-character query');
+const nearNewFrenchMatches = frenchQueryTools.search('旁茹', newFrenchCandidates, pronunciationEngine, 20);
+assert(nearNewFrenchMatches.some(item => item.zh === 'Chef' && item.score >= 0.84 && item.score < 1),
+  'a later-added French entry must also match a close-sound Chinese query');
 
 const firstBuckets = frenchQueryTools.nearFirstKeys('bang', pronunciationEngine, ['bang','pang','mang','mao']);
 assert(firstBuckets.includes('bang') && firstBuckets.includes('pang'),
@@ -787,5 +822,5 @@ for (const name of ['cover.webp','DWSS-Android-Installer.apk']) {
     'saving a changed French glossary word must submit its new phrase with the newly generated pronunciation');
 
   editDom.window.close();
-  console.log('PASS DWSS 0.9.161: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
+  console.log('PASS DWSS 0.9.162: French translation, direct result edits, live headword pronunciation/gloss refresh, newest-correction priority, language isolation and shared corrections validated.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

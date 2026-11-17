@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.160"
-NEW_VERSION = "0.9.161"
+OLD_VERSION = "0.9.161"
+NEW_VERSION = "0.9.162"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -465,6 +465,38 @@ paths = {name: ROOT / name for name in ("VERSION.txt", "index.html", "app.js", "
 version = paths["VERSION.txt"].read_text(encoding="utf-8")
 html = paths["index.html"].read_text(encoding="utf-8")
 app = paths["app.js"].read_text(encoding="utf-8")
+
+# Public translation corrections may describe a new word or a whole phrase that is
+# absent from the static dictionary. Always merge those active corrections into the
+# Swahili reverse-pronunciation candidate set, rather than indexing only known heads.
+old_lookup_entries = """ const entries=all.map(item=>({zh:item.zh,category:item.category,variants:pronunciationLookupVariants(item).map(v=>({
+  reading:v.reading,latin:v.latin||'',source:v.source||'词库记录',kind:v.kind||'',
+  status:v.variantStatus||'canonical',dialect:v.dialect||''
+ }))}));
+ const results=engine.search(query,entries,{limit:20});"""
+new_lookup_entries = """ const entries=engine.includeTranslationOverrides(all.map(item=>({zh:item.zh,category:item.category,variants:pronunciationLookupVariants(item).map(v=>({
+  reading:v.reading,latin:v.latin||'',source:v.source||'词库记录',kind:v.kind||'',
+  status:v.variantStatus||'canonical',dialect:v.dialect||''
+ }))})),publicPronunciationOverrides);
+ const results=engine.search(query,entries,{limit:20});"""
+if app.count(old_lookup_entries) != 1:
+    fail("Could not locate the unique reverse-pronunciation entry builder.")
+app = app.replace(old_lookup_entries, new_lookup_entries, 1)
+
+old_lookup_readings = "  const readings=item?pronunciationLookupVariants(item).map(v=>String(v.reading||'').trim()).filter(Boolean):[result.matchedReading];"
+new_lookup_readings = "  const readings=[...(item?pronunciationLookupVariants(item).map(v=>String(v.reading||'').trim()).filter(Boolean):[]),result.matchedReading].filter(Boolean);"
+if app.count(old_lookup_readings) != 1:
+    fail("Could not locate the unique reverse-pronunciation result reading renderer.")
+app = app.replace(old_lookup_readings, new_lookup_readings, 1)
+
+old_status_label = "  const statusLabel=result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读法':'词库原有读音';"
+new_status_label = "  const statusLabel=result.source==='公共翻译修正'?'用户后续修正':result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读法':'词库原有读音';"
+if app.count(old_status_label) != 1:
+    fail("Could not locate the unique pronunciation result status label.")
+app = app.replace(old_status_label, new_status_label, 1)
+
+if "engine.includeTranslationOverrides" not in app:
+    fail("Reverse-pronunciation UI is not using the translation-correction index merger.")
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
 def ensure_precache_asset(source: str, asset_name: str) -> str:
@@ -1080,7 +1112,7 @@ if not pronunciation_search_source.is_file() or pronunciation_search_source.stat
     fail("Updated Swahili pronunciation search engine is missing or unexpectedly small.")
 write_asset("pronunciation-search.js", pronunciation_search_source.read_bytes())
 pronunciation_search = (ROOT / "pronunciation-search.js").read_text(encoding="utf-8")
-for required in ("function getPinyinMap()", "getPinyinMap()[character]", "DWSSPronunciationSearch"):
+for required in ("function getPinyinMap()", "getPinyinMap()[character]", "function includeTranslationOverrides(", "DWSSPronunciationSearch"):
     if required not in pronunciation_search:
         fail("Swahili pronunciation engine is missing its late-pinyin safety contract: " + required)
 for required in ("DWSSPronunciationQueryReadOnly", "dwss-pronunciation-query-readonly-0151", ".dwss-query-inline-tools", "pronunciationResults", "pronunciationFrenchResults",
@@ -1230,6 +1262,7 @@ version = version.rstrip() + "\n0.9.158: Editing a French word in the sentence g
 version = version.rstrip() + "\n0.9.159: Shared additions and corrections now upsert one preferred entry per language and Chinese headword; offline corrections sync later, updated entries replace stale spellings/readings in translation and reverse lookup, and French word meanings refresh with edited headwords.\n"
 version = version.rstrip() + "\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\n"
 version = version.rstrip() + "\n0.9.161: The Android installer panel displays the official translation-app URL and provides a copy button with an Android WebView-compatible fallback.\n"
+version = version.rstrip() + "\n0.9.162: Reverse pronunciation lookup now indexes public translation-level Swahili corrections even when they are not dictionary headwords, so same/near-sound searches cover later user additions; French query keeps combining the base index with new personal/shared French entries.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1238,11 +1271,11 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_160"
-new_marker = "DWSS_AUTO_UPDATE_0_9_161"
+old_marker = "DWSS_AUTO_UPDATE_0_9_161"
+new_marker = "DWSS_AUTO_UPDATE_0_9_162"
 if new_marker not in html:
     if html.count(old_marker) != 1:
-        fail("Expected one 0.9.160 auto-update marker; found " + str(html.count(old_marker)))
+        fail("Expected one 0.9.161 auto-update marker; found " + str(html.count(old_marker)))
     html = html.replace(old_marker, new_marker, 1)
 
 # Release-level structural checks; fail closed rather than publishing an uncertain patch.
@@ -1627,8 +1660,8 @@ if html.count('id="dwss-apk-site-url"') != 1 or \
 if 'value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"' not in html:
     fail("Android installer URL does not match the official DWSS website.")
 
-if "DWSS_AUTO_UPDATE_0_9_161" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.160.")
+if "DWSS_AUTO_UPDATE_0_9_162" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.162.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
