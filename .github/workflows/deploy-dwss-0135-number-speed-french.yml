@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.162 Android installer URL copy UI
+name: Deploy DWSS 0.9.162 unified homophone pronunciation search
 
 on:
   push:
@@ -32,7 +32,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dwss-pages-deploy-0161-installer-url-copy
+  group: dwss-pages-deploy-0162-unified-homophone-index
   cancel-in-progress: true
 
 jobs:
