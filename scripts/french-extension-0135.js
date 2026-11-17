@@ -488,6 +488,7 @@
     syllableDistance: frenchSyllableDistance,
     nearFirstKeys,
     search: searchFrenchCandidates,
+    buildCandidates: buildFrenchQueryCandidates,
     preferredHeadwords: preferredFrenchHeadwordByMeaning,
     isSupersededHeadword: isSupersededFrenchHeadword
   });
@@ -1257,12 +1258,21 @@
     }
     return candidates;
   }
+  function buildFrenchQueryCandidates(rows) {
+    return (Array.isArray(rows) ? rows : []).map(item => ({
+      zh: String(item && item.word || "").trim(),
+      category: "法语新增词条",
+      variants: [{
+        reading: String(item && item.reading || "").trim(),
+        latin: item && item.ipa || "",
+        source: item && item.source || "用户新增法语词条",
+        kind: "法语共享修正",
+        status: "confirmed"
+      }]
+    })).filter(item => item.zh && item.variants[0].reading);
+  }
   function customQueryCandidates() {
-    return activeRows().map(item => ({
-      zh: item.word,
-      category: "法语共享修正",
-      variants: [{ reading: item.reading, latin: item.ipa || "", source: item.source || "用户修正", kind: "法语共享修正", status: "confirmed" }]
-    }));
+    return buildFrenchQueryCandidates(activeRows());
   }
 
   function preferredFrenchHeadwordByMeaning() {
