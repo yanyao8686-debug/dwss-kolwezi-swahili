@@ -1664,8 +1664,8 @@ if html.count('id="dwss-apk-site-url"') != 1 or \
 if 'value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"' not in html:
     fail("Android installer URL does not match the official DWSS website.")
 
-if "DWSS_AUTO_UPDATE_0_9_162" not in html:
-    fail("Automatic-update marker was not advanced to 0.9.162.")
+if "DWSS_AUTO_UPDATE_0_9_163" not in html:
+    fail("Automatic-update marker was not advanced to 0.9.163.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
 if 'id="singleReadingGlossLabel"' not in html:
