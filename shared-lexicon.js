@@ -15,6 +15,7 @@ let supabase = null, channel = null, panelOpen = false, language = "sw";
 let terms = readArray(CACHE_KEY), queue = readArray(QUEUE_KEY);
 let canonicalTerms = readArray(CANONICAL_CACHE_KEY), pronunciationVariants = readArray(PRONUNCIATION_VARIANTS_CACHE_KEY);
 let flushing = false;
+let cloudReady = false;
 const personalSyncing = new Set();
 function readArray(key) {
   try { const x = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(x) ? x : []; }
@@ -433,7 +434,8 @@ function buildPersonalPayload(entry, submitId) {
   }
   return { error: "本地词条已保存；共享需要当地斯语中文谐音，或一条带中文近似读音的法语备用表达。" };
 }
-async function submitPersonalTerm(entry) {
+async function submitPersonalTerm(entry, options) {
+  const explicit = !!(options && options.explicit === true);
   if (!entry || !entry.id || personalSyncing.has(entry.id)) return;
   personalSyncing.add(entry.id);
   try {
@@ -445,6 +447,7 @@ async function submitPersonalTerm(entry) {
     const frenchReading = String(entry.frenchReadingZh || "").trim() ||
       (french && app && typeof app.frenchReading === "function" ? String(app.frenchReading(french) || "").trim() : "");
     if (!chinese) { setPersonalStatus(entry.id, "needs-info", "", "缺少中文意思，暂不能同步。", "offline"); return; }
+
     const payloads = [];
     if (swReading) payloads.push({
       source_language: "sw", chinese_text: chinese, local_text: swText || null,
@@ -459,16 +462,52 @@ async function submitPersonalTerm(entry) {
         french ? "法语词条缺少中文近似音，请补充后再同步。" : "请至少填写一项语言表达及其中文谐音。";
       setPersonalStatus(entry.id, "needs-info", "", message, "offline"); return;
     }
-    let queued = false, latestId = "";
+
+    // Background migration only fills a missing shared headword. A canonical
+    // row (or a pending canonical edit) is authoritative and must not be
+    // replaced by an older device-local copy. Explicit user edits may replace it.
+    let queued = false, latestId = "", skippedCanonical = false;
+    const toSubmit = [];
     for (const payload of payloads) {
+      const key = canonicalTermKey(payload);
+      if (!explicit) {
+        const pending = queue.find(item => item && item.__canonical && canonicalTermKey(item) === key);
+        if (pending) {
+          queued = true;
+          latestId = pending.client_submit_id || latestId;
+          skippedCanonical = true;
+          continue;
+        }
+        if (canonicalTerms.some(item => canonicalTermKey(item) === key)) {
+          skippedCanonical = true;
+          continue;
+        }
+      }
+      toSubmit.push(payload);
+    }
+
+    if (!toSubmit.length) {
+      setPersonalStatus(entry.id, queued ? "queued" : "synced", latestId,
+        queued
+          ? "已有更新的首选读音正在等待同步；已阻止旧本机词条覆盖它。"
+          : "云端已有当前首选词条；已保留云端读音，没有用旧本机词条覆盖。",
+        queued ? "offline" : "ok");
+      return { ok: true, queued, skipped: true };
+    }
+
+    for (const payload of toSubmit) {
       const outcome = await queueCanonicalEntry(payload, entry.id);
       queued = queued || !!outcome.queued;
       latestId = outcome.entry && outcome.entry.client_submit_id || latestId;
     }
-    setPersonalStatus(entry.id, queued ? "queued" : "synced", latestId,
-      queued ? "词条已保存在本机；联网后自动同步并覆盖该中文词头的旧首选词条。" :
-        "词条已保存为该语言的当前首选词条；其他用户的翻译和发音查询会使用新结果。",
-      queued ? "offline" : "ok");
+
+    const message = skippedCanonical
+      ? "旧本机词条未覆盖云端当前首选读音；其余新词条已处理。"
+      : queued
+        ? "新词条已保存在本机；联网后自动同步并覆盖该中文词头的旧首选词条。"
+        : "词条已保存为该语言的当前首选词条；其他用户的翻译和发音查询会使用新结果。";
+    setPersonalStatus(entry.id, queued ? "queued" : "synced", latestId, message, queued ? "offline" : "ok");
+    return { ok: true, queued, skipped: skippedCanonical };
   } finally {
     personalSyncing.delete(entry.id);
   }
@@ -562,6 +601,7 @@ function needsAutomaticShare(entry) {
   return hasLocalSwahiliReading || ["pending", "queued"].includes(status);
 }
 async function syncPendingPersonalTerms() {
+  if (!navigator.onLine || !cloudReady) return;
   const app = window.KolweziSwahili;
   if (!app || typeof app.getCustom !== "function") return;
   const entries = app.getCustom();
@@ -569,7 +609,7 @@ async function syncPendingPersonalTerms() {
     const alreadyQueued = queue.some(q => q.__personal_entry_id === entry.id);
     if (alreadyQueued) continue;
     if (!needsAutomaticShare(entry)) continue;
-    await submitPersonalTerm(entry);
+    await submitPersonalTerm(entry, { explicit: false });
   }
 }
 async function connectCloud() {
@@ -586,6 +626,7 @@ async function connectCloud() {
     terms = legacy.data || []; save(CACHE_KEY, terms);
     canonicalTerms = canonicalRows || []; save(CANONICAL_CACHE_KEY, canonicalTerms);
     reconcileCanonicalQueue();
+    cloudReady = true;
     pronunciationVariants = variants.data || []; save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
     render(); count(); notifyApp();
     window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
@@ -661,7 +702,7 @@ function start() {
   window.addEventListener("dwss:personal-term-added", event => {
     const detail = event && event.detail || {};
     const entry = detail.entry || detail;
-    window.setTimeout(() => submitPersonalTerm(entry), 0);
+    window.setTimeout(() => submitPersonalTerm(entry, { explicit: true }), 0);
   });
   window.addEventListener("dwss:app-ready", () => {
     // Cloud sync can finish before the asynchronous Swahili core is injected.
