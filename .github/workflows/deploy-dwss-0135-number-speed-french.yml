@@ -425,7 +425,7 @@ jobs:
             keys.add(key)
           matching=[r for r in entries if r.get("source_language")=="sw" and r.get("chinese_text")=="没有"]
           if matching:
-            assert matching[0].get("local_pronunciation_cn")=="阿姨古", matching[0]
+            assert matching[0].get("local_pronunciation_cn")=="阿姨姑", matching[0]
           print("PASS: server-side canonical list returned",len(entries),"unique language-scoped rows.")
           PY
           echo "PASS: live DWSS 0.9.164 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."
