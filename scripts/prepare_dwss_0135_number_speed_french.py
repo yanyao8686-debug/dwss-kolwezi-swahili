@@ -479,21 +479,24 @@ new_lookup_entries = """ const entries=engine.includeTranslationOverrides(all.ma
   status:v.variantStatus||'canonical',dialect:v.dialect||''
  }))})),publicPronunciationOverrides);
  const results=engine.search(query,entries,{limit:20});"""
-if app.count(old_lookup_entries) != 1:
-    fail("Could not locate the unique reverse-pronunciation entry builder.")
-app = app.replace(old_lookup_entries, new_lookup_entries, 1)
+if app.count(old_lookup_entries) == 1:
+    app = app.replace(old_lookup_entries, new_lookup_entries, 1)
+elif app.count(new_lookup_entries) != 1:
+    fail("Could not locate exactly one original or already-updated reverse-pronunciation entry builder.")
 
 old_lookup_readings = "  const readings=item?pronunciationLookupVariants(item).map(v=>String(v.reading||'').trim()).filter(Boolean):[result.matchedReading];"
 new_lookup_readings = "  const readings=[...(item?pronunciationLookupVariants(item).map(v=>String(v.reading||'').trim()).filter(Boolean):[]),result.matchedReading].filter(Boolean);"
-if app.count(old_lookup_readings) != 1:
-    fail("Could not locate the unique reverse-pronunciation result reading renderer.")
-app = app.replace(old_lookup_readings, new_lookup_readings, 1)
+if app.count(old_lookup_readings) == 1:
+    app = app.replace(old_lookup_readings, new_lookup_readings, 1)
+elif app.count(new_lookup_readings) != 1:
+    fail("Could not locate exactly one original or already-updated reverse-pronunciation result renderer.")
 
 old_status_label = "  const statusLabel=result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读法':'词库原有读音';"
 new_status_label = "  const statusLabel=result.source==='公共翻译修正'?'用户后续修正':result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读法':'词库原有读音';"
-if app.count(old_status_label) != 1:
-    fail("Could not locate the unique pronunciation result status label.")
-app = app.replace(old_status_label, new_status_label, 1)
+if app.count(old_status_label) == 1:
+    app = app.replace(old_status_label, new_status_label, 1)
+elif app.count(new_status_label) != 1:
+    fail("Could not locate exactly one original or already-updated pronunciation result label.")
 
 if "engine.includeTranslationOverrides" not in app:
     fail("Reverse-pronunciation UI is not using the translation-correction index merger.")
