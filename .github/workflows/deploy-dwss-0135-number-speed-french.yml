@@ -19,7 +19,7 @@ on:
       - 'scripts/test_dwss_0150_input-ime-fallback.cjs'
       - 'scripts/test_dwss_0152_swahili-runtime.cjs'
       - 'scripts/test_dwss_0153_swahili-startup-race.cjs'
-      - 'scripts/test_dwss_canonical_read_0_9_164.cjs'
+      - 'scripts/test_dwss_canonical_read_0_9_163.cjs'
       - 'scripts/test_dwss_0151_french-mode-race.cjs'
       - 'scripts/merge_french_wiktionary_zh.py'
       - 'scripts/test_french_wiktionary_merge.py'
@@ -69,7 +69,7 @@ jobs:
           node --check scripts/test_dwss_0150_input-ime-fallback.cjs
           node --check scripts/test_dwss_0152_swahili-runtime.cjs
           node --check scripts/test_dwss_0153_swahili-startup-race.cjs
-          node --check scripts/test_dwss_canonical_read_0_9_164.cjs
+          node --check scripts/test_dwss_canonical_read_0_9_163.cjs
           node --check scripts/test_dwss_canonical_translation_integration.cjs
           node --check scripts/test_dwss_0151_french-mode-race.cjs
           node --check scripts/test_dwss_offline_parity.cjs
@@ -83,7 +83,7 @@ jobs:
           npm install --no-save --no-package-lock jsdom@26.1.0
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_shared_lexicon.cjs
-          node scripts/test_dwss_canonical_read_0_9_164.cjs
+          node scripts/test_dwss_canonical_read_0_9_163.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_translation_integration.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_offline_parity.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
