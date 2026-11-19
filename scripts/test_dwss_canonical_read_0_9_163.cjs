@@ -19,6 +19,11 @@ assert(!source.includes('client.from("shared_dictionary_entries")'),
 assert(source.includes('function reconcileCanonicalQueue()') &&
        source.includes('queuedAt <= remoteAt'),
   'stale offline corrections must not overwrite a newer correction from another device');
+assert(source.includes('let cloudReady = false;') &&
+       source.includes('if (!navigator.onLine || !cloudReady) return;') &&
+       source.includes('if (canonicalTerms.some(item => canonicalTermKey(item) === key))') &&
+       source.includes('submitPersonalTerm(entry, { explicit: true })'),
+  'background migration must wait for the cloud snapshot and skip existing canonical headwords, while explicit edits remain allowed');
 assert(source.includes('window.addEventListener("dwss:app-ready", () => {') &&
        source.includes('Replay the latest shared lexicon once app.js has registered its listeners.'),
   'the latest canonical lexicon must be replayed after the async application core is ready');
@@ -62,7 +67,7 @@ assert(source.includes('window.addEventListener("dwss:app-ready", () => {') &&
   const serverRows = [
     { id:'canonical-sw-no', client_submit_id:'sw-no-new', source_language:'sw',
       normalized_chinese:'没有', chinese_text:'没有', local_text:'hakuna',
-      local_pronunciation_cn:'阿姨古', french_text:null, french_pronunciation_cn:null,
+      local_pronunciation_cn:'阿姨姑', french_text:null, french_pronunciation_cn:null,
       category:'翻译新增词条', updated_at:'2026-11-19T13:38:19.726Z' },
     { id:'canonical-fr-no', client_submit_id:'fr-no-new', source_language:'fr',
       normalized_chinese:'没有', chinese_text:'没有', local_text:null, local_pronunciation_cn:null,
@@ -113,7 +118,7 @@ assert(source.includes('window.addEventListener("dwss:app-ready", () => {') &&
   const swNo = terms.filter(item => item.source_language === 'sw' && item.chinese_text === '没有');
   const frNo = terms.filter(item => item.source_language === 'fr' && item.chinese_text === '没有');
   assert.equal(swNo.length, 1, 'new Swahili canonical row must replace the stale legacy row');
-  assert.equal(swNo[0].local_pronunciation_cn, '阿姨古',
+  assert.equal(swNo[0].local_pronunciation_cn, '阿姨姑',
     'refreshed Swahili preferred pronunciation must not revert to 啊一古');
   assert.equal(frNo.length, 1, 'French and Swahili rows must remain language-scoped');
   assert.equal(frNo[0].french_text, 'pas de');
