@@ -117,13 +117,13 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_162' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_163' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
           grep -Fxq 'Version: 0.9.163' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_162' "$LIVE/index.html"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_163' "$LIVE/index.html"
 
           grep -Fq 'id="dwss-apk-site-url"' "$LIVE/index.html"
           grep -Fq '翻译应用网址：' "$LIVE/index.html"
