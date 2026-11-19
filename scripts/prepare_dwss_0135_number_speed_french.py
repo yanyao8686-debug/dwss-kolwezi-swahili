@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.161"
-NEW_VERSION = "0.9.162"
+OLD_VERSION = "0.9.162"
+NEW_VERSION = "0.9.163"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -1061,11 +1061,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.159 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.162 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.159 or 0.9.160.")
+    fail("Live app.js version is not 0.9.162 or 0.9.163.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.159 or 0.9.160.")
+    fail("Live Service Worker version is not 0.9.162 or 0.9.163.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -1245,10 +1245,10 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.160 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.163 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
-    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-14", version, count=1, flags=re.M)
+    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-19", version, count=1, flags=re.M)
     version = version.rstrip() + (
         "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
         "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n0.9.147: Caches all French spelling and pronunciation shards for complete offline dictionary lookup, resolves versioned assets against the canonical offline cache, and fixes repeated-build gloss coverage statistics. Previously unseen machine-translated expressions still require an online connection.\n"
@@ -1263,6 +1263,7 @@ version = version.rstrip() + "\n0.9.159: Shared additions and corrections now up
 version = version.rstrip() + "\n0.9.160: French single-word gloss rows now display 法文 (editable input), 中文释义, and 中文谐音 in the requested order; the existing shared-save workflow is unchanged.\n"
 version = version.rstrip() + "\n0.9.161: The Android installer panel displays the official translation-app URL and provides a copy button with an Android WebView-compatible fallback.\n"
 version = version.rstrip() + "\n0.9.162: Reverse pronunciation lookup now indexes public translation-level Swahili corrections even when they are not dictionary headwords, so same/near-sound searches cover later user additions; French query keeps combining the base index with new personal/shared French entries.\n"
+version = version.rstrip() + "\n0.9.163: Both-language canonical corrections are loaded through a server-side shared-lexicon read, startup replays fresh cloud data after the app is ready, and stale offline queue items cannot overwrite newer corrections from another device.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1271,8 +1272,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_161"
-new_marker = "DWSS_AUTO_UPDATE_0_9_162"
+old_marker = "DWSS_AUTO_UPDATE_0_9_162"
+new_marker = "DWSS_AUTO_UPDATE_0_9_163"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.161 auto-update marker; found " + str(html.count(old_marker)))
