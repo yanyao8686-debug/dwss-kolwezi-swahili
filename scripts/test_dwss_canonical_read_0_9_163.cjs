@@ -132,9 +132,9 @@ assert(source.includes('window.addEventListener("dwss:app-ready", () => {') &&
     'app-ready must re-emit shared data after the application has registered listeners');
   const replayed = events[events.length - 1] || [];
   assert(replayed.some(item => item.source_language === 'sw' &&
-    item.chinese_text === '没有' && item.local_pronunciation_cn === '阿姨古'),
+    item.chinese_text === '没有' && item.local_pronunciation_cn === '阿姨姑'),
     'app-ready replay must contain the latest preferred Swahili pronunciation');
 
   dom.window.close();
-  console.log('PASS DWSS 0.9.163: server-side canonical reads replace stale legacy/cached Swahili and French readings; language keys remain isolated; app-ready replays current corrections; old offline queue data cannot overwrite newer cloud entries.');
+  console.log('PASS DWSS 0.9.164: server-side canonical reads replace stale legacy/cached Swahili and French readings; language keys remain isolated; app-ready replays current corrections; old offline queue data cannot overwrite newer cloud entries.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
