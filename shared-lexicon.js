@@ -123,12 +123,57 @@ async function submitCanonicalNow(payload) {
   if (result.entry) mergeCanonicalTerm(result.entry);
   return result;
 }
+async function loadCanonicalEntries() {
+  const response = await fetch(CANONICAL_UPSERT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
+    body: JSON.stringify({ action: "list" }),
+    cache: "no-store"
+  });
+  let result;
+  try { result = await response.json(); }
+  catch (_) { throw new Error("云端首选词库返回了无法识别的数据。"); }
+  if (!response.ok || !result || result.ok !== true || !Array.isArray(result.entries)) {
+    throw new Error(result && result.error ? result.error : ("云端首选词库读取失败（HTTP " + response.status + "）。"));
+  }
+  return result.entries;
+}
+function reconcileCanonicalQueue() {
+  const remoteByKey = new Map();
+  canonicalTerms.forEach(item => {
+    const key = canonicalTermKey(item);
+    if (key) remoteByKey.set(key, item);
+  });
+  let changed = false;
+  queue = queue.filter(item => {
+    if (!item || !item.__canonical) return true;
+    const remote = remoteByKey.get(canonicalTermKey(item));
+    if (!remote) return true;
+    if (item.client_submit_id && item.client_submit_id === remote.client_submit_id) {
+      changed = true;
+      return false;
+    }
+    const queuedAt = Date.parse(item.updated_at || item.created_at || "");
+    const remoteAt = Date.parse(remote.updated_at || remote.created_at || "");
+    // A pending offline correction must never overwrite a newer correction made
+    // on another device while this device was disconnected.
+    if (Number.isFinite(queuedAt) && Number.isFinite(remoteAt) && queuedAt <= remoteAt) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+  if (changed) save(QUEUE_KEY, queue);
+}
 async function queueCanonicalEntry(entry, personalEntryId) {
   const source = entry && entry.source_language === "fr" ? "fr" : "sw";
   const chinese = String(entry && entry.chinese_text || "").trim();
   const normalized = normalizeCanonicalChinese(chinese);
   if (!chinese || !normalized) throw new Error("中文词条不能为空。");
-  const payload = Object.assign({}, entry, { source_language: source, chinese_text: chinese, client_submit_id: uid(), __canonical: true });
+  const payload = Object.assign({}, entry, {
+    source_language: source, chinese_text: chinese, client_submit_id: uid(),
+    updated_at: new Date().toISOString(), __canonical: true
+  });
   // Keep both language schemas explicit and mutually exclusive in the local queue,
   // matching the canonical database contract and preventing stale cross-language data.
   if (source === "fr") {
@@ -531,16 +576,16 @@ async function connectCloud() {
   if (!navigator.onLine) { setStatus("离线：显示本机词库和缓存，新词会排队等待联网", "offline"); return; }
   try {
     const client = await getClient();
-    const [legacy, canonical, variants] = await Promise.all([
+    const [legacy, canonicalRows, variants] = await Promise.all([
       client.from("shared_terms").select("*").order("created_at", { ascending: false }).limit(1500),
-      client.from("shared_dictionary_entries").select("*").order("updated_at", { ascending: false }).limit(5000),
+      loadCanonicalEntries(),
       client.from("shared_pronunciation_variants").select("*").order("updated_at", { ascending: false }).limit(5000)
     ]);
     if (legacy.error) throw legacy.error;
-    if (canonical.error) throw canonical.error;
     if (variants.error) throw variants.error;
     terms = legacy.data || []; save(CACHE_KEY, terms);
-    canonicalTerms = canonical.data || []; save(CANONICAL_CACHE_KEY, canonicalTerms);
+    canonicalTerms = canonicalRows || []; save(CANONICAL_CACHE_KEY, canonicalTerms);
+    reconcileCanonicalQueue();
     pronunciationVariants = variants.data || []; save(PRONUNCIATION_VARIANTS_CACHE_KEY, pronunciationVariants);
     render(); count(); notifyApp();
     window.dispatchEvent(new CustomEvent("dwss:pronunciation-variants-updated", { detail: { variants: getPronunciationVariants() } }));
@@ -618,7 +663,12 @@ function start() {
     const entry = detail.entry || detail;
     window.setTimeout(() => submitPersonalTerm(entry), 0);
   });
-  window.addEventListener("dwss:app-ready", syncPendingPersonalTerms);
+  window.addEventListener("dwss:app-ready", () => {
+    // Cloud sync can finish before the asynchronous Swahili core is injected.
+    // Replay the latest shared lexicon once app.js has registered its listeners.
+    notifyApp();
+    syncPendingPersonalTerms().catch(() => {});
+  });
   window.addEventListener("online", connectCloud);
   window.addEventListener("offline", () => setStatus("离线：显示缓存，新词会排队等待联网", "offline"));
   connectCloud().catch(() => {});
