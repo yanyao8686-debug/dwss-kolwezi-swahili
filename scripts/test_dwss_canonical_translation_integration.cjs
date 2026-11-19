@@ -188,4 +188,4 @@ function stripQueueFlags(item, chinese) {
 
   second.dom.window.close();
   console.log('PASS DWSS canonical regression: user edit wins over stale personal, legacy and built-in pronunciations; restart and online refresh preserve it; startup migration cannot overwrite canonical Swahili or French entries.');
-})()})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch(error => { console.error(error); process.exitCode = 1; });
