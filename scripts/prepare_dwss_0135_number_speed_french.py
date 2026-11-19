@@ -773,7 +773,7 @@ app = replace_app_fragment(
 );
 app = replace_app_fragment(
     app,
-    "const rank={personal:0,shared:1,builtin:2};\n for(const entry of keys){",
+    "const rank={personal:0,canonical:1,shared:2,builtin:3};\n for(const entry of keys){",
     "const rank={canonical:0,personal:1,shared:2,builtin:3};\n for(const entry of keys){",
     "rank canonical French reverse-lookup results"
 );
