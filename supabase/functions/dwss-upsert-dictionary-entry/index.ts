@@ -62,6 +62,18 @@ Deno.serve(async (req: Request) => {
     const raw = await req.text();
     if (raw.length > 16000) return respond({ ok: false, error: "提交内容过长。" }, 413);
     const body = JSON.parse(raw);
+    // Canonical rows are publicly readable vocabulary, but this server-side
+    // read avoids relying on the Supabase Data API exposure setting for a newly
+    // created table. The service-role client is kept entirely inside this function.
+    if (body?.action === "list") {
+      const { data: entries, error } = await getDb().from("shared_dictionary_entries")
+        .select("*").order("updated_at", { ascending: false }).limit(5000);
+      if (error) {
+        console.error("[DWSS] Canonical dictionary read failed:", error);
+        return respond({ ok: false, error: "读取云端首选词库失败，请稍后重试。" }, 503);
+      }
+      return respond({ ok: true, entries: entries || [] });
+    }
     const source = String(body?.source_language || "");
     const chinese = String(body?.chinese_text || "").trim();
     const normalized = normalizeChinese(chinese);
