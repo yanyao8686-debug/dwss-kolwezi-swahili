@@ -725,7 +725,7 @@ app = replace_app_fragment(
 )
 app = replace_app_fragment(
     app,
-    """ const rank={canonical:0,personal:1,shared:2,builtin:3,'pronunciation-variant':4};
+    """ const rank={personal:0,shared:1,builtin:2,'pronunciation-variant':3};
  const variants=(item.variants||[])
   .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
   .map((v,index)=>({v,index}))
@@ -733,7 +733,7 @@ app = replace_app_fragment(
   .map(x=>x.v);""",
     """ const canonical=(item.variants||[]).filter(v=>v.origin==='canonical'&&(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||''));
  if(canonical.length)return canonical.concat(verified);
- const rank={personal:0,canonical:1,shared:2,builtin:3,'pronunciation-variant':4};
+ const rank={canonical:0,personal:1,shared:2,builtin:3,'pronunciation-variant':4};
  const variants=(item.variants||[])
   .filter(v=>(v.reading||v.latin)&&!v.sourceWarning&&!/[（(]\\s*法\\s*[)）]/.test(v.reading||'')&&!(v.origin==='pronunciation-variant'&&!['confirmed','common'].includes(v.variantStatus)))
   .map((v,index)=>({v,index}))
@@ -743,8 +743,8 @@ app = replace_app_fragment(
 );
 app = replace_app_fragment(
     app,
+    "for(const origin of ['override','personal','shared','builtin','pronunciation-variant']){",
     "for(const origin of ['canonical','override','personal','shared','builtin','pronunciation-variant']){",
-    "for(const origin of ['override','personal','canonical','shared','builtin','pronunciation-variant']){",
     "include canonical shared origin"
 );
 app = replace_app_fragment(
