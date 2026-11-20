@@ -25,6 +25,15 @@
   let editingChinese = '';
   let saving = false;
 
+  function readDisplayedReading() {
+    return String(('value' in result ? result.value : result.textContent) || '').trim();
+  }
+  function writeDisplayedReading(value) {
+    const text = String(value || '');
+    if ('value' in result) result.value = text;
+    else result.textContent = text;
+  }
+
   function getCanonical(chinese) {
     const api = window.DWSSSharedLexicon;
     if (!chinese || !api || typeof api.getTerms !== 'function') return null;
@@ -58,7 +67,7 @@
 
   function refreshUi() {
     const chinese = String(input.value || '').trim();
-    const reading = String(result.textContent || '').trim();
+    const reading = readDisplayedReading();
     const emptyResult = !reading ||
       reading === '输入中文后，翻译结果中文谐音会显示在这里' ||
       reading === '未找到可用的中文谐音';
@@ -81,7 +90,7 @@
 
   function openEditor() {
     const chinese = String(input.value || '').trim();
-    const reading = String(result.textContent || '').trim();
+    const reading = readDisplayedReading();
     if (!chinese || !reading) return;
     if (chinese.length > MAX_LENGTH) {
       setStatus('整句中文超过 500 字，暂时不能发布为公共修正。', 'error');
@@ -135,7 +144,7 @@
       // The shared API updates the active canonical queue/cache before resolving.
       // Paint the exact user-edited value immediately; the app renderer will keep
       // using the same canonical row on the next translation.
-      result.textContent = reading;
+      writeDisplayedReading(reading);
       result.classList.remove('empty');
       result.dispatchEvent(new CustomEvent('dwss:main-reading-correction-saved', {
         bubbles: true, detail: { chinese_text: chinese, local_pronunciation_cn: reading }
@@ -207,13 +216,16 @@
     const chinese = String(input.value || '').trim();
     const canonical = getCanonical(chinese);
     if (canonical) {
-      result.textContent = canonical.local_pronunciation_cn;
+      writeDisplayedReading(canonical.local_pronunciation_cn);
       result.classList.remove('empty');
     }
   });
 
   const observer = new MutationObserver(refreshUi);
   observer.observe(result, {childList:true, characterData:true, subtree:true});
+  result.addEventListener('input', refreshUi);
+  result.addEventListener('change', refreshUi);
+  window.addEventListener('dwss:translation-rendered', refreshUi);
   refreshUi();
   window.setTimeout(refreshUi, 500);
   console.info('[DWSS] Main translation correction is connected to the canonical shared dictionary.');
