@@ -103,18 +103,18 @@ def css_references(text: str):
 
 # Mirror every file directly referenced by the HTML, CSS, manifest or Service Worker.
 ROOT.mkdir(parents=True, exist_ok=True)
-# These two scripts have been moved to the canonical shared-headword path. They
-# are source-controlled in this repository and must not be fetched from the old
-# live site, where the standalone assets may not exist yet.
+# These runtime assets are source-controlled in this repository. Never
+# mirror an older live copy over the canonical shared-lexicon/personal-editor
+# implementations being prepared for this release.
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOURCE_CONTROLLED_EDITORS = ("main-reading-editor.js", "manual-translation-reading.js")
-for asset_name in SOURCE_CONTROLLED_EDITORS:
+SOURCE_CONTROLLED_SHARED_ASSETS = ("shared-lexicon.js", "main-reading-editor.js", "manual-translation-reading.js")
+for asset_name in SOURCE_CONTROLLED_SHARED_ASSETS:
     source_path = REPO_ROOT / asset_name
     if not source_path.is_file():
         fail("Canonical-first result editor source is missing: " + str(source_path))
     write_asset(asset_name, source_path.read_bytes())
 queue = [(name, urljoin(BASE_URL, name)) for name in REQUIRED]
-seen = set(SOURCE_CONTROLLED_EDITORS)
+seen = set(SOURCE_CONTROLLED_SHARED_ASSETS)
 while queue:
     name, url = queue.pop(0)
     if name in seen:
