@@ -153,10 +153,48 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "restore") {
+      // Restoring through the legacy editor also removes the corresponding
+      // canonical headword, so the built-in/shared original becomes active again.
+      const { error: canonicalDeleteError } = await getDb()
+        .from("shared_dictionary_entries").delete()
+        .eq("source_language", "sw").eq("normalized_chinese", normalized);
+      if (canonicalDeleteError) {
+        console.error("[DWSS] Canonical pronunciation restore failed:", canonicalDeleteError);
+        return respond({ ok: false, error: "旧修正已处理，但统一首选词条恢复失败；请刷新确认。" }, 503);
+      }
       return respond({ ok: true, action: result?.action || "restored", revision: result?.revision || null });
     }
 
-    const { data: override, error: readError } = await getDb()
+    const dbClient = getDb();
+    const { data: priorCanonical, error: priorReadError } = await dbClient
+      .from("shared_dictionary_entries")
+      .select("local_text,category")
+      .eq("source_language", "sw").eq("normalized_chinese", normalized).maybeSingle();
+    if (priorReadError) {
+      console.error("[DWSS] Prior canonical headword could not be read:", priorReadError);
+      return respond({ ok: false, error: "旧公共修正已保存，但统一首选词条读取失败；请重试。" }, 503);
+    }
+    const { data: canonical, error: canonicalWriteError } = await dbClient
+      .from("shared_dictionary_entries")
+      .upsert({
+        source_language: "sw",
+        normalized_chinese: normalized,
+        chinese_text: chinese,
+        local_text: priorCanonical?.local_text || null,
+        local_pronunciation_cn: reading,
+        french_text: null,
+        french_pronunciation_cn: null,
+        category: priorCanonical?.category || "主翻译首选词条修正",
+        notes: "由旧公共读音编辑入口同步写入统一首选词库",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "source_language,normalized_chinese" })
+      .select("*").single();
+    if (canonicalWriteError) {
+      console.error("[DWSS] Legacy editor canonical upsert failed:", canonicalWriteError);
+      return respond({ ok: false, error: "旧公共修正已保存，但统一首选词条写入失败；请重试。" }, 503);
+    }
+
+    const { data: override, error: readError } = await dbClient
       .from("dictionary_pronunciation_overrides")
       .select("normalized_chinese,chinese_text,local_pronunciation_cn,original_pronunciation_cn,revision,source_kind,updated_at")
       .eq("normalized_chinese", normalized).single();
@@ -164,7 +202,7 @@ Deno.serve(async (req: Request) => {
       console.error("[DWSS] Saved pronunciation could not be re-read:", readError);
       return respond({ ok: false, error: "云端已收到提交，但读取确认结果失败。请刷新页面确认。" }, 503);
     }
-    return respond({ ok: true, action: "updated", override });
+    return respond({ ok: true, action: "updated", override, canonical });
   } catch (error) {
     console.error("[DWSS] Pronunciation correction request failed:", error);
     return respond({ ok: false, error: "服务器暂时无法处理请求，请联网后重试。" }, 503);
