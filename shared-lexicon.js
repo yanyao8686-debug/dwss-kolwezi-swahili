@@ -125,19 +125,34 @@ async function submitCanonicalNow(payload) {
   return result;
 }
 async function loadCanonicalEntries() {
-  const response = await fetch(CANONICAL_UPSERT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
-    body: JSON.stringify({ action: "list" }),
-    cache: "no-store"
-  });
-  let result;
-  try { result = await response.json(); }
-  catch (_) { throw new Error("云端首选词库返回了无法识别的数据。"); }
-  if (!response.ok || !result || result.ok !== true || !Array.isArray(result.entries)) {
-    throw new Error(result && result.error ? result.error : ("云端首选词库读取失败（HTTP " + response.status + "）。"));
+  const all = [];
+  let afterId = "";
+  let pageCount = 0;
+  while (true) {
+    const response = await fetch(CANONICAL_UPSERT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
+      body: JSON.stringify({ action: "list", after_id: afterId || null }),
+      cache: "no-store"
+    });
+    let result;
+    try { result = await response.json(); }
+    catch (_) { throw new Error("云端首选词库返回了无法识别的数据。"); }
+    if (!response.ok || !result || result.ok !== true || !Array.isArray(result.entries)) {
+      throw new Error(result && result.error ? result.error : ("云端首选词库读取失败（HTTP " + response.status + "）。"));
+    }
+    all.push(...result.entries);
+    if (result.has_more !== true) return all;
+    const nextId = String(result.next_after_id || (result.entries.length ? result.entries[result.entries.length - 1].id : "") || "");
+    if (!nextId || nextId === afterId) {
+      throw new Error("云端首选词库分页游标没有前进，已停止同步以避免漏词。");
+    }
+    afterId = nextId;
+    pageCount += 1;
+    if (pageCount > 10000) {
+      throw new Error("云端首选词库分页数量异常，已停止同步以保护设备。");
+    }
   }
-  return result.entries;
 }
 function reconcileCanonicalQueue() {
   const remoteByKey = new Map();
