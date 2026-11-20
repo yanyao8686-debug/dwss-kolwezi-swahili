@@ -33,7 +33,6 @@ REQUIRED = [
     "supabase.min.js", "cover.webp", "DWSS-Android-Installer.apk",
     "french-extension.js", "french-translation-runtime.js",
     "french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json",
-    "main-reading-editor.js", "manual-translation-reading.js",
     "french-lexicon-sources.txt", "french-LEXIK-LICENSE.txt",
     "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt", "french-ipa-index.tsv.gz",
     "french-wiktionary-coverage.json", "french-WIKTIONARY-ATTRIBUTION.txt",
@@ -104,8 +103,18 @@ def css_references(text: str):
 
 # Mirror every file directly referenced by the HTML, CSS, manifest or Service Worker.
 ROOT.mkdir(parents=True, exist_ok=True)
+# These two scripts have been moved to the canonical shared-headword path. They
+# are source-controlled in this repository and must not be fetched from the old
+# live site, where the standalone assets may not exist yet.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SOURCE_CONTROLLED_EDITORS = ("main-reading-editor.js", "manual-translation-reading.js")
+for asset_name in SOURCE_CONTROLLED_EDITORS:
+    source_path = REPO_ROOT / asset_name
+    if not source_path.is_file():
+        fail("Canonical-first result editor source is missing: " + str(source_path))
+    write_asset(asset_name, source_path.read_bytes())
 queue = [(name, urljoin(BASE_URL, name)) for name in REQUIRED]
-seen = set()
+seen = set(SOURCE_CONTROLLED_EDITORS)
 while queue:
     name, url = queue.pop(0)
     if name in seen:
@@ -142,14 +151,6 @@ for name in REQUIRED:
     if not path.is_file() or path.stat().st_size == 0:
         fail("Required live asset is missing: " + name)
 
-# The two legacy result editors must ship the source-controlled canonical-first
-# implementations, not the previous copies mirrored from the live site.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-for asset_name in ("main-reading-editor.js", "manual-translation-reading.js"):
-    source_path = REPO_ROOT / asset_name
-    if not source_path.is_file():
-        fail("Canonical-first result editor source is missing: " + str(source_path))
-    write_asset(asset_name, source_path.read_bytes())
 
 # Copy the on-demand pronunciation files too; they are intentionally not all in the
 # Service Worker precache, but both French lookup and translated-sentence reading need them.
