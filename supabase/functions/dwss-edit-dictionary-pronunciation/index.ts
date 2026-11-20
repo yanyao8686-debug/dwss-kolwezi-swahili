@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ORIGIN = "https://yanyao8686-debug.github.io";
 const DICTIONARY_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/dictionary.js.gz";
-const ALLOWED_ORIGINS = new Set([ORIGIN, "https://localhost"]);
+const ALLOWED_ORIGINS = new Set([ORIGIN, "https://localhost", "http://localhost", "capacitor://localhost"]);
 const HEADERS = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
