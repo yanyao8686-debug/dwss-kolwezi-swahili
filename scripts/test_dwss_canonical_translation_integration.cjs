@@ -284,8 +284,8 @@ function stripQueueFlags(item, chinese) {
   win.DWSSRenderTranslation();
   assert.equal(win.document.getElementById('resultReading').value, '囧轱辘嘎',
     're-translating the same headword after cloud refresh must repaint the actual result textarea with the canonical correction');
-  assert.equal(readFor(win, '巡更'), '巡更共享首选音',
-    'new headwords created through either result editor must survive app restart and cloud refresh');
+  assert.equal(readFor(win, '巡更'), '个人词条修改首选音',
+    'an explicit personal dictionary edit must survive app restart and cloud refresh as the canonical preferred reading');
   assert.equal(readFor(win, '没有'), correctedReading,
     'after app restart and cloud refresh, real translator must ignore stale personal pronunciation');
   win.document.getElementById('inputText').value = '没有';
