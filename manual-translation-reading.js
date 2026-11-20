@@ -32,6 +32,15 @@
   let editingKey = '';
   let applyingDisplay = false;
 
+  function readResultValue() {
+    return String(('value' in result ? result.value : result.textContent) || '').trim();
+  }
+  function writeResultValue(value) {
+    const text = String(value || '');
+    if ('value' in result) result.value = text;
+    else result.textContent = text;
+  }
+
   function validateRecords(value) {
     if (!Array.isArray(value)) throw new Error('修正记录格式不是数组');
     return value.filter(item => item && typeof item === 'object' &&
@@ -102,14 +111,14 @@
     lastDisplayedReading = text;
     lastSourceKey = key || currentKey();
     applyingDisplay = true;
-    result.textContent = text;
+    writeResultValue(text);
     applyingDisplay = false;
     result.classList.remove('empty');
   }
 
   function refreshControls() {
     const key = currentKey();
-    const text = String(result.textContent || '').trim();
+    const text = readResultValue();
     const valid = !!key && !!text && text !== '输入中文后，翻译结果中文谐音会显示在这里';
     tools.hidden = !valid;
     if (!valid) {
@@ -128,7 +137,7 @@
   function applySavedCorrection() {
     if (applyingDisplay) return;
     const key = currentKey();
-    const text = String(result.textContent || '').trim();
+    const text = readResultValue();
     if (!key || !text || text === '输入中文后，翻译结果中文谐音会显示在这里') {
       tools.hidden = true;
       editor.hidden = true;
@@ -178,7 +187,7 @@
     if (!key) return;
     const canonical = findCanonicalRecord(key);
     const saved = findRecord(key);
-    const text = String(result.textContent || '').trim();
+    const text = readResultValue();
     editingKey = key;
     editorValue.value = canonical
       ? String(canonical.local_pronunciation_cn || '')
@@ -227,7 +236,7 @@
       // canonical is preferred, this old row cannot replace the new shared value.
       const next = records.filter(item => item.key !== key);
       if (!unreadable) saveRecords(next);
-      lastAutoReading = lastAutoReading || String(result.textContent || '').trim();
+      lastAutoReading = lastAutoReading || readResultValue();
       setDisplayedReading(reading, key);
       closeEditor();
       showStatus(outcome && outcome.queued
@@ -286,6 +295,9 @@
   });
   observer.observe(result, {childList: true, characterData: true, subtree: true});
   window.addEventListener('dwss:shared-terms-updated', applySavedCorrection);
+  result.addEventListener('input', applySavedCorrection);
+  result.addEventListener('change', applySavedCorrection);
+  window.addEventListener('dwss:translation-rendered', applySavedCorrection);
 
   // Add manual corrections to the existing personal-dictionary backup JSON.
   // Imported older backups without this field remain fully compatible.
