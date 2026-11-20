@@ -1,4 +1,4 @@
-name: Deploy DWSS 0.9.165 unified homophone pronunciation search
+name: Deploy DWSS 0.9.166 unified homophone pronunciation search
 
 on:
   push:
@@ -9,6 +9,8 @@ on:
       - 'scripts/test_dwss_0135_number_speed_french.cjs'
       - 'scripts/test_dwss_canonical_shared_lexicon.cjs'
       - 'scripts/test_dwss_canonical_translation_integration.cjs'
+      - 'scripts/test_dwss_canonical_pagination.cjs'
+      - 'supabase/functions/dwss-edit-dictionary-pronunciation/index.ts'
       - 'main-reading-editor.js'
       - 'manual-translation-reading.js'
       - 'supabase/functions/dwss-upsert-dictionary-entry/index.ts'
@@ -75,6 +77,7 @@ jobs:
           node --check scripts/test_dwss_0153_swahili-startup-race.cjs
           node --check scripts/test_dwss_canonical_read_0_9_163.cjs
           node --check scripts/test_dwss_canonical_translation_integration.cjs
+          node --check scripts/test_dwss_canonical_pagination.cjs
           node --check scripts/test_dwss_0151_french-mode-race.cjs
           node --check scripts/test_dwss_offline_parity.cjs
           python3 -m py_compile scripts/merge_french_wiktionary_zh.py
@@ -89,6 +92,7 @@ jobs:
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_shared_lexicon.cjs
           node scripts/test_dwss_canonical_read_0_9_163.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_translation_integration.cjs
+          node scripts/test_dwss_canonical_pagination.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_offline_parity.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
           node scripts/test_dwss_0150_input-ime-fallback.cjs
@@ -102,11 +106,14 @@ jobs:
       - name: Upload DWSS Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: public
 
-      - name: Deploy DWSS 0.9.165
+      - name: Deploy DWSS 0.9.166
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Verify fast/offline French translation and protected assets
         shell: bash
@@ -124,13 +131,13 @@ jobs:
             curl -fsSL --retry 3 --retry-delay 2 --max-time 120 \
               -H 'Cache-Control: no-cache' \
               "$BASE/index.html?verify=$GITHUB_SHA&attempt=$attempt" -o "$LIVE/index.html"
-            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_165' "$LIVE/index.html"; then
+            if grep -Fq 'DWSS_AUTO_UPDATE_0_9_166' "$LIVE/index.html"; then
               break
             fi
             sleep 3
           done
-          grep -Fxq 'Version: 0.9.165' "$LIVE/VERSION.txt"
-          grep -Fq 'DWSS_AUTO_UPDATE_0_9_165' "$LIVE/index.html"
+          grep -Fxq 'Version: 0.9.166' "$LIVE/VERSION.txt"
+          grep -Fq 'DWSS_AUTO_UPDATE_0_9_166' "$LIVE/index.html"
 
           grep -Fq 'id="dwss-apk-site-url"' "$LIVE/index.html"
           grep -Fq '翻译应用网址：' "$LIVE/index.html"
@@ -138,8 +145,8 @@ jobs:
           grep -Fq 'id="dwss-apk-site-url-copy"' "$LIVE/index.html"
           grep -Fq 'navigator.clipboard.writeText(value)' "$LIVE/index.html"
           grep -Fq "document.execCommand('copy')" "$LIVE/index.html"
-          grep -Fq "version:'0.9.165'" "$LIVE/app.js"
-          grep -Fq "const APP_VERSION = '0.9.165';" "$LIVE/sw.js"
+          grep -Fq "version:'0.9.166'" "$LIVE/app.js"
+          grep -Fq "const APP_VERSION = '0.9.166';" "$LIVE/sw.js"
           grep -Fq 'id="dwss-french-compact-ui-0122"' "$LIVE/index.html"
           grep -Fq 'border:1px solid #D5BE96!important' "$LIVE/index.html"
           grep -Fq 'background:#FFF9ED!important' "$LIVE/index.html"
@@ -177,14 +184,14 @@ jobs:
           grep -Fq 'setQueryMode(activeQueryMode);' "$LIVE/french-extension.js"
           grep -Fq 'dwss:app-ready' "$LIVE/french-extension.js"
           grep -Fq 'restoreSelectedModesAfterCoreReady' "$LIVE/french-extension.js"
-          grep -Fq 'french-extension.js?dwss-release=0.9.165' "$LIVE/index.html"
-          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.165' "$LIVE/index.html"
+          grep -Fq 'french-extension.js?dwss-release=0.9.166' "$LIVE/index.html"
+          grep -Fq 'french-translation-runtime.js?dwss-release=0.9.166' "$LIVE/index.html"
           gzip -t "$LIVE/dictionary.js.gz"
           node --check "$LIVE/app.js"
           node --check "$LIVE/pronunciation-search.js"
           ! grep -Fq 'dwss-french-word-meaning-input' "$LIVE/french-extension.js"
           grep -Fq 'id="dwss-french-single-result-0123"' "$LIVE/index.html"
-          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.165' "$LIVE/index.html"
+          grep -Fq 'pronunciation-query-editor.js?dwss-release=0.9.166' "$LIVE/index.html"
           grep -Fq 'dwss-pronunciation-query-readonly-0151' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'DWSSPronunciationQueryReadOnly' "$LIVE/pronunciation-query-editor.js"
           grep -Fq '#pronunciationResults .pronunciation-hit-reading' "$LIVE/pronunciation-query-editor.js"
@@ -194,7 +201,7 @@ jobs:
           grep -Fq 'dwss-input-ime-fallback-0150' "$LIVE/index.html"
           grep -Fq 'finishComposition' "$LIVE/index.html"
           ! grep -Fq 'observer.observe(document.body' "$LIVE/pronunciation-query-editor.js"
-          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.165' "$LIVE/index.html" | wc -l)" -eq 1
+          test "$(grep -o 'pronunciation-query-editor.js?dwss-release=0.9.166' "$LIVE/index.html" | wc -l)" -eq 1
           ! grep -Fq '.pronunciation-maintenance-entry' "$LIVE/pronunciation-query-editor.js"
           grep -Fq 'id="openPublicPronunciationEditor"' "$LIVE/index.html"
           grep -Fq '.dwss-query-inline-tools' "$LIVE/pronunciation-query-editor.js"
@@ -414,6 +421,17 @@ jobs:
           test "$APK_SHA" = '9df93884f7eafe9e3cf8ba77d61c61e7a1b050360be691d1a39e6999e3fa37f5'
           PUBLISHABLE_KEY="$(sed -n 's/^const SUPABASE_KEY = "\(.*\)";$/\1/p' "$GITHUB_WORKSPACE/shared-lexicon.js")"
           test -n "$PUBLISHABLE_KEY"
+          LEGACY_EDIT_RESULT="$(curl -fsSL --retry 5 --retry-delay 2 --max-time 60 -X POST \
+            -H 'Origin: https://yanyao8686-debug.github.io' -H 'Content-Type: application/json' \
+            --data '{"action":"update","source_kind":"dictionary","chinese_text":"巡逻","local_pronunciation_cn":"囧轱辘嘎","original_pronunciation_cn":"躲hyi呀"}' \
+            'https://pautxzcfmtwkaunjxghj.supabase.co/functions/v1/dwss-edit-dictionary-pronunciation')"
+          python3 - "$LEGACY_EDIT_RESULT" <<'PY'
+          import json,sys
+          result=json.loads(sys.argv[1])
+          assert result.get("ok") is True, result
+          assert result.get("canonical",{}).get("local_pronunciation_cn")=="囧轱辘嘎", result
+          print("PASS: legacy correction endpoint writes the exact reading to the canonical headword.")
+          PY
           CANONICAL_LIST="$(curl -fsSL --retry 5 --retry-delay 2 --max-time 60 \
             -H "apikey: $PUBLISHABLE_KEY" -H 'Content-Type: application/json' \
             --data '{"action":"list"}' \
@@ -442,4 +460,4 @@ jobs:
             assert patrol[0].get("local_pronunciation_cn")=="囧轱辘嘎", patrol[0]
           print("PASS: server-side canonical list returned",len(entries),"unique language-scoped rows.")
           PY
-          echo "PASS: live DWSS 0.9.165 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."
+          echo "PASS: live DWSS 0.9.166 includes runtime-verified Swahili translation and reverse lookup; optional French shards are on-demand cached and cannot block core updates; Android IME fallback, one scoped read-only pronunciation script, audited French glossary and protected assets are verified."
