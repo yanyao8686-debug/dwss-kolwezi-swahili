@@ -13,6 +13,20 @@ for (const origin of ['https://yanyao8686-debug.github.io', 'https://localhost',
 }
 
 const source = read('shared-lexicon.js');
+const canonicalEdgeSource = fs.readFileSync(path.resolve('supabase/functions/dwss-upsert-dictionary-entry/index.ts'), 'utf8');
+const legacyEditEdgeSource = fs.readFileSync(path.resolve('supabase/functions/dwss-edit-dictionary-pronunciation/index.ts'), 'utf8');
+assert(source.includes('async function loadCanonicalEntries()') &&
+  source.includes('after_id: afterId || null') &&
+  source.includes('if (result.has_more !== true) return all;'),
+  'the browser must read every server page instead of truncating the canonical dictionary');
+assert(canonicalEdgeSource.includes('.gt("id", afterId)') &&
+  canonicalEdgeSource.includes('has_more: hasMore') &&
+  canonicalEdgeSource.includes('next_after_id:'),
+  'the server canonical-list endpoint must expose keyset pagination');
+assert(legacyEditEdgeSource.includes('.from("shared_dictionary_entries")') &&
+  legacyEditEdgeSource.includes('.upsert({') &&
+  legacyEditEdgeSource.includes('onConflict: "source_language,normalized_chinese"'),
+  'legacy public pronunciation edits must also upsert the canonical shared headword');
 for (const token of [
   'shared_dictionary_entries',
   'dwss-upsert-dictionary-entry',
