@@ -94,56 +94,53 @@ function stripQueueFlags(item, chinese) {
     ]
   }, true);
 
-  // Reproduce the actual "Patrol" failure path: an old local manual correction
-  // exists, the user changes the visible result, then translates the same Chinese
-  // again. The manual editor must publish one canonical row and immediately use it.
+  // Reproduce the actual production UI: edit the result textarea and click the
+  // visible "保存并同步" control. Do not test obsolete editor controls that are
+  // not present in the current page.
   const patrolInput = first.win.document.getElementById('inputText');
   const patrolOutput = first.win.document.getElementById('resultReading');
-  const manualEdit = first.win.document.getElementById('manualReadingEdit');
-  const manualValue = first.win.document.getElementById('manualReadingValue');
-  const manualSave = first.win.document.getElementById('manualReadingSave');
-  assert(patrolInput && patrolOutput && manualEdit && manualValue && manualSave,
-    'production manual result editor controls must exist');
+  const patrolSave = first.win.document.getElementById('submitTranslationCorrection');
+  assert(patrolInput && patrolOutput && patrolSave,
+    'production main-result textarea and save-and-sync control must exist');
+
+  const patrolRow = first.win.SW_DB.find(item => item && item.zh === '巡逻');
+  assert(patrolRow, 'the real source dictionary must include the patrol headword in this fixture');
+  patrolRow.publicOverride = { local_pronunciation_cn:'躲hyi呀', revision:4 };
   patrolInput.value = '巡逻';
   patrolInput.dispatchEvent(new first.win.Event('input', { bubbles:true }));
-  patrolOutput.value = '躲hyi呀';
-  manualEdit.click();
-  assert.equal(first.win.document.getElementById('manualReadingEditor').hidden, false,
-    'manual correction editor should open for 巡逻');
-  manualValue.value = '囧轱辘嘎';
-  manualSave.click();
+  first.win.DWSSRenderTranslation();
+  assert(first.win.DWSSActiveTranslationCorrection &&
+    first.win.DWSSActiveTranslationCorrection.chinese === '巡逻',
+    'rendering the patrol headword must activate the real correction state');
+  patrolOutput.value = '囧轱辘嘎';
+  patrolSave.click();
   await new Promise(resolve => first.win.setTimeout(resolve, 20));
   const patrolQueued = JSON.parse(first.win.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]')
     .find(item => item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡逻');
-  assert(patrolQueued, 'manual result editor must write 巡逻 to canonical shared vocabulary');
+  assert(patrolQueued, 'real main-result save button must write 巡逻 to canonical shared vocabulary');
   assert.equal(patrolQueued.local_pronunciation_cn, '囧轱辘嘎',
-    'manual result editor must save the exact edited pronunciation without appending the old reading');
+    'real main-result save button must save the exact edited pronunciation, not append the old public override');
   assert.equal(patrolOutput.value, '囧轱辘嘎',
-    'manual result editor must immediately repaint the visible result textarea');
+    'real main-result save button must immediately repaint the visible result textarea');
   assert.equal(readFor(first.win, '巡逻'), '囧轱辘嘎',
-    'real Swahili engine must immediately translate 巡逻 with its corrected canonical reading');
+    'real Swahili engine must immediately translate 巡逻 with the canonical correction despite the old public override');
 
-  // The other legacy main-result editor must also use the same canonical API.
-  const patrolMoreInput = first.win.document.getElementById('inputText');
-  const patrolMoreOutput = first.win.document.getElementById('resultReading');
-  const mainEdit = first.win.document.getElementById('mainReadingEdit');
-  const mainValue = first.win.document.getElementById('mainReadingValue');
-  const mainSave = first.win.document.getElementById('mainReadingSave');
-  assert(patrolMoreInput && patrolMoreOutput && mainEdit && mainValue && mainSave,
-    'production main result editor controls must exist');
-  patrolMoreInput.value = '巡更';
-  patrolMoreInput.dispatchEvent(new first.win.Event('input', { bubbles:true }));
-  patrolMoreOutput.value = '旧巡更音';
-  mainEdit.click();
-  mainValue.value = '巡更共享首选音';
-  mainSave.click();
+  // A completely new headword edited through the same visible control must also
+  // become the preferred result without any separate word-library maintenance.
+  const newInput = first.win.document.getElementById('inputText');
+  const newOutput = first.win.document.getElementById('resultReading');
+  newInput.value = '巡更';
+  newInput.dispatchEvent(new first.win.Event('input', { bubbles:true }));
+  first.win.DWSSRenderTranslation();
+  newOutput.value = '巡更共享首选音';
+  patrolSave.click();
   await new Promise(resolve => first.win.setTimeout(resolve, 20));
   const patrolMoreRow = first.win.DWSSSharedLexicon.getTerms().find(item =>
     item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
   assert(patrolMoreRow && patrolMoreRow.local_pronunciation_cn === '巡更共享首选音',
-    'main result correction editor must use the same canonical API for any new Chinese headword');
+    'the same visible save button must create canonical shared entries for any new Chinese headword');
   assert.equal(readFor(first.win, '巡更'), '巡更共享首选音',
-    'future words edited through the main result editor must immediately become the engine preferred reading');
+    'future headwords edited in the main result box must immediately become the engine preferred reading');
 
   const oldPersonalReading = readFor(first.win, '没有');
   assert.equal(oldPersonalReading, '啊一古',
