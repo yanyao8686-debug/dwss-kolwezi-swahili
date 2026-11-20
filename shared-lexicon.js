@@ -714,11 +714,16 @@ window.DWSSSharedLexicon = Object.freeze({
 function start() {
   // Shared vocabulary is automatic; do not create a separate floating UI.
   notifyApp();
-  window.addEventListener("dwss:personal-term-added", event => {
+  const handleExplicitPersonalTermChange = event => {
     const detail = event && event.detail || {};
     const entry = detail.entry || detail;
+    // Additions and edits are both user intent: explicitly edited local terms
+    // may replace an existing canonical headword even when their sync status
+    // was already "synced" on this device.
     window.setTimeout(() => submitPersonalTerm(entry, { explicit: true }), 0);
-  });
+  };
+  window.addEventListener("dwss:personal-term-added", handleExplicitPersonalTermChange);
+  window.addEventListener("dwss:personal-term-updated", handleExplicitPersonalTermChange);
   window.addEventListener("dwss:app-ready", () => {
     // Cloud sync can finish before the asynchronous Swahili core is injected.
     // Replay the latest shared lexicon once app.js has registered its listeners.
