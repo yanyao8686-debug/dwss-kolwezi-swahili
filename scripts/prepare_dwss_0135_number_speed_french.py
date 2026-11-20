@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.163"
-NEW_VERSION = "0.9.164"
+OLD_VERSION = "0.9.164"
+NEW_VERSION = "0.9.165"
 ROOT = Path("public")
 
 REQUIRED = [
@@ -33,6 +33,7 @@ REQUIRED = [
     "supabase.min.js", "cover.webp", "DWSS-Android-Installer.apk",
     "french-extension.js", "french-translation-runtime.js",
     "french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json",
+    "main-reading-editor.js", "manual-translation-reading.js",
     "french-lexicon-sources.txt", "french-LEXIK-LICENSE.txt",
     "french-FREEDICT-COPYING.txt", "french-IPA-LICENSE.txt", "french-ipa-index.tsv.gz",
     "french-wiktionary-coverage.json", "french-WIKTIONARY-ATTRIBUTION.txt",
@@ -140,6 +141,15 @@ for name in REQUIRED:
     path = ROOT / name
     if not path.is_file() or path.stat().st_size == 0:
         fail("Required live asset is missing: " + name)
+
+# The two legacy result editors must ship the source-controlled canonical-first
+# implementations, not the previous copies mirrored from the live site.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+for asset_name in ("main-reading-editor.js", "manual-translation-reading.js"):
+    source_path = REPO_ROOT / asset_name
+    if not source_path.is_file():
+        fail("Canonical-first result editor source is missing: " + str(source_path))
+    write_asset(asset_name, source_path.read_bytes())
 
 # Copy the on-demand pronunciation files too; they are intentionally not all in the
 # Service Worker precache, but both French lookup and translated-sentence reading need them.
@@ -602,10 +612,11 @@ def replace_app_fragment(source, old, new, label):
     # its canonical resolver patches are expected to exist in their final form.
     if label == "prefer canonical shared Swahili word readings":
         if ("function preferredLocalVariants(item){" in source and
-                "origin==='canonical'" in source and "canonical.concat(verified)" in source):
+                "origin==='canonical'" in source and "canonical.concat(personal,verified)" in source):
             return source
     if label == "include canonical shared origin":
-        if "function localOrigin(item){" in source and "['personal','canonical']" in source:
+        if "function localOrigin(item){" in source and
+                "if(variants.some(v=>v.origin==='canonical'&&usable(v)))return 'canonical';" in source:
             return source
     if label == "rank canonical shared entries":
         lookup = source.find("function lookupLocalAt(")
@@ -1267,6 +1278,7 @@ version = version.rstrip() + "\n0.9.160: French single-word gloss rows now displ
 version = version.rstrip() + "\n0.9.161: The Android installer panel displays the official translation-app URL and provides a copy button with an Android WebView-compatible fallback.\n"
 version = version.rstrip() + "\n0.9.162: Reverse pronunciation lookup now indexes public translation-level Swahili corrections even when they are not dictionary headwords, so same/near-sound searches cover later user additions; French query keeps combining the base index with new personal/shared French entries.\n"
 version = version.rstrip() + "\n0.9.163: Both-language canonical corrections are loaded through a server-side shared-lexicon read, startup replays fresh cloud data after the app is ready, and stale offline queue items cannot overwrite newer corrections from another device.\n"
+version = version.rstrip() + "\n0.9.165: All Swahili result-editing entry points now write the shared canonical headword; device-local and legacy overrides are fallback-only and cannot shadow cloud corrections.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
 if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
@@ -1275,8 +1287,8 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_163"
-new_marker = "DWSS_AUTO_UPDATE_0_9_164"
+old_marker = "DWSS_AUTO_UPDATE_0_9_164"
+new_marker = "DWSS_AUTO_UPDATE_0_9_165"
 if new_marker not in html:
     if html.count(old_marker) != 1:
         fail("Expected one 0.9.161 auto-update marker; found " + str(html.count(old_marker)))
@@ -1664,7 +1676,7 @@ if html.count('id="dwss-apk-site-url"') != 1 or \
 if 'value="https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"' not in html:
     fail("Android installer URL does not match the official DWSS website.")
 
-if "DWSS_AUTO_UPDATE_0_9_164" not in html:
+if "DWSS_AUTO_UPDATE_0_9_165" not in html:
     fail("Automatic-update marker was not advanced to 0.9.163.")
 if "dwss-input-ime-fallback-0150" not in html or "finishComposition" not in html:
     fail("Android Chinese-IME translation fallback is missing.")
