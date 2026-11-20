@@ -1,4 +1,4 @@
-/* DWSS 0.9.90 — edit the main translation pronunciation and publish it to all users. */
+/* DWSS 0.9.165 — all Swahili main-result corrections use the canonical shared headword. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -25,7 +25,16 @@
   let editingChinese = '';
   let saving = false;
 
-  function getOverride(chinese) {
+  function getCanonical(chinese) {
+    const api = window.DWSSSharedLexicon;
+    if (!chinese || !api || typeof api.getTerms !== 'function') return null;
+    const key = normalize(chinese);
+    return api.getTerms().find(row => row && row.__canonical === true &&
+      row.source_language === 'sw' && normalize(row.chinese_text) === key &&
+      String(row.local_pronunciation_cn || '').trim()) || null;
+  }
+
+  function getLegacyOverride(chinese) {
     const key = normalize(chinese);
     const api = window.DWSSDictionaryOverrides;
     if (!key || !api || typeof api.getAll !== 'function') return null;
@@ -60,10 +69,14 @@
       badge.hidden = true;
       return;
     }
-    const override = getOverride(chinese);
+    const canonical = getCanonical(chinese);
+    const legacy = canonical ? null : getLegacyOverride(chinese);
     badge.hidden = false;
-    badge.textContent = override ? '云端共享修正已启用' : '可现场修改并共享';
-    restoreButton.hidden = !override;
+    badge.textContent = canonical ? '云端首选修正已启用' :
+      legacy ? '旧公共修正待迁移' : '可现场修改并共享';
+    // Canonical entries are edited by replacing the preferred headword, not by
+    // deleting an unrelated legacy override row.
+    restoreButton.hidden = !legacy;
   }
 
   function openEditor() {
@@ -74,14 +87,15 @@
       setStatus('整句中文超过 500 字，暂时不能发布为公共修正。', 'error');
       return;
     }
-    const override = getOverride(chinese);
+    const canonical = getCanonical(chinese);
+    const legacy = canonical ? null : getLegacyOverride(chinese);
     editingChinese = chinese;
-    editorValue.value = override
-      ? String(override.local_pronunciation_cn || '')
-      : reading;
+    editorValue.value = canonical
+      ? String(canonical.local_pronunciation_cn || '')
+      : legacy ? String(legacy.local_pronunciation_cn || '') : reading;
     editor.hidden = false;
-    restoreButton.hidden = !override;
-    setStatus('这是公共修正：保存后所有用户都会使用；其他用户也可以再次修订。', 'note');
+    restoreButton.hidden = !legacy;
+    setStatus('修改后会立即成为该中文词头的云端首选读音，斯语翻译和发音查询统一使用它。', 'note');
     editorValue.focus();
     editorValue.setSelectionRange(editorValue.value.length, editorValue.value.length);
   }
@@ -103,51 +117,67 @@
       setStatus('请填写 1–500 个字符的科卢韦齐当地斯语中文谐音。', 'error');
       return;
     }
-    const api = window.DWSSDictionaryOverrides;
-    if (!api || typeof api.update !== 'function') {
-      setStatus('云端修正服务尚未就绪。请联网后刷新页面再试。', 'error');
+    const api = window.DWSSSharedLexicon;
+    if (!api || typeof api.submitQuickTranslationTerm !== 'function') {
+      setStatus('统一首选词库服务尚未就绪。请联网刷新页面后重试。', 'error');
       return;
     }
     saving = true;
     saveButton.disabled = true;
     saveButton.textContent = '正在保存并同步…';
-    setStatus('正在提交到云端公共词库…', 'note');
+    setStatus('正在写入该中文词头的云端首选词条…', 'note');
     try {
-      await api.update({
+      const outcome = await api.submitQuickTranslationTerm({
         chinese_text: editingChinese,
-        local_pronunciation_cn: reading
+        local_pronunciation_cn: reading,
+        local_text: (getCanonical(chinese) || {}).local_text || null
       });
+      // The shared API updates the active canonical queue/cache before resolving.
+      // Paint the exact user-edited value immediately; the app renderer will keep
+      // using the same canonical row on the next translation.
+      result.textContent = reading;
+      result.classList.remove('empty');
+      result.dispatchEvent(new CustomEvent('dwss:main-reading-correction-saved', {
+        bubbles: true, detail: { chinese_text: chinese, local_pronunciation_cn: reading }
+      }));
       closeEditor();
-      setStatus('保存成功！云端公共读音已更新，其他用户会实时同步；下次输入相同中文也会自动使用这条读音。', 'success');
+      setStatus(outcome && outcome.queued
+        ? '已立即生效并保存在本机队列；联网后自动同步所有用户。'
+        : '保存成功！云端首选读音已更新，下一次翻译也会使用这条读音。',
+        outcome && outcome.queued ? 'note' : 'success');
       refreshUi();
     } catch (error) {
       saving = false;
       saveButton.disabled = false;
       saveButton.textContent = '保存并同步所有用户';
-      setStatus(String(error && error.message || '云端保存失败，请检查网络后重试。'), 'error');
+      setStatus(String(error && error.message || '保存失败，请检查网络后重试。'), 'error');
     }
   }
 
   async function restoreCorrection() {
     if (saving) return;
     const chinese = String(input.value || '').trim();
-    const override = getOverride(chinese);
+    if (getCanonical(chinese)) {
+      setStatus('当前词条已有云端首选修正。请直接修改并保存新的首选读音。', 'note');
+      return;
+    }
+    const override = getLegacyOverride(chinese);
     const api = window.DWSSDictionaryOverrides;
     if (!override) {
-      setStatus('这段中文目前没有公共人工修正。', 'note');
+      setStatus('这段中文目前没有旧公共修正。', 'note');
       restoreButton.hidden = true;
       return;
     }
     if (!api || typeof api.restore !== 'function') {
-      setStatus('云端修正服务尚未就绪，请联网刷新页面再试。', 'error');
+      setStatus('旧公共修正服务尚未就绪，请联网刷新页面再试。', 'error');
       return;
     }
     restoreButton.disabled = true;
-    setStatus('正在删除公共修正并恢复自动词库结果…', 'note');
+    setStatus('正在删除旧公共修正…', 'note');
     try {
       await api.restore({chinese_text: chinese});
       closeEditor();
-      setStatus('已恢复自动词库匹配结果，其他用户也会同步恢复。', 'success');
+      setStatus('旧公共修正已删除。', 'success');
       refreshUi();
     } catch (error) {
       setStatus(String(error && error.message || '恢复失败，请检查网络后重试。'), 'error');
@@ -170,14 +200,21 @@
     setStatus('', '');
     window.setTimeout(refreshUi, 500);
   });
-  window.addEventListener('dwss:dictionary-overrides-updated', () => {
+  window.addEventListener('dwss:dictionary-overrides-updated', refreshUi);
+  window.addEventListener('dwss:shared-terms-updated', () => {
     refreshUi();
-    if (editor.hidden) setStatus('', '');
+    if (!editor.hidden) return;
+    const chinese = String(input.value || '').trim();
+    const canonical = getCanonical(chinese);
+    if (canonical) {
+      result.textContent = canonical.local_pronunciation_cn;
+      result.classList.remove('empty');
+    }
   });
 
   const observer = new MutationObserver(refreshUi);
   observer.observe(result, {childList:true, characterData:true, subtree:true});
   refreshUi();
   window.setTimeout(refreshUi, 500);
-  console.info('[DWSS] Main translation cloud pronunciation editor ready.');
+  console.info('[DWSS] Main translation correction is connected to the canonical shared dictionary.');
 })();
