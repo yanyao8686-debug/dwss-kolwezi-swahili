@@ -9,6 +9,10 @@ on:
       - 'scripts/french-extension-0135.js'
       - 'scripts/test_dwss_0135_number_speed_french.cjs'
       - 'scripts/test_dwss_canonical_shared_lexicon.cjs'
+      - 'scripts/test_dwss_canonical_pagination.cjs'
+      - 'scripts/test_dwss_canonical_translation_integration.cjs'
+      - 'supabase/functions/dwss-edit-dictionary-pronunciation/index.ts'
+      - 'supabase/functions/dwss-upsert-dictionary-entry/index.ts'
       - 'scripts/test_dwss_offline_parity.cjs'
       - 'scripts/test_dwss_0144_pronunciation_query_editor.cjs'
       - 'scripts/test_dwss_0150_input-ime-fallback.cjs'
@@ -47,6 +51,8 @@ jobs:
           node --check public/pronunciation-search.js
           node --check scripts/test_dwss_0135_number_speed_french.cjs
           node --check scripts/test_dwss_canonical_shared_lexicon.cjs
+          node --check scripts/test_dwss_canonical_pagination.cjs
+          node --check scripts/test_dwss_canonical_translation_integration.cjs
           node --check scripts/test_dwss_offline_parity.cjs
           node --check scripts/test_dwss_0144_pronunciation_query_editor.cjs
           node --check scripts/test_dwss_0150_input-ime-fallback.cjs
@@ -61,6 +67,8 @@ jobs:
           npm install --no-save --no-package-lock jsdom@26.1.0
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_0135_number_speed_french.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_shared_lexicon.cjs
+          DWSS_PUBLIC_DIR=public node scripts/test_dwss_canonical_translation_integration.cjs
+          node scripts/test_dwss_canonical_pagination.cjs
           DWSS_PUBLIC_DIR=public node scripts/test_dwss_offline_parity.cjs
           node scripts/test_dwss_0144_pronunciation_query_editor.cjs
           node scripts/test_dwss_0150_input-ime-fallback.cjs
