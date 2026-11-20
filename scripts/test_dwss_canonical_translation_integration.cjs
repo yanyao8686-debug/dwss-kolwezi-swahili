@@ -14,6 +14,17 @@ const pinyin = text('hanzi-pinyin.js');
 const pronunciation = text('pronunciation-search.js');
 const shared = text('shared-lexicon.js');
 const app = text('app.js');
+const mainReadingEditor = text('main-reading-editor.js');
+const manualReadingEditor = text('manual-translation-reading.js');
+
+assert(mainReadingEditor.includes('api.submitQuickTranslationTerm') &&
+       !mainReadingEditor.includes('await api.update('),
+  'main result editor must save through the canonical shared headword API, not the legacy override table');
+assert(manualReadingEditor.includes('api.submitQuickTranslationTerm') &&
+       manualReadingEditor.includes('findCanonicalRecord') &&
+       manualReadingEditor.includes('readResultValue()'),
+  'manual result editor must save canonical rows, read textarea values, and prefer cloud corrections');
+
 
 function makeDom(seed = {}, injectStalePersonal = false) {
   const dom = new JSDOM(html, { url:'https://dwss.test/', runScripts:'outside-only', pretendToBeVisual:true });
@@ -25,6 +36,14 @@ function makeDom(seed = {}, injectStalePersonal = false) {
   for (const [key, value] of Object.entries(seed)) win.localStorage.setItem(key, JSON.stringify(value));
   win.eval(dictionary);
   if (injectStalePersonal) {
+    const ensurePersonalRow = (zh, reading) => {
+      let row = win.SW_DB.find(item => item && item.zh === zh);
+      if (!row) { row = { zh, category:'斯语', variants:[] }; win.SW_DB.push(row); }
+      if (!Array.isArray(row.variants)) row.variants = [];
+      row.variants.unshift({ reading, latin:'', source:'旧本机个人词条', kind:'个人词库', origin:'personal' });
+    };
+    ensurePersonalRow('巡逻', '躲hyi呀');
+    ensurePersonalRow('巡更', '旧巡更音');
     let row = win.SW_DB.find(item => item && item.zh === '没有');
     if (!row) {
       row = { zh:'没有', category:'斯语', variants:[] };
@@ -43,6 +62,8 @@ function makeDom(seed = {}, injectStalePersonal = false) {
     win.document.dispatchEvent(new win.Event('DOMContentLoaded', { bubbles:true }));
   }
   win.eval(app);
+  win.eval(mainReadingEditor);
+  win.eval(manualReadingEditor);
   assert(win.KolweziSwahili && typeof win.KolweziSwahili.translate === 'function',
     'production Swahili translation engine must initialize');
   return { dom, win };
@@ -67,7 +88,63 @@ function stripQueueFlags(item, chinese) {
 }
 
 (async () => {
-  const first = makeDom({}, true);
+  const first = makeDom({
+    dwss_manual_translation_readings_v1: [
+      { key:'巡逻', zh:'巡逻', reading:'躲hyi呀', updatedAt:'2026-11-07T18:10:03.000Z' }
+    ]
+  }, true);
+
+  // Reproduce the actual "Patrol" failure path: an old local manual correction
+  // exists, the user changes the visible result, then translates the same Chinese
+  // again. The manual editor must publish one canonical row and immediately use it.
+  const patrolInput = first.win.document.getElementById('inputText');
+  const patrolOutput = first.win.document.getElementById('resultReading');
+  const manualEdit = first.win.document.getElementById('manualReadingEdit');
+  const manualValue = first.win.document.getElementById('manualReadingValue');
+  const manualSave = first.win.document.getElementById('manualReadingSave');
+  assert(patrolInput && patrolOutput && manualEdit && manualValue && manualSave,
+    'production manual result editor controls must exist');
+  patrolInput.value = '巡逻';
+  patrolInput.dispatchEvent(new first.win.Event('input', { bubbles:true }));
+  patrolOutput.value = '躲hyi呀';
+  manualEdit.click();
+  assert.equal(first.win.document.getElementById('manualReadingEditor').hidden, false,
+    'manual correction editor should open for 巡逻');
+  manualValue.value = '囧轱辘嘎';
+  manualSave.click();
+  await new Promise(resolve => first.win.setTimeout(resolve, 20));
+  const patrolQueued = JSON.parse(first.win.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]')
+    .find(item => item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡逻');
+  assert(patrolQueued, 'manual result editor must write 巡逻 to canonical shared vocabulary');
+  assert.equal(patrolQueued.local_pronunciation_cn, '囧轱辘嘎',
+    'manual result editor must save the exact edited pronunciation without appending the old reading');
+  assert.equal(patrolOutput.value, '囧轱辘嘎',
+    'manual result editor must immediately repaint the visible result textarea');
+  assert.equal(readFor(first.win, '巡逻'), '囧轱辘嘎',
+    'real Swahili engine must immediately translate 巡逻 with its corrected canonical reading');
+
+  // The other legacy main-result editor must also use the same canonical API.
+  const patrolMoreInput = first.win.document.getElementById('inputText');
+  const patrolMoreOutput = first.win.document.getElementById('resultReading');
+  const mainEdit = first.win.document.getElementById('mainReadingEdit');
+  const mainValue = first.win.document.getElementById('mainReadingValue');
+  const mainSave = first.win.document.getElementById('mainReadingSave');
+  assert(patrolMoreInput && patrolMoreOutput && mainEdit && mainValue && mainSave,
+    'production main result editor controls must exist');
+  patrolMoreInput.value = '巡更';
+  patrolMoreInput.dispatchEvent(new first.win.Event('input', { bubbles:true }));
+  patrolMoreOutput.value = '旧巡更音';
+  mainEdit.click();
+  mainValue.value = '巡更共享首选音';
+  mainSave.click();
+  await new Promise(resolve => first.win.setTimeout(resolve, 20));
+  const patrolMoreRow = first.win.DWSSSharedLexicon.getTerms().find(item =>
+    item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
+  assert(patrolMoreRow && patrolMoreRow.local_pronunciation_cn === '巡更共享首选音',
+    'main result correction editor must use the same canonical API for any new Chinese headword');
+  assert.equal(readFor(first.win, '巡更'), '巡更共享首选音',
+    'future words edited through the main result editor must immediately become the engine preferred reading');
+
   const oldPersonalReading = readFor(first.win, '没有');
   assert.equal(oldPersonalReading, '啊一古',
     'regression fixture must reproduce the stale local personal pronunciation');
@@ -90,6 +167,12 @@ function stripQueueFlags(item, chinese) {
     item.source_language === 'sw' && item.chinese_text === '没有');
   assert(canonicalQueued, 'the corrected headword must be persisted as a canonical queue record');
   const canonicalRow = stripQueueFlags(canonicalQueued, '没有');
+  const patrolQueue = JSON.parse(first.win.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]')
+    .find(item => item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡逻');
+  const patrolCanonicalRow = stripQueueFlags(patrolQueue, '巡逻');
+  const patrolMoreQueue = JSON.parse(first.win.localStorage.getItem('dwss_shared_terms_queue_v1') || '[]')
+    .find(item => item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
+  const patrolMoreCanonicalRow = stripQueueFlags(patrolMoreQueue, '巡更');
   const frenchCanonicalRow = {
     id:'server-canonical-fr-no', client_submit_id:'fr-no-cloud',
     source_language:'fr', normalized_chinese:'没有', chinese_text:'没有',
@@ -111,7 +194,10 @@ function stripQueueFlags(item, chinese) {
     dwss_shared_terms_cache_v1: [legacySwahili],
     dwss_shared_terms_queue_v1: queue,
     dwss_canonical_dictionary_cache_v1: [],
-    dwss_shared_pronunciation_variants_v1: []
+    dwss_shared_pronunciation_variants_v1: [],
+    dwss_manual_translation_readings_v1: [
+      { key:'巡逻', zh:'巡逻', reading:'躲hyi呀', updatedAt:'2026-11-07T18:10:03.000Z' }
+    ]
   }, true);
   const win = second.win;
   const staleLegacyRows = [legacySwahili];
@@ -139,7 +225,7 @@ function stripQueueFlags(item, chinese) {
     if (payload.action === 'list') {
       listCalled = true;
       return { ok:true, status:200, json:async () => ({
-        ok:true, entries:[canonicalRow, frenchCanonicalRow]
+        ok:true, entries:[canonicalRow, patrolCanonicalRow, patrolMoreCanonicalRow, frenchCanonicalRow]
       }) };
     }
     unexpectedWrites += 1;
@@ -179,6 +265,18 @@ function stripQueueFlags(item, chinese) {
   assert(!remainingQueue.some(item => item && item.__canonical && item.chinese_text === '没有'),
     'a confirmed canonical server row must acknowledge and clear its matching pending queue item');
 
+  assert.equal(readFor(win, '巡逻'), '囧轱辘嘎',
+    'after restart and cloud refresh, the exact edited 巡逻 pronunciation must beat an old localStorage override');
+  win.document.getElementById('inputText').value = '巡逻';
+  win.document.getElementById('inputText').dispatchEvent(new win.Event('input', { bubbles:true }));
+  win.document.getElementById('resultReading').value = '躲hyi呀';
+  win.dispatchEvent(new win.CustomEvent('dwss:shared-terms-updated', {
+    detail:{terms:win.DWSSSharedLexicon.getTerms()}
+  }));
+  assert.equal(win.document.getElementById('resultReading').value, '囧轱辘嘎',
+    'cloud canonical refresh must repaint the actual result textarea over the stale manual localStorage value');
+  assert.equal(readFor(win, '巡更'), '巡更共享首选音',
+    'new headwords created through either result editor must survive app restart and cloud refresh');
   assert.equal(readFor(win, '没有'), correctedReading,
     'after app restart and cloud refresh, real translator must ignore stale personal pronunciation');
   win.document.getElementById('inputText').value = '没有';
