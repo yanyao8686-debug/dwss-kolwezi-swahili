@@ -522,7 +522,7 @@ def ensure_precache_asset(source: str, asset_name: str) -> str:
         source = source[:match.start(2)] + body + f'\n  "{asset_url}",' + source[match.end(2):]
     return source
 
-for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js", "main-reading-editor.js", "manual-translation-reading.js"):
     sw = ensure_precache_asset(sw, offline_asset)
 
 # French pronunciation/spelling shards remain published as immutable static assets.
@@ -1737,7 +1737,7 @@ if "lookupFrenchPronunciationAt" in sw_tokenizer or "frenchFallback" in sw_token
     fail("Swahili tokenizer still has a French fallback path.")
 if new_accuracy_note not in html:
     fail("Swahili/French separation accuracy note is missing.")
-for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js"):
+for offline_asset in ("french-gloss-index.tsv.gz", "french-pronunciation-index.json", "french-word-index.json", "pronunciation-query-editor.js", "main-reading-editor.js", "manual-translation-reading.js"):
     if offline_asset not in sw:
         fail("French base offline dictionary asset is missing from Service Worker cache: " + offline_asset)
 if f'pronunciation-query-editor.js?dwss-release={NEW_VERSION}' not in html:
