@@ -9,10 +9,14 @@ const edge = fs.readFileSync('supabase/functions/dwss-upsert-dictionary-entry/in
 assert(edge.includes('if (body?.action === "list")'),
   'canonical upsert edge function must expose a server-side list action');
 assert(edge.includes('getDb().from("shared_dictionary_entries")') &&
-       edge.includes('.order("updated_at", { ascending: false }).limit(5000)'),
-  'canonical list must read the authoritative shared dictionary through the server database client');
+       edge.includes('.order("id", { ascending: true }).limit(1000)') &&
+       edge.includes('query.gt("id", afterId)') &&
+       edge.includes('has_more: hasMore') &&
+       edge.includes('next_after_id:'),
+  'canonical list must read the authoritative shared dictionary through server-side keyset pagination');
 assert(source.includes('async function loadCanonicalEntries()') &&
-       source.includes('body: JSON.stringify({ action: "list" })'),
+       source.includes('body: JSON.stringify({ action: "list", after_id: afterId || null })') &&
+       source.includes('if (result.has_more !== true) return all;'),
   'browser shared lexicon must retrieve canonical entries through the list action');
 assert(!source.includes('client.from("shared_dictionary_entries")'),
   'browser must not depend on direct Data API exposure for the canonical dictionary table');
