@@ -142,6 +142,21 @@ function stripQueueFlags(item, chinese) {
   assert.equal(readFor(first.win, '巡更'), '巡更共享首选音',
     'future headwords edited in the main result box must immediately become the engine preferred reading');
 
+  // Editing an existing personal-dictionary word explicitly must use the same
+  // canonical key and replace the previous shared preference, not write legacy data.
+  const personalEdit = await first.win.DWSSSharedLexicon.submitPersonalTerm({
+    id:'personal-edit-patrol', zh:'巡更', reading:'个人词条修改首选音',
+    latin:'patrol-check', category:'安保与工作', shareSyncStatus:'synced'
+  }, { explicit:true });
+  assert(personalEdit && personalEdit.ok,
+    'an explicit personal vocabulary edit must be saved through the canonical shared API');
+  const personalCanonical = first.win.DWSSSharedLexicon.getTerms().find(item =>
+    item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
+  assert(personalCanonical && personalCanonical.local_pronunciation_cn === '个人词条修改首选音',
+    'editing an existing personal entry must replace the same canonical headword');
+  assert.equal(readFor(first.win, '巡更'), '个人词条修改首选音',
+    'the real translator must immediately use an explicitly edited personal word as the shared preference');
+
   const oldPersonalReading = readFor(first.win, '没有');
   assert.equal(oldPersonalReading, '啊一古',
     'regression fixture must reproduce the stale local personal pronunciation');
