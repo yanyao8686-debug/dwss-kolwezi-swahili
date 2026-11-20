@@ -66,13 +66,26 @@ Deno.serve(async (req: Request) => {
     // read avoids relying on the Supabase Data API exposure setting for a newly
     // created table. The service-role client is kept entirely inside this function.
     if (body?.action === "list") {
-      const { data: entries, error } = await getDb().from("shared_dictionary_entries")
-        .select("*").order("updated_at", { ascending: false }).limit(5000);
+      // Keyset pagination keeps every future dictionary entry readable without a
+      // hard 5,000-row ceiling. UUID ordering is stable across page requests.
+      const afterId = String(body?.after_id || "").trim();
+      if (afterId && !validUuid(afterId)) {
+        return respond({ ok: false, error: "首选词库分页游标无效。" }, 400);
+      }
+      let query = getDb().from("shared_dictionary_entries")
+        .select("*").order("id", { ascending: true }).limit(1000);
+      if (afterId) query = query.gt("id", afterId);
+      const { data: entries, error } = await query;
       if (error) {
         console.error("[DWSS] Canonical dictionary read failed:", error);
         return respond({ ok: false, error: "读取云端首选词库失败，请稍后重试。" }, 503);
       }
-      return respond({ ok: true, entries: entries || [] });
+      const rows = entries || [];
+      const hasMore = rows.length === 1000;
+      return respond({
+        ok: true, entries: rows, has_more: hasMore,
+        next_after_id: hasMore && rows.length ? rows[rows.length - 1].id : null
+      });
     }
     const source = String(body?.source_language || "");
     const chinese = String(body?.chinese_text || "").trim();
