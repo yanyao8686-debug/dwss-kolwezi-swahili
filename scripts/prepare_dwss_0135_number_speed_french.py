@@ -615,8 +615,8 @@ def replace_app_fragment(source, old, new, label):
                 "origin==='canonical'" in source and "canonical.concat(personal,verified)" in source):
             return source
     if label == "include canonical shared origin":
-        if "function localOrigin(item){" in source and
-                "if(variants.some(v=>v.origin==='canonical'&&usable(v)))return 'canonical';" in source:
+        if ("function localOrigin(item){" in source and
+                "if(variants.some(v=>v.origin==='canonical'&&usable(v)))return 'canonical';" in source):
             return source
     if label == "rank canonical shared entries":
         lookup = source.find("function lookupLocalAt(")
