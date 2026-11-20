@@ -144,12 +144,17 @@ function stripQueueFlags(item, chinese) {
 
   // Editing an existing personal-dictionary word explicitly must use the same
   // canonical key and replace the previous shared preference, not write legacy data.
-  const personalEdit = await first.win.DWSSSharedLexicon.submitPersonalTerm({
-    id:'personal-edit-patrol', zh:'巡更', reading:'个人词条修改首选音',
-    latin:'patrol-check', category:'安保与工作', shareSyncStatus:'synced'
-  }, { explicit:true });
-  assert(personalEdit && personalEdit.ok,
-    'an explicit personal vocabulary edit must be saved through the canonical shared API');
+  first.win.dispatchEvent(new first.win.CustomEvent('dwss:personal-term-updated', {
+    detail:{ entry:{
+      id:'personal-edit-patrol', zh:'巡更', reading:'个人词条修改首选音',
+      latin:'patrol-check', category:'安保与工作', shareSyncStatus:'synced'
+    }}
+  }));
+  await new Promise(resolve => first.win.setTimeout(resolve, 20));
+  const personalEditRow = first.win.DWSSSharedLexicon.getTerms().find(item =>
+    item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
+  assert(personalEditRow && personalEditRow.local_pronunciation_cn === '个人词条修改首选音',
+    'an explicit edit event for an already-synced personal word must upsert the canonical shared headword');
   const personalCanonical = first.win.DWSSSharedLexicon.getTerms().find(item =>
     item && item.__canonical && item.source_language === 'sw' && item.chinese_text === '巡更');
   assert(personalCanonical && personalCanonical.local_pronunciation_cn === '个人词条修改首选音',
