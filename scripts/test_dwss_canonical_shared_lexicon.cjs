@@ -138,5 +138,5 @@ for (const token of [
     'online upsert result must be merged into the immediately active local dictionary');
 
   dom.window.close();
-  console.log('PASS DWSS 0.9.165: canonical Swahili/French entries replace stale active headwords offline; language-scoped entries coexist; pending pronunciation variants are instantly searchable and all changes persist for later sync.');
+  console.log('PASS DWSS 0.9.166: canonical Swahili/French entries replace stale active headwords offline; language-scoped entries coexist; pending pronunciation variants are instantly searchable and all changes persist for later sync.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
