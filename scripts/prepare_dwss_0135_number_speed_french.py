@@ -22,7 +22,7 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.164"
+OLD_VERSION = "0.9.165"
 NEW_VERSION = "0.9.166"
 ROOT = Path("public")
 
@@ -1076,11 +1076,11 @@ if 'id="singleReadingGlossLabel"' not in html:
     html = html.replace(old_gloss_title, new_gloss_title, 1)
 
 if f"Version: {OLD_VERSION}" not in version and f"Version: {NEW_VERSION}" not in version:
-    fail("Live site is not the supported 0.9.162 baseline: " + repr(version[:120]))
+    fail("Live site is not the supported 0.9.165 baseline: " + repr(version[:120]))
 if f"version:'{OLD_VERSION}'" not in app and f"version:'{NEW_VERSION}'" not in app:
-    fail("Live app.js version is not 0.9.162 or 0.9.163.")
+    fail("Live app.js version is not 0.9.165 or 0.9.166.")
 if f"const APP_VERSION = '{OLD_VERSION}';" not in sw and f"const APP_VERSION = '{NEW_VERSION}';" not in sw:
-    fail("Live Service Worker version is not 0.9.162 or 0.9.163.")
+    fail("Live Service Worker version is not 0.9.165 or 0.9.166.")
 
 
 protected = {name: sha(ROOT / name) for name in PROTECTED}
@@ -1260,7 +1260,7 @@ else:
     html = html.replace("</head>", style + "\n</head>", 1)
 
 # Bump the website, application and Service Worker together. A workflow rerun after
-# a deployment is idempotent: it keeps 0.9.163 rather than attempting another bump.
+# a deployment is idempotent: it keeps 0.9.166 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
     version = re.sub(r"^Release date: .*$", "Release date: 2026-11-20", version, count=1, flags=re.M)
@@ -1290,7 +1290,7 @@ if f"const APP_VERSION = '{OLD_VERSION}';" in sw:
         f"const APP_VERSION = '{NEW_VERSION}';", 1
     )
 html = html.replace(OLD_VERSION, NEW_VERSION)
-old_marker = "DWSS_AUTO_UPDATE_0_9_164"
+old_marker = "DWSS_AUTO_UPDATE_0_9_165"
 new_marker = "DWSS_AUTO_UPDATE_0_9_166"
 if new_marker not in html:
     if html.count(old_marker) != 1:
