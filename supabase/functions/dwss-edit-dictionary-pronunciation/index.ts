@@ -69,10 +69,16 @@ async function builtinTerms() {
 }
 async function isKnownTerm(chinese: string, normalized: string) {
   if ((await builtinTerms()).has(normalized)) return true;
-  const { data, error } = await getDb().from("shared_terms")
-    .select("chinese_text").eq("source_language", "sw").eq("chinese_text", chinese).limit(1);
-  if (error) throw new Error("公共词库校验查询失败");
-  return Array.isArray(data) && data.some((row: any) => normalize(String(row?.chinese_text || "")) === normalized);
+  const dbClient = getDb();
+  const [legacy, canonical] = await Promise.all([
+    dbClient.from("shared_terms")
+      .select("chinese_text").eq("source_language", "sw").eq("chinese_text", chinese).limit(1),
+    dbClient.from("shared_dictionary_entries")
+      .select("chinese_text").eq("source_language", "sw").eq("normalized_chinese", normalized).limit(1)
+  ]);
+  if (legacy.error || canonical.error) throw new Error("公共词库校验查询失败");
+  const candidates = (legacy.data || []).concat(canonical.data || []);
+  return candidates.some((row: any) => normalize(String(row?.chinese_text || "")) === normalized);
 }
 
 Deno.serve(async (req: Request) => {
