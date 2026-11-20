@@ -1,4 +1,4 @@
-/* DWSS 0.9.90 — manually correct the Chinese phonetic result for an exact input. */
+/* DWSS 0.9.165 — route every manual main-result correction to the canonical shared headword. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -82,6 +82,14 @@
     return records.find(item => item.key === key) || null;
   }
 
+  function findCanonicalRecord(key) {
+    const api = window.DWSSSharedLexicon;
+    if (!key || !api || typeof api.getTerms !== 'function') return null;
+    return api.getTerms().find(item => item && item.__canonical === true &&
+      item.source_language === 'sw' && normalize(item.chinese_text) === key &&
+      String(item.local_pronunciation_cn || '').trim()) || null;
+  }
+
   function showStatus(message, kind) {
     status.textContent = message || '';
     status.className = 'manual-reading-status' + (kind ? ' ' + kind : '');
@@ -108,11 +116,13 @@
       editor.hidden = true;
       return;
     }
+    const canonical = findCanonicalRecord(key);
     const saved = findRecord(key);
-    editButton.textContent = saved ? '修改我的修正' : '修改读音';
-    state.textContent = saved ? '已使用本机修正' : '可手动修正';
+    editButton.textContent = canonical ? '修改云端首选读音' : saved ? '修改我的旧修正' : '修改读音';
+    state.textContent = canonical ? '已使用云端首选修正' : saved ? '旧本机修正（仅作兼容）' : '可修改并同步';
     state.hidden = false;
-    restoreButton.hidden = !saved;
+    // A canonical shared record outranks any historical device-local correction.
+    restoreButton.hidden = !!canonical || !saved;
   }
 
   function applySavedCorrection() {
@@ -126,12 +136,26 @@
       return;
     }
 
-    // The app renderer writes the raw dictionary result first. A change that differs
-    // from the last value set by this helper is therefore a fresh automatic result.
+    // Capture the fresh app-rendered reading before applying either type of saved
+    // correction. The cloud canonical headword is always authoritative; the
+    // legacy localStorage record is fallback-only and can never shadow it.
     if (key !== lastSourceKey || text !== lastDisplayedReading) {
       lastAutoReading = text;
       lastSourceKey = key;
       lastDisplayedReading = text;
+    }
+
+    const canonical = findCanonicalRecord(key);
+    if (canonical) {
+      const preferred = String(canonical.local_pronunciation_cn || '').trim();
+      if (preferred && text !== preferred) setDisplayedReading(preferred, key);
+      else {
+        lastDisplayedReading = text;
+        lastSourceKey = key;
+      }
+      showStatus('已自动使用云端首选读音；其他设备和发音查询也使用同一条修正。', 'saved');
+      refreshControls();
+      return;
     }
 
     const saved = findRecord(key);
@@ -141,7 +165,7 @@
         lastDisplayedReading = text;
         lastSourceKey = key;
       }
-      showStatus('已自动使用你保存的本机修正。', 'saved');
+      showStatus('检测到旧本机修正；新修改请通过统一共享入口保存。', 'note');
     } else {
       lastDisplayedReading = text;
       lastSourceKey = key;
@@ -149,17 +173,19 @@
     }
     refreshControls();
   }
-
   function openEditor() {
     const key = currentKey();
     if (!key) return;
+    const canonical = findCanonicalRecord(key);
     const saved = findRecord(key);
     const text = String(result.textContent || '').trim();
     editingKey = key;
-    editorValue.value = saved ? saved.reading : (text || lastAutoReading);
+    editorValue.value = canonical
+      ? String(canonical.local_pronunciation_cn || '')
+      : saved ? saved.reading : (text || lastAutoReading);
     editor.hidden = false;
-    restoreButton.hidden = !saved;
-    showStatus('修改后的读音只保存在本机；更换设备前可通过个人备份转移。', 'note');
+    restoreButton.hidden = !!canonical || !saved;
+    showStatus('修改后立即成为该中文词头的云端首选读音，并同步用于后续翻译。', 'note');
     editorValue.focus();
     editorValue.setSelectionRange(editorValue.value.length, editorValue.value.length);
   }
@@ -170,8 +196,9 @@
     editorValue.value = '';
   }
 
-  function saveCorrection() {
+  async function saveCorrection() {
     const key = currentKey();
+    const chinese = input.value.trim();
     const reading = String(editorValue.value || '').trim();
     if (!key || key !== editingKey) {
       showStatus('输入的中文已改变，请重新打开“修改读音”。', 'error');
@@ -182,20 +209,38 @@
       showStatus('请填写 1–2000 个字符的中文谐音。', 'error');
       return;
     }
-    if (unreadable) {
-      showStatus('检测到本机修正数据无法读取。为保护原始数据，已暂停写入。', 'error');
+    const api = window.DWSSSharedLexicon;
+    if (!api || typeof api.submitQuickTranslationTerm !== 'function') {
+      showStatus('统一云端首选词库尚未就绪，请刷新页面后重试。', 'error');
       return;
     }
-    const next = records.filter(item => item.key !== key);
-    next.push({key, zh: input.value.trim(), reading, updatedAt: new Date().toISOString()});
-    if (!saveRecords(next)) return;
-    lastAutoReading = lastAutoReading || String(result.textContent || '').trim();
-    setDisplayedReading(reading, key);
-    closeEditor();
-    showStatus('已保存。下次输入相同中文时，会优先显示这条人工修正。', 'saved');
-    refreshControls();
-  }
 
+    saveButton.disabled = true;
+    showStatus('正在保存并同步到云端首选词库…', 'note');
+    try {
+      const outcome = await api.submitQuickTranslationTerm({
+        chinese_text: chinese,
+        local_pronunciation_cn: reading,
+        local_text: (findCanonicalRecord(key) || {}).local_text || null
+      });
+      // Retain the former local correction only as a compatibility backup. Since
+      // canonical is preferred, this old row cannot replace the new shared value.
+      const next = records.filter(item => item.key !== key);
+      if (!unreadable) saveRecords(next);
+      lastAutoReading = lastAutoReading || String(result.textContent || '').trim();
+      setDisplayedReading(reading, key);
+      closeEditor();
+      showStatus(outcome && outcome.queued
+        ? '修改已立即生效并保存在本机队列；联网后自动同步所有用户。'
+        : '保存成功！云端首选读音已更新，重新翻译也会使用这条结果。',
+        outcome && outcome.queued ? 'note' : 'saved');
+      refreshControls();
+    } catch (error) {
+      showStatus('保存失败：' + String(error && error.message || error), 'error');
+    } finally {
+      saveButton.disabled = false;
+    }
+  }
   function restoreAutomatic() {
     const key = currentKey();
     if (!key) return;
@@ -240,6 +285,7 @@
     if (!applyingDisplay) applySavedCorrection();
   });
   observer.observe(result, {childList: true, characterData: true, subtree: true});
+  window.addEventListener('dwss:shared-terms-updated', applySavedCorrection);
 
   // Add manual corrections to the existing personal-dictionary backup JSON.
   // Imported older backups without this field remain fully compatible.
