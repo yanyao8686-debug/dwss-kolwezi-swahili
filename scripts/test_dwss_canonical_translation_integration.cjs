@@ -265,13 +265,10 @@ function stripQueueFlags(item, chinese) {
   assert.equal(readFor(win, '巡逻'), '囧轱辘嘎',
     'after restart and cloud refresh, the exact edited 巡逻 pronunciation must beat an old localStorage override');
   win.document.getElementById('inputText').value = '巡逻';
-  win.document.getElementById('inputText').dispatchEvent(new win.Event('input', { bubbles:true }));
   win.document.getElementById('resultReading').value = '躲hyi呀';
-  win.dispatchEvent(new win.CustomEvent('dwss:shared-terms-updated', {
-    detail:{terms:win.DWSSSharedLexicon.getTerms()}
-  }));
+  win.DWSSRenderTranslation();
   assert.equal(win.document.getElementById('resultReading').value, '囧轱辘嘎',
-    'cloud canonical refresh must repaint the actual result textarea over the stale manual localStorage value');
+    're-translating the same headword after cloud refresh must repaint the actual result textarea with the canonical correction');
   assert.equal(readFor(win, '巡更'), '巡更共享首选音',
     'new headwords created through either result editor must survive app restart and cloud refresh');
   assert.equal(readFor(win, '没有'), correctedReading,
