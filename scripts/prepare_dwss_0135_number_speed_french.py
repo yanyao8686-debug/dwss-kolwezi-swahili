@@ -1262,7 +1262,7 @@ else:
 # a deployment is idempotent: it keeps 0.9.163 rather than attempting another bump.
 if f"Version: {OLD_VERSION}" in version:
     version = version.replace(f"Version: {OLD_VERSION}", f"Version: {NEW_VERSION}", 1)
-    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-19", version, count=1, flags=re.M)
+    version = re.sub(r"^Release date: .*$", "Release date: 2026-11-20", version, count=1, flags=re.M)
     version = version.rstrip() + (
         "\n\n0.9.145: Simplifies Swahili/French pronunciation query results, removes copy actions, and adds direct shared correction. Imports all single-word French Wiktionary headwords with an existing DWSS reading or source IPA; attaches direct Chinese translations when available and marks IPA-generated homophones for human review.\n"
         "0.9.146: Matches the French single-word gloss rows to the Swahili gloss presentation while keeping each French headword directly editable; preserves pronunciation, meaning, and shared-correction behavior.\n0.9.147: Caches all French spelling and pronunciation shards for complete offline dictionary lookup, resolves versioned assets against the canonical offline cache, and fixes repeated-build gloss coverage statistics. Previously unseen machine-translated expressions still require an online connection.\n"
@@ -1278,6 +1278,7 @@ version = version.rstrip() + "\n0.9.160: French single-word gloss rows now displ
 version = version.rstrip() + "\n0.9.161: The Android installer panel displays the official translation-app URL and provides a copy button with an Android WebView-compatible fallback.\n"
 version = version.rstrip() + "\n0.9.162: Reverse pronunciation lookup now indexes public translation-level Swahili corrections even when they are not dictionary headwords, so same/near-sound searches cover later user additions; French query keeps combining the base index with new personal/shared French entries.\n"
 version = version.rstrip() + "\n0.9.163: Both-language canonical corrections are loaded through a server-side shared-lexicon read, startup replays fresh cloud data after the app is ready, and stale offline queue items cannot overwrite newer corrections from another device.\n"
+version = version.rstrip() + "\n0.9.164: Canonical shared corrections outrank old personal readings, and startup migration no longer overwrites an existing shared headword.\n"
 version = version.rstrip() + "\n0.9.165: All Swahili result-editing entry points now write the shared canonical headword; device-local and legacy overrides are fallback-only and cannot shadow cloud corrections.\n"
 if f"version:'{OLD_VERSION}'" in app:
     app = app.replace(f"version:'{OLD_VERSION}'", f"version:'{NEW_VERSION}'", 1)
