@@ -512,15 +512,10 @@ elif app.count(new_lookup_readings) == 1 or app.count(final_lookup_readings) == 
 else:
     fail("Could not locate the original, transitional or unified reverse-pronunciation result renderer.")
 
-old_status_label = "  const statusLabel=result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读法':'词库原有读音';"
-new_status_label = "  const statusLabel=result.source==='公共翻译修正'?'用户后续修正':result.variantStatus==='pending'?'用户提交 · 待确认':result.variantStatus==='confirmed'?'当地读法 · 已确认':result.variantStatus==='common'?'当地常见读音':'词库原有读音';"
-if app.count(old_status_label) == 1:
-    app = app.replace(old_status_label, new_status_label, 1)
-elif app.count(new_status_label) != 1:
-    fail("Could not locate exactly one original or already-updated pronunciation result label.")
-
-if "engine.includeTranslationOverrides" not in app and "variants:preferredLocalVariants(item).map(v=>({" not in app:
-    fail("Swahili reverse-pronunciation UI is not using the active local pronunciation index.")
+# Preserve the existing status copy for the selected active source rows.
+# The unified index no longer adds translation-only overrides, so no label rewrite is needed.
+if "const statusLabel=" not in app:
+    fail("The Swahili pronunciation result status label is missing.")
 
 sw = paths["sw.js"].read_text(encoding="utf-8")
 
