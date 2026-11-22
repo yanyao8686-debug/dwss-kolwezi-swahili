@@ -21,14 +21,14 @@ const pronunciationSource = text('pronunciation-search.js');
 const hanziPinyinSource = text('hanzi-pinyin.js');
 const dictionarySource = zlib.gunzipSync(read('dictionary.js.gz')).toString('utf8');
 
-assert(version.includes('Version: 0.9.166'), 'website version must be 0.9.166');
-assert(app.includes("version:'0.9.166'"), 'app version must match');
-assert(sw.includes("const APP_VERSION = '0.9.166';"), 'Service Worker version must match');
+assert(version.includes('Version: 0.9.167'), 'website version must be 0.9.167');
+assert(app.includes("version:'0.9.167'"), 'app version must match');
+assert(sw.includes("const APP_VERSION = '0.9.167';"), 'Service Worker version must match');
 assert(html.includes('DWSS_AUTO_UPDATE_0_9_166'), 'automatic-update marker must match');
-assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.166').length - 1 === 1,
+assert(html.split('pronunciation-query-editor.js?dwss-release=0.9.167').length - 1 === 1,
   'query editor must load exactly once with the current release URL');
 for (const name of ['french-extension.js','french-translation-runtime.js']) {
-  assert(html.split(name + '?dwss-release=0.9.166').length - 1 === 1,
+  assert(html.split(name + '?dwss-release=0.9.167').length - 1 === 1,
     name + ' must be pinned to the current release');
 }
 assert(boot.indexOf('./hanzi-pinyin.js') < boot.indexOf('./pronunciation-search.js') &&
@@ -104,6 +104,46 @@ assert.equal(typeof win.DWSSRenderTranslation, 'undefined',
 win.eval(app); // app.js dispatches dwss:app-ready after exporting the real renderers
 const api = win.KolweziSwahili;
 assert(api && typeof api.translate === 'function', 'local Swahili translation API must initialize');
+assert(app.includes('variants:preferredLocalVariants(item).map(v=>({') &&
+       !app.includes('engine.includeTranslationOverrides(all.map'),
+  'reverse lookup candidate assembly must share the forward translator reading filter');
+
+// Audit every unique plain-Chinese built-in headword that has at least one
+// locally approved homophone. Those words must be found by the main translator,
+// not merely by the phonetic reverse-lookup index.
+const eligibleHeadwords = new Set();
+for (const item of rows) {
+  const zh = String(item && item.zh || '').trim();
+  if (!zh || !/^\p{Script=Han}+$/u.test(zh)) continue;
+  const candidates = (Array.isArray(item.variants) ? item.variants : []).filter(v => {
+    const reading = String(v && v.reading || '').trim();
+    if (!reading || v.sourceWarning || /[（(]\s*法\s*[)）]/.test(reading)) return false;
+    return v.origin !== 'pronunciation-variant' || ['confirmed','common'].includes(v.variantStatus);
+  });
+  if (candidates.length) eligibleHeadwords.add(zh);
+}
+const parityMismatches = [];
+for (const zh of eligibleHeadwords) {
+  const result = api.translate(zh);
+  const found = result && Array.isArray(result.segments) &&
+    result.segments.some(segment => segment && segment.type === 'local' && String(segment.reading || '').trim());
+  if (!found) parityMismatches.push(zh);
+}
+assert.equal(parityMismatches.length, 0,
+  'forward/reverse dictionary parity failures (' + parityMismatches.length + '/' + eligibleHeadwords.size + '): ' +
+  parityMismatches.slice(0, 30).join('、'));
+const knifeRow = rows.find(item => item && String(item.zh || '').trim() === '刀子');
+if (knifeRow && (Array.isArray(knifeRow.variants) ? knifeRow.variants : []).some(v => {
+  const reading = String(v && v.reading || '').trim();
+  return reading && !v.sourceWarning && !/[（(]\s*法\s*[)）]/.test(reading) &&
+    (v.origin !== 'pronunciation-variant' || ['confirmed','common'].includes(v.variantStatus));
+})) {
+  const knife = api.translate('刀子');
+  assert(knife && Array.isArray(knife.segments) &&
+    knife.segments.some(segment => segment && segment.type === 'local' && String(segment.reading || '').trim()),
+    '刀子 has an approved local Swahili reading and must translate in the main interface');
+}
+console.log('PASS: forward/reverse parity audit across ' + eligibleHeadwords.size + ' approved built-in Chinese headwords.');
 const translated = api.translate('明天');
 const match = translated && translated.segments.find(item => item.type === 'local' && item.reading);
 assert(match, 'main translator must produce a local Swahili homophone');
@@ -120,5 +160,5 @@ assert(queryResults.textContent.includes('明天') && queryResults.textContent.i
   'app-ready event must automatically restore real Swahili reverse-lookup results');
 
 win.close();
-console.log('PASS DWSS 0.9.166: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
-console.log('PASS DWSS 0.9.166: late pinyin map loading cannot permanently disable reverse lookup.');
+console.log('PASS DWSS 0.9.167: production script order (extension before async app.js) restores the Swahili result box and pronunciation lookup on app-ready.');
+console.log('PASS DWSS 0.9.167: late pinyin map loading cannot permanently disable reverse lookup.');
