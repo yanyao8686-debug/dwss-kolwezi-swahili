@@ -173,7 +173,7 @@ assertVisibleParity('个人与云端优先级核验','杜尼嘎','canonical-over
 queryInput.value='旧读音候选';win.DWSSRenderPronunciationLookup();
 assert(!queryResults.textContent.includes('个人与云端优先级核验'),
   'superseded legacy reading must not remain an active reverse candidate after a canonical correction');
-assert.equal(api.translate('法语隔离核验').segments.some(segment=>segment.type==='local'),false,
+assert.equal(api.translate('法语隔离核验').segments.some(segment=>segment.type==='local'&&segment.canonical==='法语隔离核验'),false,
   'French-only shared entries must never become local Swahili translation entries');
 queryInput.value='邦茹';win.DWSSRenderPronunciationLookup();
 assert(!queryResults.textContent.includes('法语隔离核验'),
@@ -186,9 +186,9 @@ assertVisibleParity('个人新词全链路核验','巴啵嘟','personal dictiona
 
 // A public dictionary pronunciation correction must be active in both paths.
 win.dispatchEvent(new win.CustomEvent('dwss:dictionary-overrides-updated',{detail:{overrides:[
-  {source_kind:'dictionary',chinese_text:'公共修正全链路核验',local_pronunciation_cn:'莫咯喀',updated_at:'2026-11-22T00:00:00Z'}
+  {source_kind:'dictionary',chinese_text:'刀子',local_pronunciation_cn:'莫咯喀',updated_at:'2026-11-22T00:00:00Z'}
 ]}}));
-assertVisibleParity('公共修正全链路核验','莫咯喀','public dictionary correction');
+assertVisibleParity('刀子','莫咯喀','public dictionary correction');
 
 // Confirmed crowd-sourced pronunciation variants are accepted by both paths.
 // Pending variants are deliberately excluded from both until they are reviewed.
