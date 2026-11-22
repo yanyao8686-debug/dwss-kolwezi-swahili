@@ -218,6 +218,8 @@ assert(swQueryButton.classList.contains('active') && !frenchQueryButton.classLis
   'app-ready reconciliation must restore the Swahili pronunciation-query mode');
 assert(!output.hidden && output.value.includes(match.reading),
   'app-ready event must automatically render the existing Chinese draft into the Swahili result box');
+queryInput.value='给晓';
+win.DWSSRenderPronunciationLookup();
 assert(queryResults.textContent.includes('明天') && queryResults.textContent.includes('该小'),
   'app-ready event must automatically restore real Swahili reverse-lookup results');
 
