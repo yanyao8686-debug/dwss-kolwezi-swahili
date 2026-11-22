@@ -108,13 +108,13 @@ assert(app.includes('variants:preferredLocalVariants(item).map(v=>({') &&
        !app.includes('engine.includeTranslationOverrides(all.map'),
   'reverse lookup candidate assembly must share the forward translator reading filter');
 
-// Audit every unique plain-Chinese built-in headword that has at least one
-// locally approved homophone. Those words must be found by the main translator,
-// not merely by the phonetic reverse-lookup index.
+// Audit every built-in headword (single words, phrases, punctuation and numeric forms)
+// that has an active local homophone. Explicit variable-template/explanatory labels
+// are excluded because they are not literal translation inputs.
 const eligibleHeadwords = new Set();
 for (const item of rows) {
   const zh = String(item && item.zh || '').trim();
-  if (!zh || !/^\p{Script=Han}+$/u.test(zh)) continue;
+  if (!zh || /(?:\\.{2,}|…|⋯|方位名词)/u.test(zh)) continue;
   const candidates = (Array.isArray(item.variants) ? item.variants : []).filter(v => {
     const reading = String(v && v.reading || '').trim();
     if (!reading || v.sourceWarning || /[（(]\s*法\s*[)）]/.test(reading)) return false;
@@ -144,6 +144,65 @@ if (knifeRow && (Array.isArray(knifeRow.variants) ? knifeRow.variants : []).some
     '刀子 has an approved local Swahili reading and must translate in the main interface');
 }
 console.log('PASS: forward/reverse parity audit across ' + eligibleHeadwords.size + ' approved built-in Chinese headwords.');
+
+// Exercise every live input source through the same production resolver used by
+// both the forward tokenizer and reverse pronunciation search.
+const assertVisibleParity = (zh, reading, label) => {
+  const translated = api.translate(zh);
+  assert(translated && translated.segments.some(segment =>
+    segment && segment.type === 'local' && String(segment.reading || '').trim() === reading),
+    label + ': forward translation did not return its active local pronunciation');
+  queryInput.value = reading;
+  win.DWSSRenderPronunciationLookup();
+  assert(queryResults.textContent.includes(zh),
+    label + ': reverse pronunciation lookup did not return the same Chinese headword');
+};
+const sharedFixture = [
+  {source_language:'sw',chinese_text:'云端首选全链路核验',local_text:'dwss-canonical-test',local_pronunciation_cn:'唉姆嘎',__canonical:true},
+  {source_language:'sw',chinese_text:'旧共享全链路核验',local_text:'dwss-legacy-test',local_pronunciation_cn:'喂喂姆'},
+  {source_language:'sw',chinese_text:'个人与云端优先级核验',local_text:'dwss-priority-new',local_pronunciation_cn:'杜尼嘎',__canonical:true},
+  {source_language:'sw',chinese_text:'个人与云端优先级核验',local_text:'dwss-priority-old',local_pronunciation_cn:'旧读音候选'},
+  {source_language:'fr',chinese_text:'法语隔离核验',french_text:'bonjour',french_pronunciation_cn:'邦茹'}
+];
+win.dispatchEvent(new win.CustomEvent('dwss:shared-terms-updated',{detail:{terms:sharedFixture}}));
+assertVisibleParity('云端首选全链路核验','唉姆嘎','canonical cloud term');
+assertVisibleParity('旧共享全链路核验','喂喂姆','legacy shared term');
+assertVisibleParity('个人与云端优先级核验','杜尼嘎','canonical-over-legacy priority');
+const oldPrioritySearch=engine.search('旧读音候选',[],{limit:10});
+assert.equal(oldPrioritySearch.length,0,'empty input source must not create a reverse candidate');
+assert.equal(api.translate('法语隔离核验').segments.some(segment=>segment.type==='local'),false,
+  'French-only shared entries must never become local Swahili translation entries');
+queryInput.value='邦茹';win.DWSSRenderPronunciationLookup();
+assert(!queryResults.textContent.includes('法语隔离核验'),
+  'French-only shared entries must never leak into local Swahili reverse pronunciation lookup');
+
+// A personal entry added after startup must immediately join both lookup paths.
+const personalOutcome=api.addCustom({zh:'个人新词全链路核验',reading:'巴啵嘟',latin:'dwss-personal-test',category:'其他'});
+assert(personalOutcome&&personalOutcome.ok,'personal test term must be accepted');
+assertVisibleParity('个人新词全链路核验','巴啵嘟','personal dictionary term');
+
+// A public dictionary pronunciation correction must be active in both paths.
+win.dispatchEvent(new win.CustomEvent('dwss:dictionary-overrides-updated',{detail:{overrides:[
+  {source_kind:'dictionary',chinese_text:'公共修正全链路核验',local_pronunciation_cn:'莫咯喀',updated_at:'2026-11-22T00:00:00Z'}
+]}}));
+assertVisibleParity('公共修正全链路核验','莫咯喀','public dictionary correction');
+
+// Confirmed crowd-sourced pronunciation variants are accepted by both paths.
+// Pending variants are deliberately excluded from both until they are reviewed.
+win.dispatchEvent(new win.CustomEvent('dwss:pronunciation-variants-updated',{detail:{variants:[
+  {chinese_text:'已确认变体全链路核验',pronunciation_cn:'巴卡哇',status:'confirmed',dialect:'加丹加斯瓦希里语（科卢韦齐）'},
+  {chinese_text:'待确认变体全链路核验',pronunciation_cn:'撒尼哇',status:'pending',dialect:'加丹加斯瓦希里语（科卢韦齐）'}
+]}}));
+assertVisibleParity('已确认变体全链路核验','巴卡哇','confirmed pronunciation variant');
+const pendingForward=api.translate('待确认变体全链路核验');
+assert(!pendingForward.segments.some(segment=>segment.type==='local'),
+  'pending pronunciation variant must not be treated as a verified forward translation');
+queryInput.value='撒尼哇';win.DWSSRenderPronunciationLookup();
+assert(!queryResults.textContent.includes('待确认变体全链路核验'),
+  'pending pronunciation variant must not be treated as a verified reverse-lookup result');
+
+console.log('PASS: canonical cloud, legacy shared, personal, public-correction and confirmed-variant sources all have forward/reverse parity.');
+console.log('PASS: stale, French-only and pending pronunciations cannot create false Swahili reverse results.');
 const translated = api.translate('明天');
 const match = translated && translated.segments.find(item => item.type === 'local' && item.reading);
 assert(match, 'main translator must produce a local Swahili homophone');
