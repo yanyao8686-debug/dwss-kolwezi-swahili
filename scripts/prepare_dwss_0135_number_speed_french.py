@@ -22,8 +22,8 @@ from pypinyin import Style, lazy_pinyin
 
 BASE_URL = "https://yanyao8686-debug.github.io/dwss-kolwezi-swahili/"
 BASE_PATH = "/dwss-kolwezi-swahili/"
-OLD_VERSION = "0.9.165"
-NEW_VERSION = "0.9.166"
+OLD_VERSION = "0.9.166"
+NEW_VERSION = "0.9.167"
 ROOT = Path("public")
 
 REQUIRED = [
