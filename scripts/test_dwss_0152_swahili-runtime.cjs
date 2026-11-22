@@ -104,6 +104,8 @@ assert.equal(typeof win.DWSSRenderTranslation, 'undefined',
 win.eval(app); // app.js dispatches dwss:app-ready after exporting the real renderers
 const api = win.KolweziSwahili;
 assert(api && typeof api.translate === 'function', 'local Swahili translation API must initialize');
+const engine = win.DWSSPronunciationSearch;
+assert(engine && typeof engine.search === 'function', 'shared pronunciation search engine must initialize');
 assert(app.includes('variants:preferredLocalVariants(item).map(v=>({') &&
        !app.includes('engine.includeTranslationOverrides(all.map'),
   'reverse lookup candidate assembly must share the forward translator reading filter');
@@ -168,8 +170,9 @@ win.dispatchEvent(new win.CustomEvent('dwss:shared-terms-updated',{detail:{terms
 assertVisibleParity('云端首选全链路核验','唉姆嘎','canonical cloud term');
 assertVisibleParity('旧共享全链路核验','喂喂姆','legacy shared term');
 assertVisibleParity('个人与云端优先级核验','杜尼嘎','canonical-over-legacy priority');
-const oldPrioritySearch=engine.search('旧读音候选',[],{limit:10});
-assert.equal(oldPrioritySearch.length,0,'empty input source must not create a reverse candidate');
+queryInput.value='旧读音候选';win.DWSSRenderPronunciationLookup();
+assert(!queryResults.textContent.includes('个人与云端优先级核验'),
+  'superseded legacy reading must not remain an active reverse candidate after a canonical correction');
 assert.equal(api.translate('法语隔离核验').segments.some(segment=>segment.type==='local'),false,
   'French-only shared entries must never become local Swahili translation entries');
 queryInput.value='邦茹';win.DWSSRenderPronunciationLookup();
